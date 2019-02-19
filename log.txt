@@ -1,0 +1,17 @@
+========== 06 Feb ==========
+
+Implemented proof of concept in sandbox/proof-of-concept:
+	- Command-line interface
+	- Takes in acquisition time and contract definition
+	- Parses contract and generates contract object (made up of combinator objects)
+	- Abstract combinator object, extended by concrete combinator implementations
+		- horizon, combinator type, and acquire method
+	- Sub-combinators override getHorizon when needed (e.g. truncate)
+	- Works pretty well until you get to a combinator which requires input, e.g. or 		and anytime
+	- Evaluation is pretty simple in this form
+
+
+
+========== 19 Feb ==========
+
+Started Rust investigation
