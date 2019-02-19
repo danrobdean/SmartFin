@@ -1,6 +1,6 @@
 ========== 06 Feb ==========
 
-Implemented proof of concept in sandbox/proof-of-concept:
+Implemented proof of concept in the java-PoC submodule (sandbox/java-PoC):
 	- Command-line interface
 	- Takes in acquisition time and contract definition
 	- Parses contract and generates contract object (made up of combinator objects)
@@ -14,4 +14,15 @@ Implemented proof of concept in sandbox/proof-of-concept:
 
 ========== 19 Feb ==========
 
-Started Rust investigation
+Started Rust investigation:
+	- Went through docs
+	- Completed multiple rust tutorials
+	- Implemented rust proof-of-concept:
+		- Similar to Java
+		- Has zero, one, and, truncate combinators
+		- Uses traits/structs instead of objects/inheritance
+		- Works pretty similarly to java PoC
+	- Rust testing done in the rust-test submodule (sandbox/rust-test)
+
+Separated git repo into submodules under one group (so that only one submodule must be downloaded at a time)
+
