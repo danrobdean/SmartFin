@@ -7,7 +7,7 @@ Implemented proof of concept in the java-PoC submodule (sandbox/java-PoC):
 	- Abstract combinator object, extended by concrete combinator implementations
 		- horizon, combinator type, and acquire method
 	- Sub-combinators override getHorizon when needed (e.g. truncate)
-	- Works pretty well until you get to a combinator which requires input, e.g. or 		and anytime
+	- Works pretty well until you get to a combinator which requires input, e.g. or and anytime
 	- Evaluation is pretty simple in this form
 
 
@@ -25,4 +25,16 @@ Started Rust investigation:
 	- Rust testing done in the rust-test submodule (sandbox/rust-test)
 
 Separated git repo into submodules under one group (so that only one submodule must be downloaded at a time)
+
+
+
+========== 20 Feb ==========
+
+Started rust -> ewasm investigation:
+	- Parity basically does this
+	- Followed tutorial at https://github.com/paritytech/pwasm-tutorial
+	- Requires specific cargo.lock for version compatibility, and doesn't build on the stable rust toolchain (I think it can but manually throws an error if you try)
+	- Created rust test contract (returns owner on function call)
+	- Added scripts for building (npm install web3, run parity node, then add account with curl, then run node client with deploy-contract.js)
+	- Almost works, up to actually deploying the contract (transaction runs out of gas always)
 
