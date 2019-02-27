@@ -38,3 +38,17 @@ Started rust -> ewasm investigation:
 	- Added scripts for building (npm install web3, run parity node, then add account with curl, then run node client with deploy-contract.js)
 	- Almost works, up to actually deploying the contract (transaction runs out of gas always)
 
+
+
+========== 27 Feb ==========
+
+Finally got a basic contract deployed:
+	- Cargo toml and lock probably not correct, so fixed, also added .cargo/config, and now using yarn (instead of nothing)
+	- Geth compatibility mode was required to unlock account in code in the node console, so instead unlock the account via the command to start parity (this requires creating the blockchain, creating the account, and then running the blockchain with the account unlocked - fiddly)
+	- Contract transaction creation was convoluted, so simplified slightly
+	- BIGGEST FIX: cargo.toml was naming the file "smart-contract-test", but in order for the wasm file to work it MUST be called "smart_contract_test" with underscores. I don't know why and idk how you're supposed to know this, but you can't preview the wasm file as wat if it's broken like this, and you can't deploy to the blockchain bc it always has "not enough gas" (not a helpful error)
+
+Set up a private blockchain with geth, but haven't tested deploying the wasm contract as ran into the same issue as above
+
+Minor adjustments to the smart contract, not 100% sure it even works because its late and I just got it to deploy
+
