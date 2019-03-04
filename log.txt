@@ -52,3 +52,23 @@ Set up a private blockchain with geth, but haven't tested deploying the wasm con
 
 Minor adjustments to the smart contract, not 100% sure it even works because its late and I just got it to deploy
 
+
+
+========== 04 Mar ==========
+
+Contract deployment fails on first attempt (per-chain) due to incorrect gas estimation. After the first failure, the chain always estimates correctly (approx). Weird.
+
+Improved scripts:
+	- Chain-cleaning, account-initialising, and node-running now all combined into run-node.sh
+	- clean-node.sh kept for standalone usage
+	- Node can be run with ./run-node.sh, and this will start the parity node and then initialise the "user" account. Passing --clean will clean the blockchain.
+
+Geth compatibility mode is used again, so the account must be unlocked from the node client before deploying a contract (this was necessary to allow multiple accounts to be accessed, which will eventually be a requirement).
+
+Fixed issue with giving a non-integer to web3.utils.toHex for the gas value, which was breaking contract deployment when the gas multiplier wasn't an integer.
+
+Added unit test to test smart contract, and test-running script (it works really well).	
+
+
+
+

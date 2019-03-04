@@ -1,0 +1,10 @@
+{
+  "name": "financial-smart-contract",
+  "version": "1.0.0",
+  "author": "Daniel Dean",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "web3": "^1.0.0-beta.33"
+  }
+}
