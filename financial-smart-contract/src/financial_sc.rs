@@ -8,6 +8,9 @@ extern crate pwasm_abi_derive;
 use self::pwasm_std::types::Address;
 use self::pwasm_abi_derive::eth_abi;
 
+use combinators::contract_combinator::ContractCombinator;
+use combinators::zero_combinator::ZeroCombinator;
+
 // The financial smart contract interface
 #[eth_abi(FinancialScEndpoint)]
 pub trait FinancialScInterface {
@@ -21,7 +24,8 @@ pub trait FinancialScInterface {
 
 // The financial smart contract
 pub struct FinancialScContract {
-    counter_party: Address
+    counter_party: Address,
+    combinator: ContractCombinator
 }
 
 // The financial smart contract interface implementation
@@ -43,7 +47,8 @@ impl FinancialScContract {
     // Instantiates a new financial smart contract
     pub fn new() -> FinancialScContract {
         FinancialScContract{
-            counter_party: Address::zero()
+            counter_party: Address::zero(),
+            combinator: ZeroCombinator::new()
         }
     }
 }

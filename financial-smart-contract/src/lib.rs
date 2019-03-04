@@ -8,6 +8,7 @@ extern crate pwasm_abi;
 use pwasm_abi::eth::EndpointInterface;
 
 mod financial_sc;
+mod combinators;
 
 // Executed when the contract is called
 #[no_mangle]
