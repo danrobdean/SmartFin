@@ -67,7 +67,13 @@ Geth compatibility mode is used again, so the account must be unlocked from the 
 
 Fixed issue with giving a non-integer to web3.utils.toHex for the gas value, which was breaking contract deployment when the gas multiplier wasn't an integer.
 
-Added unit test to test smart contract, and test-running script (it works really well).	
+Added unit test to test smart contract, and test-running script (it works really well).
+
+Main rust contract:
+	- Set up directory with required files
+	- Made basic smart contract and dir structure
+	- Unit test for basic smart contract
+	- Implemented some combinator objects, IMPORTANT: can't have a state variable with unknown size at compile time on the smart contract, so need another way to handle contracts (maybe serialization)
 
 
 
