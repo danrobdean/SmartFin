@@ -88,6 +88,9 @@ Had a look at the serialization problem, and had a few possible revelations:
 		- Directly into the code (i.e. treating it as a template as discussed in the report) - doing this is a bit messy, but its by far the easiest to program for many reasons
 
 		- Through the constructor (as an argument javascript) - this is kind of nicer from a user PoV (probably requiring less stuff to be run), and better style i guess, but is a lot harder to achieve as it requires de/reserializing whatever is received in the constructor into actual combinator objects, potentially requiring actual deserialization of numbers to strings, and then from strings to combinators
+		- Cannot directly recieve strings over ABI in pwasm (despite the actual ABI docs claiming you can), so would have to serialize string in js, send in constructor, then deserialize string in rs.
+
+Looking at js/eth abi/pwasm, it may not be so terrible to go from js -> rust with the contract definition. If it's typed into the js, it can be converted to a utf-16 array of bytes relatively painlessly, passed into the contract constructor relatively painlessly, and then reconstructed into a pwasm_std::String relatively painlessly. The problem is that this process deals with the finnicky/tempermental part of the toolchain and I'm not confident that "relatively painless" will not end up being super difficult. It's worth a try I guess, either way the rust program will have to convert string to combinator so it's not a waste (plus that logic exists in the java PoC anyway).
 
 
 
