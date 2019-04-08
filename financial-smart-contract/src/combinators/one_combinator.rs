@@ -13,7 +13,7 @@ impl OneCombinator {
 
 // Contract combinator implementation of the one combinator
 impl ContractCombinator for OneCombinator {
-    fn acquire(&self, _time: i32) -> i32 {
+    fn acquire(&self, _time: u64) -> u64 {
         1
     }
 }

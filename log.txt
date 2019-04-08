@@ -77,4 +77,17 @@ Main rust contract:
 
 
 
+========== 08 Apr ==========
+
+First day working after exams
+
+Had a look at the serialization problem, and had a few possible revelations:
+	- It's likely that you actually CAN fiddle with memory/heap stuff without just using read/write (using stuff like Box instead), as the other pwasm example contract (https://github.com/paritytech/pwasm-repo-contract/blob/master/contract/src/lib.rs) does it with a Vec (I think the pwaswm::std stuff implements it nicely or else they wouldn't have much purpose, i have no idea why the default example is so convoluted)
+
+	- None of the rust code is actually running anywhere, it's compiled straight to wasm and then deployed. This means that any inputs need to be either:
+		- Directly into the code (i.e. treating it as a template as discussed in the report) - doing this is a bit messy, but its by far the easiest to program for many reasons
+
+		- Through the constructor (as an argument javascript) - this is kind of nicer from a user PoV (probably requiring less stuff to be run), and better style i guess, but is a lot harder to achieve as it requires de/reserializing whatever is received in the constructor into actual combinator objects, potentially requiring actual deserialization of numbers to strings, and then from strings to combinators
+
+
 

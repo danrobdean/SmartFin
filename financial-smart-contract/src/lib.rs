@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![feature(proc_macro_hygiene)]
 
+// Prevent complaining about unused structs, some combinators may be unused validly
+#![allow(dead_code)]
+
 extern crate pwasm_ethereum;
 extern crate pwasm_abi;
 
