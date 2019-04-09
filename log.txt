@@ -94,3 +94,20 @@ Looking at js/eth abi/pwasm, it may not be so terrible to go from js -> rust wit
 
 
 
+========== 09 Apr ==========
+
+After some thought, it seems better imo to provide the combinator contract through the constructor. This will need to be in the form of a bytes array. Need to decide whether or not we should just send the string representing the contract serialized, or some more abstract representation (e.g. 0 = zero, 1 = one, 2 = and, 3 = or, etc..).
+
+Sending the string serialized is less work on the javascript side, and should be easy to handle sending/receiving the data across the gap. Unfortunately, it requires doing string processing in the smart contract constructor. Not only does this cost gas, but it may be difficult due to lacking the std lib (should only really need a split function though). Also, we still need to do string processing on the js side for verification.
+
+Sending a simpler representation of the contract in a bytes array requires manual serialization on the JS side, manual deserialization on the rs side, and coordinating these two sides to use the same serialization method (will have to code (de)serialization once per side). This is more work from a dev standpoint, but moves all string processing to the JS side, and reduces the gas cost and complexity of the smart contract. It does require sending a poorly-defined data type through the constructor which could be considered bad design, however.
+
+Decided to use the serialize in JS to bytes, then deserialise in rs.
+
+- Written code to deserialize vector of bytes in rust
+- Smart contract populates itself with combinators (all boxed so should stay in memory)
+- Constructor now accepts vector of bytes, hopefully should be able to send a byte array from JS and it should curry automatically
+- Added tests for various deserialized combinators
+
+
+
