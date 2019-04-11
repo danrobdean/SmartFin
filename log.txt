@@ -111,3 +111,11 @@ Decided to use the serialize in JS to bytes, then deserialise in rs.
 
 
 
+========== 11 Apr ==========
+
+Have tested passing a Uint8Array into the constructor in JS when deploying on the parity chain, seems to work perfectly!! Also throws exceptions when the constructor panics (due to empty array or invalid combinator sequence), which is good (panic works as expected). This is really good news as I expected it to be a massive pain.
+
+Added combinator contract parsing to JS, through user input (using node's readline module). A contract can be passed in, and is parsed and serialized, then a contract is deployed with the serialized combinator contract passed to the constructor, then the smart contract deserializes the combinator contract into combinator objects (in rust). Works nicely!
+
+
+

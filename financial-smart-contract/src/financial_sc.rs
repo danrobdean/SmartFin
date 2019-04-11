@@ -7,7 +7,7 @@ extern crate pwasm_abi_derive;
 
 use self::pwasm_std::types::{Address, U256};
 use self::pwasm_abi_derive::eth_abi;
-use self::pwasm_std::{Box, Vec, vec};
+use self::pwasm_std::{Box, Vec};
 
 use combinators::contract_combinator::ContractCombinator;
 use combinators::zero_combinator::ZeroCombinator;
@@ -96,9 +96,11 @@ impl FinancialScContract {
 #[allow(non_snake_case)]
 mod tests {
     extern crate pwasm_test;
-    extern crate std;
+    extern crate pwasm_std;
+
     use super::*;
-    use self::pwasm_test::{ext_reset};
+    use self::pwasm_test::ext_reset;
+    use self::pwasm_std::vec;
 
     // Setup contract with default values, returns the contract
     fn setup_contract(deserialized_combinator: Vec<u8>) -> FinancialScContract {
