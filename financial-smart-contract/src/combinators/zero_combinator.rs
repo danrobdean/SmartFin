@@ -13,7 +13,7 @@ impl ZeroCombinator {
 
 // Contract combinator implementation of the zero combinator
 impl ContractCombinator for ZeroCombinator {
-    fn acquire(&self, _time: u64) -> u64 {
+    fn get_value(&self, _time: u64) -> u64 {
         0
     }
 }

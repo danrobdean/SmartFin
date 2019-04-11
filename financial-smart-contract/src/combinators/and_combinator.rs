@@ -28,7 +28,7 @@ impl ContractCombinator for AndCombinator {
         latest_horizon(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
     }
 
-    fn acquire(&self, time: u64) -> u64 {
-        self.sub_combinator0.acquire(time) + self.sub_combinator1.acquire(time)
+    fn get_value(&self, time: u64) -> u64 {
+        self.sub_combinator0.get_value(time) + self.sub_combinator1.get_value(time)
     }
 }

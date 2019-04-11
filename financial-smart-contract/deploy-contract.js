@@ -31,7 +31,7 @@ function unlockAccount() {
 }
 
 // Loads and deploys the contract (from a fixed contract for this test), returns the contract object
-function loadAndDeployContract(contractBytes) {
+function loadAndDeployContract(contractBytes, contractHolder) {
     var abi = getAbi();
 
     // Format the contract correctly
@@ -41,7 +41,7 @@ function loadAndDeployContract(contractBytes) {
     var TestContract = new web3.eth.Contract(abi);
     
     // Construct a deployment transaction
-    var TestDeployTransaction = TestContract.deploy({ data: codeHex, from: web3.eth.defaultAccount, arguments: [contractBytes] });
+    var TestDeployTransaction = TestContract.deploy({ data: codeHex, from: web3.eth.defaultAccount, arguments: [contractBytes, web3.utils.toChecksumAddress(contractHolder)] });
     
     // Attempt to estimate the cost of the deployment transaction
     TestDeployTransaction.estimateGas({}, (err, gas) => {
@@ -117,15 +117,25 @@ r1.question("Please input a combinator contract, or press ENTER to exit: ", (ans
         return;
     }
 
-    // Set default account for transactions (this is pre-defined on our testing blockchain) and unlock
-    web3.eth.defaultAccount = "0x004ec07d2329997267ec62b4166639513386f32e";
-    unlockAccount();
+    r1.question("Please input the address of the holder, or press ENTER to exit: ", (answer) => {
+        var holder = answer.trim();
 
-    // Serialize contract
-    var serializedCombinatorContract = serializeCombinatorContract(combinatorContract);
+        // Close if no holder entered
+        if (holder == "") {
+            r1.close();
+            return;
+        }
 
-    // Deploy contract
-    loadAndDeployContract(serializedCombinatorContract);
-
-    r1.close();
+        // Set default account for transactions (this is pre-defined on our testing blockchain) and unlock
+        web3.eth.defaultAccount = "0x004ec07d2329997267ec62b4166639513386f32e";
+        unlockAccount();
+    
+        // Serialize contract
+        var serializedCombinatorContract = serializeCombinatorContract(combinatorContract);
+    
+        // Deploy contract
+        loadAndDeployContract(serializedCombinatorContract, holder);
+    
+        r1.close();
+    })
 });

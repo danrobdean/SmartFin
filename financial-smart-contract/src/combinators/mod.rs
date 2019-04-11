@@ -1,4 +1,11 @@
-pub mod contract_combinator;
-pub mod zero_combinator;
-pub mod one_combinator;
-pub mod and_combinator;
+mod contract_combinator;
+mod null_combinator;
+mod zero_combinator;
+mod one_combinator;
+mod and_combinator;
+
+pub use self::contract_combinator::ContractCombinator;
+pub use self::null_combinator::NullCombinator;
+pub use self::zero_combinator::ZeroCombinator;
+pub use self::one_combinator::OneCombinator;
+pub use self::and_combinator::AndCombinator;
