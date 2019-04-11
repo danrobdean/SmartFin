@@ -125,5 +125,12 @@ Major features which still need implementing:
 	- Stake and withdrawal
 	- Signing and setting potential holder
 
+- Have implemented holder
+- Implemented staking by holder and counter-party
+- Improved module layout so all combinators are imported through one import (don't need to import new combinators in financial_sc.rs, only combinators/mod.rs)
+- deploy_contract.js modified to also take holder address
+- Added null combinator, instead of using Option<Box<ContractCombinator>> (so that the contract is initialised with NullCombinator, instead of None, before calling the constructor):
+	Null combinator always throws errors, as it isn't meant to be used post-initialisation. It is used to replace None as they basically function the same, and although None is a bit nicer as a rust builtin, having to unwrap Some(Box(Combinator)) every time we do anything is pretty obnoxious, and the function hasn't really changed. This does add a "new" combinator, which is a bit dodgy design-wise so need to mention that somewhere! Of course, it's not actually a part of the combinator language, as it can't be used when writing contracts in the DSL.
+
 
 

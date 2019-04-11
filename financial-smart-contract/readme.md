@@ -17,6 +17,6 @@ Once the blockchain is running, the contract can be deployed from a node console
 
 First, execute `yarn install` to install web3 dependencies.
 
-Next, run `./deploy.sh`, which opens a node console. In this console, you can input a combinator contract. A smart contract will be created and the combinator contract will be passed to the smart contract, defining its behaviour.
+Next, run `./deploy.sh`, which opens a node console. In this console, you can input a combinator contract, and then a holder address (can be any valid Ethereum address except the address sending the contract transaction). A smart contract will be created and the combinator contract will be passed to it, defining its behaviour.
 
 NB: Contract deployment fails on the first attempt per new blockchain, for unknown reasons. Trying a second time will be successful.
