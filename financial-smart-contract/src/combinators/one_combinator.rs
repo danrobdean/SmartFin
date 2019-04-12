@@ -1,4 +1,4 @@
-use super::contract_combinator::ContractCombinator;
+use super::contract_combinator::{ ContractCombinator, Vec };
 
 // The one combinator
 pub struct OneCombinator {}
@@ -13,7 +13,7 @@ impl OneCombinator {
 
 // Contract combinator implementation of the one combinator
 impl ContractCombinator for OneCombinator {
-    fn get_value(&self, _time: u64) -> u64 {
+    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>) -> u64 {
         1
     }
 }

@@ -1,4 +1,4 @@
-use super::contract_combinator::ContractCombinator;
+use super::contract_combinator::{ ContractCombinator, Vec };
 
 // The null combinator - for use when the contract has no combinators (e.g. pre-initialisation)
 pub struct NullCombinator {}
@@ -13,7 +13,7 @@ impl NullCombinator {
 
 // Contract combinator implementation of the null combinator
 impl ContractCombinator for NullCombinator {
-    fn get_value(&self, _time: u64) -> u64 {
+    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>) -> u64 {
         panic!("Attempted to get value of a null combinator.")
     }
 }

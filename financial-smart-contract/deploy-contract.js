@@ -16,7 +16,8 @@ const r1 = readline.createInterface({
 const combinatorDict = {
     "zero": 0,
     "one": 1,
-    "and": 2
+    "and": 2,
+    "or": 3
 };
 
 

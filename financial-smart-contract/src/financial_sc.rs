@@ -37,6 +37,9 @@ pub trait FinancialScInterface {
     #[constant]
     fn get_stake(&mut self) -> U256;
 
+    // Sets the preference of the given or combinator's sub-combinators
+    fn set_or_choice(&mut self, or_index: U256, choice: bool);
+
     // Stakes Eth with the contract (can be called by the holder or counter-party), returns the caller's total stake
     #[payable]
     fn stake(&mut self) -> U256;
@@ -44,12 +47,26 @@ pub trait FinancialScInterface {
 
 // The financial smart contract
 pub struct FinancialScContract {
+    // The contract holder
     holder: Address,
+
+    // The contract's counter-party (the author)
     counter_party: Address,
+
+    // The serialized combinator contract
     serialized_combinators: Vec<u8>,
+
+    // The combinator contract
     combinator: Box<ContractCombinator>,
+
+    // The counter-party's current stake
     counter_party_stake: U256,
-    holder_stake: U256
+
+    // The holder's current stake
+    holder_stake: U256,
+
+    // The choices for each or combinator
+    or_choices: Vec<Option<bool>>
 }
 
 // The financial smart contract interface implementation
@@ -83,7 +100,7 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the current value of the contract
     fn get_value(&mut self) -> U256 {
-        self.combinator.get_value(pwasm_ethereum::timestamp()).into()
+        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &self.or_choices).into()
     }
 
     // Gets the total stake of the caller
@@ -97,6 +114,14 @@ impl FinancialScInterface for FinancialScContract {
         } else {
             panic!("Only the contract holder or the counter-party may have stake in the contract.")
         }
+    }
+
+    // Sets the given or combinator's preference between its sub-combinators
+    fn set_or_choice(&mut self, or_index: U256, prefer_first: bool) {
+        if or_index >= U256::from(self.or_choices.len()) {
+            panic!("Given or-index does not exist.");
+        }
+        self.or_choices[or_index.low_u64() as usize] = Some(prefer_first);
     }
 
     // Stakes Eth with the contract, returns the caller's total stake
@@ -125,30 +150,64 @@ impl FinancialScContract {
             serialized_combinators: Vec::new(),
             combinator: Box::new(NullCombinator::new()),
             counter_party_stake: 0.into(),
-            holder_stake: 0.into()
+            holder_stake: 0.into(),
+            or_choices: Vec::new()
         }
     }
 
     // Constructs the combinators from a serialized combinator contract
     fn set_combinator(&mut self) {
-        let (_i, combinator) = FinancialScContract::deserialize_combinator(0, &self.serialized_combinators);
+        let (_i, combinator) = self.deserialize_combinator(0);
         self.combinator = combinator;
     }
 
     // Deserializes a combinator from the given combinator byte vector and index, returns the following index and the boxed combinator
-    fn deserialize_combinator(i: usize, serialized_combinators: &[u8]) -> (usize, Box<ContractCombinator>) {
-        if i > serialized_combinators.len() {
+    fn deserialize_combinator(&mut self, i: usize) -> (usize, Box<ContractCombinator>) {
+        if i > self.serialized_combinators.len() {
             panic!("Provided combinator contract not valid.");
         }
 
-        match serialized_combinators[i] {
+        match self.serialized_combinators[i] {
+            // zero combinator
             0 => (i + 1, Box::new(ZeroCombinator::new())),
+
+            // one combinator
             1 => (i + 1, Box::new(OneCombinator::new())),
+
+            // and combinator
             2 => {
-                let (i0, sub_combinator0) = FinancialScContract::deserialize_combinator(i + 1, serialized_combinators);
-                let (i1, sub_combinator1) = FinancialScContract::deserialize_combinator(i0, serialized_combinators);
+                // Deserialize sub-combinators
+                let (i0, sub_combinator0) = self.deserialize_combinator(i + 1);
+                let (i1, sub_combinator1) = self.deserialize_combinator(i0);
+
                 (i1, Box::new(AndCombinator::new(sub_combinator0, sub_combinator1)))
             },
+
+            // or combinator
+            3 => {
+                // Keep track of or_index and or_choices
+                let or_index: usize = self.or_choices.len();
+                self.or_choices.push(None);
+
+                // Deserialize sub-combinators
+                let (i0, sub_combinator0) = self.deserialize_combinator(i + 1);
+                let (i1, sub_combinator1) = self.deserialize_combinator(i0);
+
+                (i1, Box::new(OrCombinator::new(sub_combinator0, sub_combinator1, or_index)))
+            },
+
+            // truncate combinator
+            4 => {
+                // Deserialize timestamp from 4 bytes to 32-bit int
+                let mut timestamp: u32 = FinancialScContract::deserialize_32_bit_int(&self.serialized_combinators, i + 1);
+
+                // Deserialize sub-combinator
+                let (i0, sub_combinator) = self.deserialize_combinator(i + 5);
+
+                (i0, Box::new(TruncateCombinator::new(sub_combinator, timestamp)))
+            },
+
+            // Unrecognised combinator
             _ => panic!("Unrecognised combinator provided.")
         }
     }
@@ -160,6 +219,19 @@ impl FinancialScContract {
             panic!("Integer overflow.")
         }
         z
+    }
+
+    // Deserialize a 32-bit integer
+    fn deserialize_32_bit_int(serialized_data: &Vec<u8>, start_i: usize) -> u32 {
+        let mut int: u32 = 0;
+        let mut byte = 0;
+
+        while byte < 4 {
+            int = (int * 256) + (serialized_data[start_i + byte] as u32);
+            byte += 1;
+        }
+
+        int
     }
 }
 
@@ -209,6 +281,19 @@ mod tests {
         contract.constructor(deserialized_combinator, holder);
 
         TestContractDetails::new(holder, sender, timestamp.into(), contract)
+    }
+
+    // Converts a timestamp to a 4-bit array
+    fn serialize_timestamp(mut timestamp: u32) -> [u8; 4] {
+        let mut serialized_timestamp: [u8; 4] = [0; 4];
+        let mut index = 0;
+        while index < 4 {
+            serialized_timestamp[index] = (timestamp % 256) as u8;
+            timestamp /= 256;
+            index += 1;
+        }
+
+        serialized_timestamp
     }
 
     // The counter-party of the contract is set to the deployer
@@ -270,6 +355,87 @@ mod tests {
         // Check that the value is correct
         let value: u64 = contract.get_value().low_u64();
         assert_eq!(value, 2);
+    }
+
+    // The value of the or combinator is correct given a left or choice
+    #[test]
+    fn correct_value_or_left() {
+        let mut contract = setup_contract(vec![3, 0, 1]).contract;
+        
+        // Set the or choice and check the value
+        contract.set_or_choice(U256::from(0), true);
+        assert_eq!(contract.get_value(), U256::from(0));
+    }
+
+    // The value of the or combinator is correct given a right or choice
+    #[test]
+    fn correct_value_or_right() {
+        let mut contract = setup_contract(vec![3, 0, 1]).contract;
+        
+        // Set the or choice and check the value
+        contract.set_or_choice(U256::from(0), false);
+        assert_eq!(contract.get_value(), U256::from(1));
+    }
+
+    // The value of an expired truncated contract is 0
+    #[test]
+    fn expired_truncate_worth_0() {
+        // Create contract truncate 0 one
+        let timestamp = serialize_timestamp(0);
+        let mut contract = setup_contract(vec![4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1]);
+
+        // Check that contract value is 0 at timestamp 1
+        ext_reset(|e| e.timestamp(1));
+        assert_eq!(contract.contract.get_value(), U256::from(0));
+    }
+
+    // The value of a non-expired truncated contract is correct
+    #[test]
+    fn non_expired_truncate_value_correct() {
+        // Create contract truncate 1 one
+        let timestamp = serialize_timestamp(1);
+        let mut contract = setup_contract(vec![4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1]);
+
+        // Check that contract value is 1 at timestamp 0
+        ext_reset(|e| e.timestamp(0));
+        assert_eq!(contract.contract.get_value(), U256::from(1));
+    }
+
+    // The value of and with one expired sub-contract is correct
+    #[test]
+    fn expired_and_correct() {
+        // Create contract and truncate 0 one one
+        let timestamp = serialize_timestamp(0);
+        let mut contract = setup_contract(vec![2, 4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1, 1]);
+
+        // Check that contract value is 1 at timestamp 1
+        ext_reset(|e| e.timestamp(1));
+        assert_eq!(contract.contract.get_value(), U256::from(1));
+    }
+
+    // The value of or with one expired sub-contract is correct
+    #[test]
+    fn expired_or_correct() {
+        // Create contract or truncate 0 one zero
+        let timestamp = serialize_timestamp(0);
+        let mut contract = setup_contract(vec![3, 4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1, 0]);
+
+        // Check that contract value is 0 at timestamp 1 with no or-choice
+        ext_reset(|e| e.timestamp(1));
+        assert_eq!(contract.contract.get_value(), U256::from(0));
+    }
+
+    // The value of or with one expired sub-contract and a conflicting or-choice is correct
+    #[test]
+    fn expired_or_ignores_choice() {
+        // Create contract or truncate 0 one zero
+        let timestamp = serialize_timestamp(0);
+        let mut contract = setup_contract(vec![3, 4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1, 0]).contract;
+
+        // Check that contract value is 0 at timestamp 1 with left or-choice
+        contract.set_or_choice(U256::from(0), true);
+        ext_reset(|e| e.timestamp(1));
+        assert_eq!(contract.get_value(), U256::from(0));
     }
 
     // The value of the contract is based on the given serialized combinator vector
@@ -361,6 +527,22 @@ mod tests {
     #[should_panic]
     fn should_panic_if_combinator_value_unrecognised() {
         setup_contract(vec![255]);
+    }
+
+    // Evaluating a contract with an ambiguous or choice is not allowed
+    #[test]
+    #[should_panic]
+    fn should_panic_if_ambiguous_or_choice() {
+        let mut contract = setup_contract(vec![3, 1, 0]).contract;
+        contract.get_value();
+    }
+
+    // Providing an or choice for a non-existent or combinator is not allowed
+    #[test]
+    #[should_panic]
+    fn should_panic_if_non_existent_or_choice_provided() {
+        let mut contract = setup_contract(vec![0]).contract;
+        contract.set_or_choice(U256::from(0), true);
     }
 
     // Overflowing the holder's stake is not allowed

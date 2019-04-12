@@ -1,11 +1,17 @@
+// Import combinators
 mod contract_combinator;
 mod null_combinator;
 mod zero_combinator;
 mod one_combinator;
 mod and_combinator;
+mod or_combinator;
+mod truncate_combinator;
 
+// Re-export combinators
 pub use self::contract_combinator::ContractCombinator;
 pub use self::null_combinator::NullCombinator;
 pub use self::zero_combinator::ZeroCombinator;
 pub use self::one_combinator::OneCombinator;
 pub use self::and_combinator::AndCombinator;
+pub use self::or_combinator::OrCombinator;
+pub use self::truncate_combinator::TruncateCombinator;

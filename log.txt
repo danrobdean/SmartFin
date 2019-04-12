@@ -120,10 +120,11 @@ Added combinator contract parsing to JS, through user input (using node's readli
 Added a deploy.sh script which runs everything needed to deploy a contract with cli input (on the parity node).
 
 Major features which still need implementing:
-	- Date/time
+	- Date/time (truncate)
 	- Observables and "or" combinator
 	- Stake and withdrawal
 	- Signing and setting potential holder
+	- Acquisition and related combinators (anytime, get)
 
 - Have implemented holder
 - Implemented staking by holder and counter-party
@@ -131,6 +132,37 @@ Major features which still need implementing:
 - deploy_contract.js modified to also take holder address
 - Added null combinator, instead of using Option<Box<ContractCombinator>> (so that the contract is initialised with NullCombinator, instead of None, before calling the constructor):
 	Null combinator always throws errors, as it isn't meant to be used post-initialisation. It is used to replace None as they basically function the same, and although None is a bit nicer as a rust builtin, having to unwrap Some(Box(Combinator)) every time we do anything is pretty obnoxious, and the function hasn't really changed. This does add a "new" combinator, which is a bit dodgy design-wise so need to mention that somewhere! Of course, it's not actually a part of the combinator language, as it can't be used when writing contracts in the DSL.
+
+
+
+========== 12 Apr ==========
+
+Planning to implement SCALE and OR. This requires dealing with observables/input to the contract. Some thoughts:
+	- Given lack of maps (no std), will likely store these in a vector (i.e. vec for OR choices, vec for OBS values, etc)
+	- Indexing of each OR will be 0 to N for N OR combinators in a contract, same for unprovided observables
+	- Observables could be pre-defined in the contract (e.g. SCALE 5 ONE will always be worth 5), or left undefined and provided later (something like SCALE OBS ONE)
+	- A contract with undefined observables in the subset of combinators which will currently be acquired cannot be acquired, and probably cannot be evaluated
+	- A contract with undefined observables in the subset of combinators which will not be acquired can be acquired (e.g. acquire(2) of AND TRUNCATE 1 SCALE OBS ONE ONE, where the SCALE OBS ONE sub-contract won't be acquired at time 2)
+	- Can denote undefined observables by "OBS" in the combinator contract
+	- Observable values/OR choices can be provided in provide(index, value) functions (one for obs, one for ors) using the indexing scheme above
+	- Observable values must be signed by one party and provided by the other (so both are in agreement)
+	- OR choices can only be provided by the holder (always true)
+
+Implementing OR combinator:
+	- Similar to AND, but has an or_index
+	- When calling get_value, the vector of or_choices must be passed down to the combinators for niceness (don't want to call back with a reference to the contract bc its cyclical)
+	- ContractCombinator imports Vec and Box, so that extern crate is only called once (for the combinators) and can be switched out (theoretically, practically this will never happen)
+	- OR combinator is provided an index at construction (kept track of by the length of or_choices), or choice is set to None initially
+	- when get_value is called the combinator looks up its index in or_choices
+
+Implementing TRUNCATE combinator:
+	- Single sub-combinator and horizon time
+	- Requires deserializing a 4-byte unix timestamp, functions implemented to do this using maths (as transmute is not available in the limited std lib)
+	- Testing function added to serialize a u32 timestamp
+	- All timestamps/horizons changed to u32 type for consistency (as it will always be a 32-bit unix timestamp)
+
+
+NB ABOUT EXPIRED CONTRACTS: Expired contracts can be acquired (kind of), but their value is zero. This means that the wording for truncate in the report is wrong, as it says that expired contracts cannot be acquired. I think that there is nothing stopping someone from acquiring an expired contract (just as in real life, where someone can sign a contract even if the dates of payments have passed), but the contract just has a value equal to the ZERO combinator.
 
 
 
