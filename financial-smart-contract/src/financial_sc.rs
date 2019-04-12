@@ -66,7 +66,10 @@ pub struct FinancialScContract {
     holder_stake: U256,
 
     // The choices for each or combinator
-    or_choices: Vec<Option<bool>>
+    or_choices: Vec<Option<bool>>,
+
+    // The values of each observable
+    obs_values: Vec<Option<u64>>
 }
 
 // The financial smart contract interface implementation
@@ -100,7 +103,7 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the current value of the contract
     fn get_value(&mut self) -> U256 {
-        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &self.or_choices).into()
+        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &self.or_choices, &self.obs_values).into()
     }
 
     // Gets the total stake of the caller
@@ -151,7 +154,8 @@ impl FinancialScContract {
             combinator: Box::new(NullCombinator::new()),
             counter_party_stake: 0.into(),
             holder_stake: 0.into(),
-            or_choices: Vec::new()
+            or_choices: Vec::new(),
+            obs_values: Vec::new()
         }
     }
 
@@ -207,6 +211,30 @@ impl FinancialScContract {
                 (i0, Box::new(TruncateCombinator::new(sub_combinator, timestamp)))
             },
 
+            // scale combinator
+            5 => {
+                // Check if observable is provided, if so then deserialize it, otherwise record in obs_values
+                let provided: u8 = self.serialized_combinators[i + 1];
+                let mut obs_index: Option<usize>;
+                let mut scale_value: Option<u64>;
+                let mut i0 = i + 2;
+
+                if provided == 1 {
+                    obs_index = None;
+                    scale_value = Some(FinancialScContract::deserialize_64_bit_int(&self.serialized_combinators, i0));
+                    i0 += 8;
+                } else {
+                    obs_index = Some(self.obs_values.len());
+                    self.obs_values.push(None);
+                    scale_value = None;
+                }
+
+                // Deserialize sub-contract
+                let (i1, sub_combinator) = self.deserialize_combinator(i0);
+
+                (i1, Box::new(ScaleCombinator::new(sub_combinator, obs_index, scale_value)))
+            }
+
             // Unrecognised combinator
             _ => panic!("Unrecognised combinator provided.")
         }
@@ -228,6 +256,19 @@ impl FinancialScContract {
 
         while byte < 4 {
             int = (int * 256) + (serialized_data[start_i + byte] as u32);
+            byte += 1;
+        }
+
+        int
+    }
+
+    // Deserialize a 64-bit integer
+    fn deserialize_64_bit_int(serialized_data: &Vec<u8>, start_i: usize) -> u64 {
+        let mut int: u64 = 0;
+        let mut byte = 0;
+
+        while byte < 8 {
+            int = (int * 256) + serialized_data[start_i + byte] as u64;
             byte += 1;
         }
 
@@ -283,17 +324,30 @@ mod tests {
         TestContractDetails::new(holder, sender, timestamp.into(), contract)
     }
 
-    // Converts a timestamp to a 4-bit array
-    fn serialize_timestamp(mut timestamp: u32) -> [u8; 4] {
-        let mut serialized_timestamp: [u8; 4] = [0; 4];
-        let mut index = 0;
-        while index < 4 {
-            serialized_timestamp[index] = (timestamp % 256) as u8;
-            timestamp /= 256;
-            index += 1;
+    // Converts a 32-bit int to a 4-bit array
+    fn serialize_32_bit_int(mut int: u32) -> [u8; 4] {
+        let mut serialized: [u8; 4] = [0; 4];
+        let mut byte: i32 = 3;
+        while byte >= 0 {
+            serialized[byte as usize] = (int % 256) as u8;
+            int /= 256;
+            byte -= 1;
         }
 
-        serialized_timestamp
+        serialized
+    }
+
+    // Converts a 64-bit int to an 8-bit array
+    fn serialize_64_bit_int(mut int: u64) -> [u8; 8] {
+        let mut serialized: [u8; 8] = [0; 8];
+        let mut byte: i32 = 7;
+        while byte >= 0 {
+            serialized[byte as usize] = (int % 256) as u8;
+            int /= 256;
+            byte -= 1;
+        }
+
+        serialized
     }
 
     // The counter-party of the contract is set to the deployer
@@ -381,61 +435,90 @@ mod tests {
     #[test]
     fn expired_truncate_worth_0() {
         // Create contract truncate 0 one
-        let timestamp = serialize_timestamp(0);
-        let mut contract = setup_contract(vec![4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1]);
+        let mut timestamp = serialize_32_bit_int(0).to_vec();
+        let mut combinator_contract = vec![4];
+        combinator_contract.append(&mut timestamp);
+        combinator_contract.append(&mut vec![1]);
+        let mut contract = setup_contract(combinator_contract).contract;
 
         // Check that contract value is 0 at timestamp 1
         ext_reset(|e| e.timestamp(1));
-        assert_eq!(contract.contract.get_value(), U256::from(0));
+        assert_eq!(contract.get_value(), U256::from(0));
     }
 
     // The value of a non-expired truncated contract is correct
     #[test]
     fn non_expired_truncate_value_correct() {
         // Create contract truncate 1 one
-        let timestamp = serialize_timestamp(1);
-        let mut contract = setup_contract(vec![4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1]);
+        let mut timestamp = serialize_32_bit_int(1).to_vec();
+        let mut combinator_contract = vec![4];
+        combinator_contract.append(&mut timestamp);
+        combinator_contract.append(&mut vec![1]);
+        let mut contract = setup_contract(combinator_contract).contract;
 
         // Check that contract value is 1 at timestamp 0
         ext_reset(|e| e.timestamp(0));
-        assert_eq!(contract.contract.get_value(), U256::from(1));
+        assert_eq!(contract.get_value(), U256::from(1));
     }
 
     // The value of and with one expired sub-contract is correct
     #[test]
     fn expired_and_correct() {
         // Create contract and truncate 0 one one
-        let timestamp = serialize_timestamp(0);
-        let mut contract = setup_contract(vec![2, 4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1, 1]);
+        let mut timestamp = serialize_32_bit_int(0).to_vec();
+        let mut combinator_contract = vec![3, 4];
+        combinator_contract.append(&mut timestamp);
+        combinator_contract.append(&mut vec![1, 1]);
+        let mut contract = setup_contract(combinator_contract).contract;
 
         // Check that contract value is 1 at timestamp 1
         ext_reset(|e| e.timestamp(1));
-        assert_eq!(contract.contract.get_value(), U256::from(1));
+        assert_eq!(contract.get_value(), U256::from(1));
     }
 
     // The value of or with one expired sub-contract is correct
     #[test]
     fn expired_or_correct() {
         // Create contract or truncate 0 one zero
-        let timestamp = serialize_timestamp(0);
-        let mut contract = setup_contract(vec![3, 4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1, 0]);
+        let mut timestamp = serialize_32_bit_int(0).to_vec();
+        let mut combinator_contract = vec![3, 4];
+        combinator_contract.append(&mut timestamp);
+        combinator_contract.append(&mut vec![1, 0]);
+        let mut contract = setup_contract(combinator_contract).contract;
 
         // Check that contract value is 0 at timestamp 1 with no or-choice
         ext_reset(|e| e.timestamp(1));
-        assert_eq!(contract.contract.get_value(), U256::from(0));
+        assert_eq!(contract.get_value(), U256::from(0));
     }
 
     // The value of or with one expired sub-contract and a conflicting or-choice is correct
     #[test]
     fn expired_or_ignores_choice() {
         // Create contract or truncate 0 one zero
-        let timestamp = serialize_timestamp(0);
-        let mut contract = setup_contract(vec![3, 4, timestamp[0], timestamp[1], timestamp[2], timestamp[3], 1, 0]).contract;
+        let mut timestamp = serialize_32_bit_int(0).to_vec();
+        let mut combinator_contract = vec![3, 4];
+        combinator_contract.append(&mut timestamp);
+        combinator_contract.append(&mut vec![1, 0]);
+        let mut contract = setup_contract(combinator_contract).contract;
 
         // Check that contract value is 0 at timestamp 1 with left or-choice
         contract.set_or_choice(U256::from(0), true);
         ext_reset(|e| e.timestamp(1));
         assert_eq!(contract.get_value(), U256::from(0));
+    }
+
+    // The value of a scale combinator with the scale value provided is correct
+    #[test]
+    fn scale_with_provided_scale_value_has_correct_value() {
+        // Create contract or scale 2 one
+        let mut scale_value = serialize_64_bit_int(2).to_vec();
+        let mut combinator_contract = vec![5, 1];
+        combinator_contract.append(&mut scale_value);
+        combinator_contract.append(&mut vec![1]);
+        let mut contract = setup_contract(combinator_contract).contract;
+
+        // Check that contract value is 2
+        assert_eq!(contract.get_value(), U256::from(2));
     }
 
     // The value of the contract is based on the given serialized combinator vector
@@ -543,6 +626,14 @@ mod tests {
     fn should_panic_if_non_existent_or_choice_provided() {
         let mut contract = setup_contract(vec![0]).contract;
         contract.set_or_choice(U256::from(0), true);
+    }
+
+    // Getting the value of a contract with an undefined observable is not allowed
+    #[test]
+    #[should_panic]
+    fn should_panic_if_getting_value_with_undefined_observable() {
+        let mut contract = setup_contract(vec![5, 0, 1]).contract;
+        contract.get_value();
     }
 
     // Overflowing the holder's stake is not allowed

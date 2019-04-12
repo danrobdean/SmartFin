@@ -18,7 +18,7 @@ pub trait ContractCombinator {
     }
 
     // Returns the value of the combinator if acquired at the given time
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>) -> u64;
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<u64>>) -> u64;
 }
 
 // Returns the earliest of the given horizons

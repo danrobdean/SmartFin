@@ -28,17 +28,17 @@ impl ContractCombinator for OrCombinator {
         latest_horizon(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>) -> u64 {
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<u64>>) -> u64 {
         // If one sub-combinator has expired, choose the other
         if self.sub_combinator0.past_horizon(time) {
-            self.sub_combinator1.get_value(time, or_choices)
+            self.sub_combinator1.get_value(time, or_choices, obs_values)
         } else if self.sub_combinator1.past_horizon(time) {
-            self.sub_combinator0.get_value(time, or_choices)
+            self.sub_combinator0.get_value(time, or_choices, obs_values)
         } else {
             // If both sub-combinators can be acquired, use the provided choice, or panic if no choice has been provided
             match or_choices[self.or_index] {
-                Some(true) => self.sub_combinator0.get_value(time, or_choices),
-                Some(false) => self.sub_combinator1.get_value(time, or_choices),
+                Some(true) => self.sub_combinator0.get_value(time, or_choices, obs_values),
+                Some(false) => self.sub_combinator1.get_value(time, or_choices, obs_values),
                 None => panic!("Cannot get value of OR combinator when neither sub-combinator has been chosen or has expired.")
             }
         }

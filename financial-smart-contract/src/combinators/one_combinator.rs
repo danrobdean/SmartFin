@@ -13,7 +13,7 @@ impl OneCombinator {
 
 // Contract combinator implementation of the one combinator
 impl ContractCombinator for OneCombinator {
-    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>) -> u64 {
+    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<u64>>) -> u64 {
         1
     }
 }

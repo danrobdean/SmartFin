@@ -161,8 +161,18 @@ Implementing TRUNCATE combinator:
 	- Testing function added to serialize a u32 timestamp
 	- All timestamps/horizons changed to u32 type for consistency (as it will always be a 32-bit unix timestamp)
 
+Implementing SCALE combinator and observables:
+	- Single sub-combinator, obs_index, and scale_value
+	- Requires carrying around an obs_values vector, like the or_choices vector (except with u64 values)
+	- u64 chosen as everything will have to be converted to u64 in the end anyway, so no point carrying around U256 values
+	- If scale value is provided, the combinator contract will be serialized as 5 1 <8-bit scale-value> <sub-combinator>, otherwise 5 0 <sub-combinator> if an observable should be used instead
+	- With no observable defined or scale value, getting value will panic
+	- Setting scale value requires signature stuff, have not done yet (should hopefully not be too hard as keccak lib is provided)
+
 
 NB ABOUT EXPIRED CONTRACTS: Expired contracts can be acquired (kind of), but their value is zero. This means that the wording for truncate in the report is wrong, as it says that expired contracts cannot be acquired. I think that there is nothing stopping someone from acquiring an expired contract (just as in real life, where someone can sign a contract even if the dates of payments have passed), but the contract just has a value equal to the ZERO combinator.
+
+For tomorrow, will allow setting of observables (using signatures). Will also implement give (easy), and start looking at acquisition (hard).
 
 
 
