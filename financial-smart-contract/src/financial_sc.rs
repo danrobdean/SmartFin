@@ -31,14 +31,17 @@ pub trait FinancialScInterface {
 
     // Gets the current value of the contract (TODO: for dev purposes)
     #[constant]
-    fn get_value(&mut self) -> U256;
+    fn get_value(&mut self) -> i64;
 
     // Gets the current stake of the caller (if called by the holder or counter-party)
     #[constant]
     fn get_stake(&mut self) -> U256;
 
     // Sets the preference of the given or combinator's sub-combinators
-    fn set_or_choice(&mut self, or_index: U256, choice: bool);
+    fn set_or_choice(&mut self, or_index: u64, choice: bool);
+
+    // Proposes a value for the given observable
+    fn propose_obs_value(&mut self, obs_index: u64, value: i64);
 
     // Stakes Eth with the contract (can be called by the holder or counter-party), returns the caller's total stake
     #[payable]
@@ -68,8 +71,14 @@ pub struct FinancialScContract {
     // The choices for each or combinator
     or_choices: Vec<Option<bool>>,
 
-    // The values of each observable
-    obs_values: Vec<Option<u64>>
+    // The values of each observable proposed by the holder
+    holder_proposed_obs_values: Vec<Option<i64>>,
+
+    // The values of each observable proposed by the counter-party
+    counter_party_proposed_obs_values: Vec<Option<i64>>,
+
+    // The concrete values of each observable
+    concrete_obs_values: Vec<Option<i64>>
 }
 
 // The financial smart contract interface implementation
@@ -102,8 +111,8 @@ impl FinancialScInterface for FinancialScContract {
     }
 
     // Gets the current value of the contract
-    fn get_value(&mut self) -> U256 {
-        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &self.or_choices, &self.obs_values).into()
+    fn get_value(&mut self) -> i64 {
+        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &self.or_choices, &self.concrete_obs_values)
     }
 
     // Gets the total stake of the caller
@@ -120,11 +129,38 @@ impl FinancialScInterface for FinancialScContract {
     }
 
     // Sets the given or combinator's preference between its sub-combinators
-    fn set_or_choice(&mut self, or_index: U256, prefer_first: bool) {
-        if or_index >= U256::from(self.or_choices.len()) {
+    fn set_or_choice(&mut self, or_index: u64, prefer_first: bool) {
+        let index = or_index as usize;
+        if index >= self.or_choices.len() {
             panic!("Given or-index does not exist.");
         }
-        self.or_choices[or_index.low_u64() as usize] = Some(prefer_first);
+
+        self.or_choices[index as usize] = Some(prefer_first);
+    }
+
+    // Proposes the given observable's value
+    fn propose_obs_value(&mut self, obs_index: u64, value: i64) {
+        // Check that index is within bounds
+        let index: usize = obs_index as usize;
+        if index >= self.concrete_obs_values.len() {
+            panic!("Given observable-index does not exist.")
+        }
+
+        // Set the proposed value for the sender
+        let sender = pwasm_ethereum::sender();
+
+        if sender == self.holder {
+            self.holder_proposed_obs_values[index] = Some(value);
+        } else if sender == self.counter_party {
+            self.counter_party_proposed_obs_values[index] = Some(value);
+        } else {
+            panic!("Only the holder or counter-party set the value of observables.");
+        }
+
+        // Check if proposed values match
+        if self.holder_proposed_obs_values[index] == self.counter_party_proposed_obs_values[index] {
+            self.concrete_obs_values[index] = self.holder_proposed_obs_values[index];
+        }
     }
 
     // Stakes Eth with the contract, returns the caller's total stake
@@ -155,7 +191,9 @@ impl FinancialScContract {
             counter_party_stake: 0.into(),
             holder_stake: 0.into(),
             or_choices: Vec::new(),
-            obs_values: Vec::new()
+            holder_proposed_obs_values: Vec::new(),
+            counter_party_proposed_obs_values: Vec::new(),
+            concrete_obs_values: Vec::new()
         }
     }
 
@@ -216,16 +254,18 @@ impl FinancialScContract {
                 // Check if observable is provided, if so then deserialize it, otherwise record in obs_values
                 let provided: u8 = self.serialized_combinators[i + 1];
                 let mut obs_index: Option<usize>;
-                let mut scale_value: Option<u64>;
+                let mut scale_value: Option<i64>;
                 let mut i0 = i + 2;
 
                 if provided == 1 {
                     obs_index = None;
-                    scale_value = Some(FinancialScContract::deserialize_64_bit_int(&self.serialized_combinators, i0));
+                    scale_value = Some(FinancialScContract::deserialize_signed_64_bit_int(&self.serialized_combinators, i0));
                     i0 += 8;
                 } else {
-                    obs_index = Some(self.obs_values.len());
-                    self.obs_values.push(None);
+                    obs_index = Some(self.concrete_obs_values.len());
+                    self.concrete_obs_values.push(None);
+                    self.holder_proposed_obs_values.push(None);
+                    self.counter_party_proposed_obs_values.push(None);
                     scale_value = None;
                 }
 
@@ -233,6 +273,14 @@ impl FinancialScContract {
                 let (i1, sub_combinator) = self.deserialize_combinator(i0);
 
                 (i1, Box::new(ScaleCombinator::new(sub_combinator, obs_index, scale_value)))
+            },
+
+            // give combinator
+            6 => {
+                // Deserialize sub-combinator
+                let (i0, sub_combinator) = self.deserialize_combinator(i + 1);
+
+                (i0, Box::new(GiveCombinator::new(sub_combinator)))
             }
 
             // Unrecognised combinator
@@ -262,17 +310,24 @@ impl FinancialScContract {
         int
     }
 
-    // Deserialize a 64-bit integer
-    fn deserialize_64_bit_int(serialized_data: &Vec<u8>, start_i: usize) -> u64 {
-        let mut int: u64 = 0;
-        let mut byte = 0;
+    // Deserialize a signed 64-bit integer
+    fn deserialize_signed_64_bit_int(serialized_data: &Vec<u8>, start_i: usize) -> i64 {
+        let mut int: u64 = (serialized_data[start_i] as u64) % 128;
+        let mut byte = 1;
 
         while byte < 8 {
             int = (int * 256) + serialized_data[start_i + byte] as u64;
             byte += 1;
         }
 
-        int
+        // Check first byte for sign
+        let mut iint: i64 = int as i64;
+        let sign = serialized_data[start_i] / 128;
+        if sign == 1 {
+            iint = iint - 2_i64.pow(62) - 2_i64.pow(62);
+        }
+
+        iint
     }
 }
 
@@ -290,14 +345,14 @@ mod tests {
     struct TestContractDetails {
         holder: Address,
         counter_party: Address,
-        timestamp: U256,
+        timestamp: u64,
         contract: FinancialScContract
     }
 
     // Method implementation for the details of a testing contract
     impl TestContractDetails {
         // Instantiates a new set of contract details
-        fn new(holder: Address, counter_party: Address, timestamp: U256, contract: FinancialScContract) -> TestContractDetails {
+        fn new(holder: Address, counter_party: Address, timestamp: u64, contract: FinancialScContract) -> TestContractDetails {
             TestContractDetails {
                 holder,
                 counter_party,
@@ -321,13 +376,13 @@ mod tests {
         );
         contract.constructor(deserialized_combinator, holder);
 
-        TestContractDetails::new(holder, sender, timestamp.into(), contract)
+        TestContractDetails::new(holder, sender, timestamp, contract)
     }
 
     // Converts a 32-bit int to a 4-bit array
     fn serialize_32_bit_int(mut int: u32) -> [u8; 4] {
         let mut serialized: [u8; 4] = [0; 4];
-        let mut byte: i32 = 3;
+        let mut byte: i8 = 3;
         while byte >= 0 {
             serialized[byte as usize] = (int % 256) as u8;
             int /= 256;
@@ -337,12 +392,19 @@ mod tests {
         serialized
     }
 
-    // Converts a 64-bit int to an 8-bit array
-    fn serialize_64_bit_int(mut int: u64) -> [u8; 8] {
+    // Converts a signed 64-bit int to an 8-bit array
+    fn serialize_signed_64_bit_int(mut int: i64) -> [u8; 8] {
         let mut serialized: [u8; 8] = [0; 8];
-        let mut byte: i32 = 7;
+        let mut byte: i8 = 7;
+
+        if int < 0 {
+            serialized[0] += 128;
+            int += 2_i64.pow(62);
+            int += 2_i64.pow(62);
+        }
+
         while byte >= 0 {
-            serialized[byte as usize] = (int % 256) as u8;
+            serialized[byte as usize] += (int % 256) as u8;
             int /= 256;
             byte -= 1;
         }
@@ -387,8 +449,7 @@ mod tests {
         let mut contract = setup_contract(vec![0]).contract;
 
         // Check that the value is correct
-        let value: u64 = contract.get_value().low_u64();
-        assert_eq!(value, 0);
+        assert_eq!(contract.get_value(), 0);
     }
 
     // The value of the contract is based on the given serialized combinator vector
@@ -397,8 +458,7 @@ mod tests {
         let mut contract = setup_contract(vec![1]).contract;
 
         // Check that the value is correct
-        let value: u64 = contract.get_value().low_u64();
-        assert_eq!(value, 1);
+        assert_eq!(contract.get_value(), 1);
     }
 
     // The value of the contract is based on the given serialized combinator vector
@@ -407,8 +467,7 @@ mod tests {
         let mut contract = setup_contract(vec![2, 1, 1]).contract;
 
         // Check that the value is correct
-        let value: u64 = contract.get_value().low_u64();
-        assert_eq!(value, 2);
+        assert_eq!(contract.get_value(), 2);
     }
 
     // The value of the or combinator is correct given a left or choice
@@ -417,8 +476,8 @@ mod tests {
         let mut contract = setup_contract(vec![3, 0, 1]).contract;
         
         // Set the or choice and check the value
-        contract.set_or_choice(U256::from(0), true);
-        assert_eq!(contract.get_value(), U256::from(0));
+        contract.set_or_choice(0, true);
+        assert_eq!(contract.get_value(), 0);
     }
 
     // The value of the or combinator is correct given a right or choice
@@ -427,8 +486,8 @@ mod tests {
         let mut contract = setup_contract(vec![3, 0, 1]).contract;
         
         // Set the or choice and check the value
-        contract.set_or_choice(U256::from(0), false);
-        assert_eq!(contract.get_value(), U256::from(1));
+        contract.set_or_choice(0, false);
+        assert_eq!(contract.get_value(), 1);
     }
 
     // The value of an expired truncated contract is 0
@@ -443,7 +502,7 @@ mod tests {
 
         // Check that contract value is 0 at timestamp 1
         ext_reset(|e| e.timestamp(1));
-        assert_eq!(contract.get_value(), U256::from(0));
+        assert_eq!(contract.get_value(), 0);
     }
 
     // The value of a non-expired truncated contract is correct
@@ -458,7 +517,7 @@ mod tests {
 
         // Check that contract value is 1 at timestamp 0
         ext_reset(|e| e.timestamp(0));
-        assert_eq!(contract.get_value(), U256::from(1));
+        assert_eq!(contract.get_value(), 1);
     }
 
     // The value of and with one expired sub-contract is correct
@@ -473,7 +532,7 @@ mod tests {
 
         // Check that contract value is 1 at timestamp 1
         ext_reset(|e| e.timestamp(1));
-        assert_eq!(contract.get_value(), U256::from(1));
+        assert_eq!(contract.get_value(), 1);
     }
 
     // The value of or with one expired sub-contract is correct
@@ -488,7 +547,7 @@ mod tests {
 
         // Check that contract value is 0 at timestamp 1 with no or-choice
         ext_reset(|e| e.timestamp(1));
-        assert_eq!(contract.get_value(), U256::from(0));
+        assert_eq!(contract.get_value(), 0);
     }
 
     // The value of or with one expired sub-contract and a conflicting or-choice is correct
@@ -502,23 +561,130 @@ mod tests {
         let mut contract = setup_contract(combinator_contract).contract;
 
         // Check that contract value is 0 at timestamp 1 with left or-choice
-        contract.set_or_choice(U256::from(0), true);
+        contract.set_or_choice(0, true);
         ext_reset(|e| e.timestamp(1));
-        assert_eq!(contract.get_value(), U256::from(0));
+        assert_eq!(contract.get_value(), 0);
     }
 
     // The value of a scale combinator with the scale value provided is correct
     #[test]
     fn scale_with_provided_scale_value_has_correct_value() {
         // Create contract or scale 2 one
-        let mut scale_value = serialize_64_bit_int(2).to_vec();
+        let mut scale_value = serialize_signed_64_bit_int(2).to_vec();
         let mut combinator_contract = vec![5, 1];
         combinator_contract.append(&mut scale_value);
         combinator_contract.append(&mut vec![1]);
         let mut contract = setup_contract(combinator_contract).contract;
 
         // Check that contract value is 2
-        assert_eq!(contract.get_value(), U256::from(2));
+        assert_eq!(contract.get_value(), 2);
+    }
+
+    // The value of a scale combinator with a negative scale value provided is correct
+    #[test]
+    fn scale_with_provided_negative_scale_value_has_correct_value() {
+        // Create contract or scale -1 one
+        let mut scale_value = serialize_signed_64_bit_int(-2).to_vec();
+        let mut combinator_contract = vec![5, 1];
+        combinator_contract.append(&mut scale_value);
+        combinator_contract.append(&mut vec![1]);
+        let mut contract = setup_contract(combinator_contract).contract;
+
+        // Check that contract value is -2
+        assert_eq!(contract.get_value(), -2);
+    }
+
+    // The value of a scale combinator with an agreed-upon observable scale value is correct
+    #[test]
+    fn scale_with_concrete_obs_value_has_correct_value() {
+        // Create contract or scale obs one
+        let mut contract_details = setup_contract(vec![5, 0, 1]);
+
+        // Propose obs_value_0 = 2 from both parties
+        ext_reset(|e| e.sender(contract_details.holder));
+        contract_details.contract.propose_obs_value(0, 2);
+
+        ext_reset(|e| e.sender(contract_details.counter_party));
+        contract_details.contract.propose_obs_value(0, 2);
+
+        // Check that contract value is 2
+        assert_eq!(contract_details.contract.get_value(), 2);
+    }
+
+    // The value of a scale combinator with an agreed-upon negative observable scale value is correct
+    #[test]
+    fn scale_with_concrete_negative_obs_value_has_correct_value() {
+        // Create contract or scale obs one
+        let mut contract_details = setup_contract(vec![5, 0, 1]);
+
+        // Propose obs_value_0 = -2 from both parties
+        ext_reset(|e| e.sender(contract_details.holder));
+        contract_details.contract.propose_obs_value(0, -2);
+
+        ext_reset(|e| e.sender(contract_details.counter_party));
+        contract_details.contract.propose_obs_value(0, -2);
+
+        // Check that contract value is -2
+        assert_eq!(contract_details.contract.get_value(), -2);
+    }
+
+    // The value of a scale combinator with an agreed-upon observable scale value does not change after one extra proposal
+    #[test]
+    fn scale_with_concrete_obs_value_has_correct_value_after_extra_proposal() {
+        // Create contract or scale obs one
+        let mut contract_details = setup_contract(vec![5, 0, 1]);
+
+        // Propose obs_value_0 = 2 from both parties
+        ext_reset(|e| e.sender(contract_details.holder));
+        contract_details.contract.propose_obs_value(0, 2);
+
+        ext_reset(|e| e.sender(contract_details.counter_party));
+        contract_details.contract.propose_obs_value(0, 2);
+
+        // Check that contract value is 2
+        assert_eq!(contract_details.contract.get_value(), 2);
+
+        // Propose obs_value_0 = 3 from the counter-party
+        contract_details.contract.propose_obs_value(0, 3);
+
+        // Check that contract value is still 2
+        assert_eq!(contract_details.contract.get_value(), 2);
+    }
+
+    // The value of a scale combinator with an agreed-upon observable scale value changes after a new agreed-upon proposal
+    #[test]
+    fn scale_with_concrete_obs_value_has_correct_value_after_second_agreement() {
+        // Create contract or scale obs one
+        let mut contract_details = setup_contract(vec![5, 0, 1]);
+
+        // Propose obs_value_0 = 2 from both parties
+        ext_reset(|e| e.sender(contract_details.holder));
+        contract_details.contract.propose_obs_value(0, 2);
+
+        ext_reset(|e| e.sender(contract_details.counter_party));
+        contract_details.contract.propose_obs_value(0, 2);
+
+        // Check that contract value is 2
+        assert_eq!(contract_details.contract.get_value(), 2);
+
+        // Propose obs_value_0 = 3 from both parties
+        contract_details.contract.propose_obs_value(0, 3);
+
+        ext_reset(|e| e.sender(contract_details.holder));
+        contract_details.contract.propose_obs_value(0, 3);
+
+        // Check that contract value is now 3
+        assert_eq!(contract_details.contract.get_value(), 3);
+    }
+
+    // The value of a give contract is correct
+    #[test]
+    fn give_value_correct() {
+        // Create contract give one
+        let mut contract = setup_contract(vec![6, 1]).contract;
+
+        // Check that the contract value is -1
+        assert_eq!(contract.get_value(), -1);
     }
 
     // The value of the contract is based on the given serialized combinator vector
@@ -527,8 +693,7 @@ mod tests {
         let mut contract = setup_contract(vec![0, 2, 1, 1]).contract;
 
         // Check that the value is correct
-        let value: u64 = contract.get_value().low_u64();
-        assert_eq!(value, 0);
+        assert_eq!(contract.get_value(), 0);
     }
 
     // Staking Eth as the holder stakes the correct amount
@@ -538,7 +703,7 @@ mod tests {
 
         // Check that the initial stake is 0
         ext_reset(|e| e.sender(contract_details.holder));
-        assert_eq!(U256::from(0), contract_details.contract.get_stake());
+        assert_eq!(contract_details.contract.get_stake(), U256::from(0));
 
         // Check that the stake increases when added to
         let new_stake = U256::from(10);
@@ -550,7 +715,7 @@ mod tests {
         contract_details.contract.stake();
         assert_eq!(new_stake, contract_details.contract.get_stake());
         contract_details.contract.stake();
-        assert_eq!(new_stake * U256::from(2), contract_details.contract.get_stake());
+        assert_eq!(contract_details.contract.get_stake(), new_stake * U256::from(2));
     }
 
     // Staking Eth as the counter-party stakes the correct amount
@@ -560,7 +725,7 @@ mod tests {
 
         // Check that the initial stake is 0
         ext_reset(|e| e.sender(contract_details.counter_party));
-        assert_eq!(U256::from(0), contract_details.contract.get_stake());
+        assert_eq!(contract_details.contract.get_stake(), U256::from(0));
 
         // Check that the stake increases when added to
         let new_stake = U256::from(10);
@@ -570,9 +735,9 @@ mod tests {
         );
 
         contract_details.contract.stake();
-        assert_eq!(new_stake, contract_details.contract.get_stake());
+        assert_eq!(contract_details.contract.get_stake(), new_stake);
         contract_details.contract.stake();
-        assert_eq!(new_stake * U256::from(2), contract_details.contract.get_stake());
+        assert_eq!(contract_details.contract.get_stake(), new_stake * U256::from(2));
     }
 
     // Attempting to get the value of a contract before calling the constructor is not allowed
@@ -594,6 +759,7 @@ mod tests {
         // Mock values
         ext_reset(|e| e
             .sender(sender)
+            .timestamp(0)
         );
         contract.constructor(vec![0], sender);
     }
@@ -625,7 +791,7 @@ mod tests {
     #[should_panic]
     fn should_panic_if_non_existent_or_choice_provided() {
         let mut contract = setup_contract(vec![0]).contract;
-        contract.set_or_choice(U256::from(0), true);
+        contract.set_or_choice(0, true);
     }
 
     // Getting the value of a contract with an undefined observable is not allowed
@@ -634,6 +800,21 @@ mod tests {
     fn should_panic_if_getting_value_with_undefined_observable() {
         let mut contract = setup_contract(vec![5, 0, 1]).contract;
         contract.get_value();
+    }
+
+    // Getting the value of a contract with an observable without a concrete value is not allowed
+    #[test]
+    #[should_panic]
+    fn should_panic_if_getting_value_with_observable_without_concrete_value() {
+        let mut contract_details = setup_contract(vec![5, 0, 1]);
+
+        // Propose two different values
+        ext_reset(|e| e.sender(contract_details.holder));
+        contract_details.contract.propose_obs_value(0, 1);
+
+        ext_reset(|e| e.sender(contract_details.counter_party));
+        contract_details.contract.propose_obs_value(0, 2);
+        contract_details.contract.get_value();
     }
 
     // Overflowing the holder's stake is not allowed

@@ -25,7 +25,7 @@ impl ContractCombinator for AndCombinator {
         latest_horizon(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<u64>>) -> u64 {
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
         self.sub_combinator0.get_value(time, or_choices, obs_values) + self.sub_combinator1.get_value(time, or_choices, obs_values)
     }
 }

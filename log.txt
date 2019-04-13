@@ -176,3 +176,29 @@ For tomorrow, will allow setting of observables (using signatures). Will also im
 
 
 
+========== 13 Apr ==========
+
+Bad news, there is no ECDSA (or any encrypt/decrypt) functionality in pwasm (weirdly). This leaves two options:
+	- Trying to implement a signature scheme using only Keccak (complicated, inefficient, hard to program)
+	- Don't use signatures at all, instead use a voting-like system (easier to program, but has more design decisions and is not as elegant, also may take more storage (although hash-based signatures often take a lot of storage too))
+
+Overall, it seems more sensible to forego signatures, instead using a system like:
+	- Each obs_value has a concrete value, a proposed-by-holder value, and a proposed-by-counter-party value (all Option<u64>)
+	- Each party can propose a value for each obs_index at any time through a function, the contract stores the latest proposed value only per observable (if holder proposes 1 then 2, only 2 is stored and 1 is lost)
+	- If the two parties' latest proposed value match, then the concrete value is set to the proposed value
+	- The concrete value only updates when a new matching pair of proposals occurs. If both parties propose 1, then the holder proposes 2, the concrete value is 1. If the holder and counter-party propose 2 after agreeing on 1, the concrete value is 2.
+
+Implementing OBS values:
+	- Vec<Option<u64>> for concrete values, as well as proposed values by holder and counter-party (3 vectors in total)
+	- Propose obs value function updates the relevant party's proposed value for the given index
+	- If both parties agree upon a proposal, the concrete values vector is updated
+	- Panics if uninvolved party proposes value
+
+NB: Will need to provide some way to view or-choices and obs-values in future, unfortunately it's a little complicated as they're Option<u64>, so will require double serialization (option and u64). May leave that until a front-end is created.
+
+Implementing GIVE:
+	- Have to change value to i64 and update all combinators
+	- Have to change scale value to i64, does accepting a negative value here make sense? It does mathematically, but from a financial contract point of view, what does it mean to pay someone negative amounts of Eth?
+	- Have to change obs_value to i64 (same reason, and to be consistent with scale_value)
+
+

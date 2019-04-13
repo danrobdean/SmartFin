@@ -25,7 +25,7 @@ impl ContractCombinator for TruncateCombinator {
         earliest_horizon(self.sub_combinator.get_horizon(), Some(self.truncated_horizon))
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<u64>>) -> u64 {
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
         if self.past_horizon(time) {
             0
         } else {

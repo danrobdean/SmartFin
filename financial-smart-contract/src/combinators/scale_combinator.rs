@@ -7,12 +7,12 @@ pub struct ScaleCombinator {
     // The observable index
     obs_index: Option<usize>,
     // The scale value
-    scale_value: Option<u64>
+    scale_value: Option<i64>
 }
 
 // Method implementation for the scale combinator
 impl ScaleCombinator {
-    pub fn new(sub_combinator: Box<ContractCombinator>, obs_index: Option<usize>, scale_value: Option<u64>) -> ScaleCombinator {
+    pub fn new(sub_combinator: Box<ContractCombinator>, obs_index: Option<usize>, scale_value: Option<i64>) -> ScaleCombinator {
         ScaleCombinator {
             sub_combinator,
             obs_index,
@@ -23,9 +23,9 @@ impl ScaleCombinator {
 
 // Contract combinator implementation for the scale combinator
 impl ContractCombinator for ScaleCombinator {
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<u64>>) -> u64 {
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
         match self.scale_value {
-            Some(value) => value * self.sub_combinator.get_value(time, or_choices, obs_values),
+            Some(value) => value* self.sub_combinator.get_value(time, or_choices, obs_values),
             None => {
                 match self.obs_index {
                     Some(index) => {

@@ -7,6 +7,7 @@ mod and_combinator;
 mod or_combinator;
 mod truncate_combinator;
 mod scale_combinator;
+mod give_combinator;
 
 // Re-export combinators
 pub use self::contract_combinator::ContractCombinator;
@@ -17,3 +18,4 @@ pub use self::and_combinator::AndCombinator;
 pub use self::or_combinator::OrCombinator;
 pub use self::truncate_combinator::TruncateCombinator;
 pub use self::scale_combinator::ScaleCombinator;
+pub use self::give_combinator::GiveCombinator;
