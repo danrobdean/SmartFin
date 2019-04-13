@@ -201,4 +201,6 @@ Implementing GIVE:
 	- Have to change scale value to i64, does accepting a negative value here make sense? It does mathematically, but from a financial contract point of view, what does it mean to pay someone negative amounts of Eth?
 	- Have to change obs_value to i64 (same reason, and to be consistent with scale_value)
 
+NB: Updated all U256 to i64/u64 since apparently those are in the abi lol
+
 
