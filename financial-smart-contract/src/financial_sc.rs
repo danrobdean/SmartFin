@@ -281,6 +281,15 @@ impl FinancialScContract {
                 let (i0, sub_combinator) = self.deserialize_combinator(i + 1);
 
                 (i0, Box::new(GiveCombinator::new(sub_combinator)))
+            },
+
+            // then combinator
+            7 => {
+                // Deserialize sub-combinators
+                let (i0, sub_combinator0) = self.deserialize_combinator(i + 1);
+                let (i1, sub_combinator1) = self.deserialize_combinator(i0);
+
+                (i1, Box::new(ThenCombinator::new(sub_combinator0, sub_combinator1)))
             }
 
             // Unrecognised combinator
@@ -684,7 +693,40 @@ mod tests {
         let mut contract = setup_contract(vec![6, 1]).contract;
 
         // Check that the contract value is -1
+        ext_reset(|e| e.timestamp(0));
         assert_eq!(contract.get_value(), -1);
+    }
+
+    // The value of a then contract is the value of the first sub-combinator pre-expiry
+    #[test]
+    fn then_value_equals_first_sub_combinator_pre_expiry() {
+        // Create contract then truncate 1 one zero
+        let mut timestamp = serialize_32_bit_int(1).to_vec();
+        let mut contract_definiton = vec![7, 4];
+        contract_definiton.append(&mut timestamp);
+        contract_definiton.append(&mut vec![1, 0]);
+
+        let mut contract = setup_contract(contract_definiton).contract;
+
+        // Check value equals 1
+        ext_reset(|e| e.timestamp(1));
+        assert_eq!(contract.get_value(), 1);
+    }
+
+    // The value of a then contract is the value of the second sub-combinator post-expiry
+    #[test]
+    fn then_value_equals_second_sub_combinator_post_expiry() {
+        // Create contract then truncate 1 one zero
+        let mut timestamp = serialize_32_bit_int(1).to_vec();
+        let mut contract_definiton = vec![7, 4];
+        contract_definiton.append(&mut timestamp);
+        contract_definiton.append(&mut vec![1, 0]);
+
+        let mut contract = setup_contract(contract_definiton).contract;
+
+        // Check value equals 0
+        ext_reset(|e| e.timestamp(2));
+        assert_eq!(contract.get_value(), 0);
     }
 
     // The value of the contract is based on the given serialized combinator vector

@@ -204,3 +204,17 @@ Implementing GIVE:
 NB: Updated all U256 to i64/u64 since apparently those are in the abi lol
 
 
+
+========== 15 Apr ==========
+
+Implemented THEN:
+	- Similar to AND, except value takes sub_combinator0.get_value() if it hasn't expired yet, otherwise sub_combinator1.get_value(). Pretty simple
+
+Reorganising tests:
+	- Most of the tests in financial_sc.rs are integration tests, so they shouldn't really be in the same file
+	- Moving most tests from financial_sc.rs to an integration tests folder
+	- Adding unit tests for financial_sc (deserialization etc)
+	- Adding unit tests for each combinator's file
+
+
+
