@@ -33,3 +33,79 @@ impl ContractCombinator for TruncateCombinator {
         }
     }
 }
+
+// Unit tests
+#[cfg(test)]
+mod tests {
+    use super::super::{ ContractCombinator, OneCombinator, TruncateCombinator };
+    use super::super::contract_combinator::{ Box, vec };
+    
+    // Value before expiry is equal to the value of the sub-combinator
+    #[test]
+    fn correct_value_pre_expiry() {
+        // Create truncate 1 one
+        let combinator = TruncateCombinator::new(Box::from(OneCombinator::new()), 1);
+
+        // Check value = 1
+        let value = combinator.get_value(0, &vec![], &vec![]);
+        assert_eq!(
+            value,
+            1,
+            "Value of 'truncate 1 one' contract at time = 0 is not equal to 1: {}",
+            value
+        );
+    }
+    
+    // Value after expiry is 0
+    #[test]
+    fn correct_value_post_expiry() {
+        // Create truncate 1 one
+        let combinator = TruncateCombinator::new(Box::from(OneCombinator::new()), 1);
+
+        // Check value = 0
+        let value = combinator.get_value(2, &vec![], &vec![]);
+        assert_eq!(
+            value,
+            0,
+            "Value of 'truncate 1 one' contract at time = 2 is not equal to 0: {}",
+            value
+        );
+    }
+    
+    // Horizon is correct
+    #[test]
+    fn correct_horizon() {
+        // Create truncate 5 one
+        let combinator = TruncateCombinator::new(Box::from(OneCombinator::new()), 5);
+
+        // Check horizon = 5
+        let horizon = combinator.get_horizon();
+        assert_eq!(
+            horizon,
+            Some(5),
+            "Horizon of 'truncate 5 one' contract is not equal to Some(5): {:?}",
+            horizon
+        );
+    }
+    
+    // Horizon is correct if sub-combinator expires first
+    #[test]
+    fn correct_horizon_sub_combinator_expires_first() {
+        // Create truncate 5 truncate 4 one
+        let combinator = TruncateCombinator::new(
+            Box::from(TruncateCombinator::new(
+                Box::from(OneCombinator::new()),
+                4
+            )),
+        5);
+
+        // Check horizon = 4
+        let horizon = combinator.get_horizon();
+        assert_eq!(
+            horizon,
+            Some(4),
+            "Horizon of 'truncate 5 truncate 4 one' contract is not equal to Some(4): {:?}",
+            horizon
+        );
+    }
+}

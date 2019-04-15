@@ -17,3 +17,42 @@ impl ContractCombinator for OneCombinator {
         1
     }
 }
+
+// Unit tests
+#[cfg(test)]
+mod tests {
+    use super::super::{ ContractCombinator, OneCombinator };
+    use super::super::contract_combinator::{ vec };
+    
+    // Value is 1
+    #[test]
+    fn correct_value() {
+        // Create combinator one
+        let combinator = OneCombinator::new();
+
+        // Check value = 1
+        let value = combinator.get_value(0, &vec![], &vec![]);
+        assert_eq!(
+            value,
+            1,
+            "Value of 'one' contract is not equal to 1: {}",
+            value
+        );
+    }
+
+    // Horizon is None
+    #[test]
+    fn correct_horizon() {
+        // Create combinator one
+        let combinator = OneCombinator::new();
+
+        // Check horizon = None
+        let horizon = combinator.get_horizon();
+        assert_eq!(
+            horizon,
+            None,
+            "Value of 'one' contract is not equal to None: {:?}",
+            horizon
+        );
+    }
+}

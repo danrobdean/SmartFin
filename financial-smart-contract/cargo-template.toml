@@ -14,9 +14,9 @@ git = "https://github.com/paritytech/pwasm-test"
 default-features = false
 
 [lib]
-
-
-crate-type = ["cdylib"]
+# Replace ${crate-type} with 'cdylib' for building, 'lib' for testing
+# (as cdylib cannot be tested, but we don't need any cdylib functionality for testing)
+crate-type = ["${crate-type}"]
 
 [features]
 std = ["pwasm-std/std", "pwasm-ethereum/std", "pwasm-test/std"]

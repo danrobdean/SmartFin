@@ -1,6 +1,6 @@
 extern crate pwasm_std;
 
-pub use self::pwasm_std::{Box, Vec};
+pub use self::pwasm_std::{ Box, Vec, vec };
 
 // API for combinators
 pub trait ContractCombinator {
@@ -51,7 +51,7 @@ pub fn latest_horizon(horizon0: Option<u32>, horizon1: Option<u32>) -> Option<u3
     }
 }
 
-
+// Unit tests
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {

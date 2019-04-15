@@ -17,3 +17,42 @@ impl ContractCombinator for ZeroCombinator {
         0
     }
 }
+
+// Unit tests
+#[cfg(test)]
+mod tests {
+    use super::super::{ ContractCombinator, ZeroCombinator };
+    use super::super::contract_combinator::{ vec };
+    
+    // Value is 0
+    #[test]
+    fn correct_value() {
+        // Create combinator zero
+        let combinator = ZeroCombinator::new();
+
+        // Check value = 0
+        let value = combinator.get_value(0, &vec![], &vec![]);
+        assert_eq!(
+            value,
+            0,
+            "Value of 'zero' contract is not equal to 0: {}",
+            value
+        );
+    }
+
+    // Horizon is None
+    #[test]
+    fn correct_horizon() {
+        // Create combinator zero
+        let combinator = ZeroCombinator::new();
+
+        // Check horizon = None
+        let horizon = combinator.get_horizon();
+        assert_eq!(
+            horizon,
+            None,
+            "Value of 'zero' contract is not equal to None: {:?}",
+            horizon
+        );
+    }
+}

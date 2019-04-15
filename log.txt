@@ -216,5 +216,19 @@ Reorganising tests:
 	- Adding unit tests for financial_sc (deserialization etc)
 	- Adding unit tests for each combinator's file
 
+	- Most tests in financial_sc.rs moved to separate integration test file, financial_sc.rs moved into lib.rs (as there's not a big reason to keep it separate and that's the rust way apparently)
+	- Some tests kept in lib.rs as unit tests for FinancialScContract struct
+	- Unit tests added for all combinators (time consuming but makes more sense this way)
+	- Unit tests which should panic will now check the error message
+	- Unit tests which fail should give a reason for failure
+	- Due to the differing test architecture (separate crates for integration tests), the build manifest (crate-type=["cdylib"]) doesn't work (although we don't need this for any of the functionality that's actually being tested). To work around this, the cdylib is replaced with the default "lib" when the testing script is run, and then switched back after it finished. The build script also sets cdylib just to make sure. It's a bit fiddly, but there's no other way to work around this without reverting to the old test structure (which was very bad imo, unsustainable the more I add). The generate-cargo.sh script creates the templated manifests from cargo-template.toml. 
+
+NB: Any changes to the manifest should now be made in cargo-template.toml (although I doubt there will be any).
+
+Other misc changes:
+	- All combinators with sub-combinators have horizons derived from them
+
+Not started on get or anytime yet, hopefully can implement over the next two days (and nothing much left after that with the smart contract.
+
 
 
