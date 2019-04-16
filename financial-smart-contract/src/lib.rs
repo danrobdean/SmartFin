@@ -12,7 +12,7 @@ extern crate pwasm_std;
 mod combinators;
 
 use pwasm_abi::eth::EndpointInterface;
-use pwasm_std::{Box, Vec, types::{ Address, U256 } };
+use pwasm_std::{ Box, Vec, types::{ Address, U256 }, read_u32, read_u64 };
 use pwasm_abi_derive::eth_abi;
 use combinators::*;
 
@@ -330,35 +330,29 @@ impl FinancialScContract {
 
     // Deserialize a 32-bit integer
     fn deserialize_32_bit_int(serialized_data: &Vec<u8>, start_i: usize) -> u32 {
-        let mut int: u32 = 0;
-        let mut byte = 0;
-
-        while byte < 4 {
-            int = (int * 256) + (serialized_data[start_i + byte] as u32);
-            byte += 1;
-        }
-
-        int
+        // Deserialize accounting for endianness
+        read_u32(&serialized_data[start_i..start_i+4])
     }
 
     // Deserialize a signed 64-bit integer
     fn deserialize_signed_64_bit_int(serialized_data: &Vec<u8>, start_i: usize) -> i64 {
-        let mut int: u64 = (serialized_data[start_i] as u64) % 128;
-        let mut byte = 1;
+        // Deserialize as u64 accounting for endianness
+        let unsigned = read_u64(&serialized_data[start_i..start_i + 8]);
 
-        while byte < 8 {
-            int = (int * 256) + serialized_data[start_i + byte] as u64;
-            byte += 1;
+        // Convert to i64 from u64
+        let mut signed: i64;
+        if unsigned > 2_u64.pow(63) {
+            // Most significant bit is 1, convert to two's complement negative
+            signed = (unsigned - 2_u64.pow(63)) as i64; // Allowed as unsigned > 2^63, so unsigned - 2^63 > 0
+
+            // Subtract 2^63, using 2 * 2^62 (as i64::MAX < 2^63)
+            signed -= 2_i64.pow(62);
+            signed -= 2_i64.pow(62);
+        } else {
+            // Most significant bit is 0, no conversion to negative needed
+            signed = unsigned as i64;
         }
-
-        // Check first byte for sign
-        let mut iint: i64 = int as i64;
-        let sign = serialized_data[start_i] / 128;
-        if sign == 1 {
-            iint = iint - 2_i64.pow(62) - 2_i64.pow(62);
-        }
-
-        iint
+        signed
     }
 }
 
@@ -382,6 +376,58 @@ mod tests {
         );
         contract.constructor(serialized_combinator_contract, holder);
         contract
+    }
+
+    // 32-bit integers are deserialized correctly
+    #[test]
+    fn deserialize_32_bit_integer_correct() {
+        let deserialized_data: Vec<u8> = vec![2, 2, 99, 16, 127, 79, 2];
+
+        let int = FinancialScContract::deserialize_32_bit_int(&deserialized_data, 2);
+        let expected = deserialized_data[2] as u32 * 2_u32.pow(0)
+            + deserialized_data[3] as u32 * 2_u32.pow(8)
+            + deserialized_data[4] as u32 * 2_u32.pow(16)
+            + deserialized_data[5] as u32 * 2_u32.pow(24);
+
+        assert_eq!(
+            expected,
+            int,
+            "Serialized u32 {:?} is not deserialized correctly: {}",
+            &deserialized_data[2..6],
+            int
+        );
+    }
+
+    // Signed 64-bit integers are deserialized correctly
+    #[test]
+    fn deserialize_signed_64_bit_integer_correct() {
+        let deserialized_data: Vec<u8> = vec![2, 2, 129, 16, 220, 79, 189, 129, 5, 129, 2];
+
+        let int = FinancialScContract::deserialize_signed_64_bit_int(&deserialized_data, 2);
+        let mut expected = deserialized_data[2] as i64 * 2_i64.pow(0)
+            + deserialized_data[3] as i64 * 2_i64.pow(8)
+            + deserialized_data[4] as i64 * 2_i64.pow(16)
+            + deserialized_data[5] as i64 * 2_i64.pow(24)
+            + deserialized_data[6] as i64 * 2_i64.pow(32)
+            + deserialized_data[7] as i64 * 2_i64.pow(40)
+            + deserialized_data[8] as i64 * 2_i64.pow(48);
+
+        // Handle most significant byte to enable negativity
+        if deserialized_data[9] > 2_u8.pow(7) {
+            expected += (deserialized_data[9] as i64 - 2_i64.pow(7)) * 2_i64.pow(56);
+            expected -= 2_i64.pow(62);
+            expected -= 2_i64.pow(62);
+        } else {
+            expected += deserialized_data[9] as i64 * 2_i64.pow(56);
+        }
+
+        assert_eq!(
+            expected,
+            int,
+            "Serialized i64 {:?} is not deserialized correctly: {}",
+            &deserialized_data[2..10],
+            int
+        );
     }
 
     // The counter-party of the contract is set to the deployer

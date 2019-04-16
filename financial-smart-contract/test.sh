@@ -4,7 +4,7 @@
 source ./generate-cargo.sh lib
 
 # Run tests
-cargo test --features std
+cargo test --features std $1
 
 # Replace build manifest
 source ./generate-cargo.sh cdylib

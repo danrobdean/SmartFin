@@ -232,3 +232,21 @@ Not started on get or anytime yet, hopefully can implement over the next two day
 
 
 
+========== 16 Apr ==========
+
+Fixing serialization/deserialization to use pwasm_std write/read functions, so that native endianness is never an issue (idk if its ever actually an issue in ewasm but better safe than sorry):
+	- Both functions now use read/write_u32/u64
+	- Signed 64-bit function now converts i64 to u64, and then serializes, or vice-versa for deserialization
+	- To convert u64 to i64:
+		- if u64 > 2^63, then i64 will be negative
+		- For an n-bit number, bit[0] * 2^0 + bit[1] * 2^1... + bit[n-2] * 2^n-2 - bit[n-1] * 2^n-1 = 2's complement, or + bit[n-1] * 2^n-1 for unsigned (ignoring endianness, bit[n-1] is most significant)
+		- To convert from u64 > 2^63 to i64, must do u64 - 2^64
+		- This must be done as i64 = u64 - 2^63, followed by i64 = I64 - 2^62 - 2^62, to account for size limits on the types
+		- This process can be done in reverse to convert i64 -> u64, i.e. u64 = (i64 + 2^62 + 2^62) as u64 + 2^63
+	- Added tests for deserialization functions
+	- Made numbers more complicated where deserialization occurs to ensure tests check things properly
+
+NB: MAY LEAD TO ISSUES LATER - the read/write functions appear to use machine's native endianness, whereas can't guarantee the JS that does the serialization will use the same endianness. Might have to define the serialization/deserialization myself, to ensure endianness matches at both sides, even if it doesn't match the native endianness.
+
+
+

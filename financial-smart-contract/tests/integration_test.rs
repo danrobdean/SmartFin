@@ -134,28 +134,30 @@ fn expired_or_ignores_choice() {
 #[test]
 fn scale_with_provided_scale_value_has_correct_value() {
     // Create contract or scale 2 one
-    let mut scale_value = serialize_signed_64_bit_int(2).to_vec();
+    let scale = 154120;
+    let mut scale_value = serialize_signed_64_bit_int(scale).to_vec();
     let mut combinator_contract = vec![5, 1];
     combinator_contract.append(&mut scale_value);
     combinator_contract.append(&mut vec![1]);
     let mut contract = setup_contract(combinator_contract).contract;
 
-    // Check that contract value is 2
-    assert_eq!(contract.get_value(), 2);
+    // Check that contract value is correct
+    assert_eq!(contract.get_value(), scale);
 }
 
 // The value of a scale combinator with a negative scale value provided is correct
 #[test]
 fn scale_with_provided_negative_scale_value_has_correct_value() {
     // Create contract or scale -1 one
-    let mut scale_value = serialize_signed_64_bit_int(-2).to_vec();
+    let scale = -158812;
+    let mut scale_value = serialize_signed_64_bit_int(scale).to_vec();
     let mut combinator_contract = vec![5, 1];
     combinator_contract.append(&mut scale_value);
     combinator_contract.append(&mut vec![1]);
     let mut contract = setup_contract(combinator_contract).contract;
 
-    // Check that contract value is -2
-    assert_eq!(contract.get_value(), -2);
+    // Check that contract value is correct
+    assert_eq!(contract.get_value(), scale);
 }
 
 // The value of a scale combinator with an agreed-upon observable scale value is correct

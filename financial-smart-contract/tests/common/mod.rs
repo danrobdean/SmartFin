@@ -4,7 +4,7 @@ extern crate financial_smart_contract;
 
 pub use self::financial_smart_contract::{ FinancialScContract, FinancialScInterface };
 
-use self::pwasm_std::types::Address;
+use self::pwasm_std::{ write_u32, write_u64, types::Address };
 use self::pwasm_test::ext_reset;
 
 // The details of a contract used for testing
@@ -46,34 +46,29 @@ pub fn setup_contract(deserialized_combinator: Vec<u8>) -> TestContractDetails {
 }
 
 // Converts a 32-bit int to a 4-bit array
-pub fn serialize_32_bit_int(mut int: u32) -> [u8; 4] {
-    let mut serialized: [u8; 4] = [0; 4];
-    let mut byte: i8 = 3;
-    while byte >= 0 {
-        serialized[byte as usize] = (int % 256) as u8;
-        int /= 256;
-        byte -= 1;
-    }
-
-    serialized
+pub fn serialize_32_bit_int(val: u32) -> [u8; 4] {
+    // Serialize accounting for endianness
+    let mut res: [u8; 4] = [0; 4];
+    write_u32(&mut res, val);
+    res
 }
 
 // Converts a signed 64-bit int to an 8-bit array
-pub fn serialize_signed_64_bit_int(mut int: i64) -> [u8; 8] {
-    let mut serialized: [u8; 8] = [0; 8];
-    let mut byte: i8 = 7;
-
-    if int < 0 {
-        serialized[0] += 128;
-        int += 2_i64.pow(62);
-        int += 2_i64.pow(62);
+pub fn serialize_signed_64_bit_int(mut val: i64) -> [u8; 8] {
+    // Convert to u64
+    let unsigned;
+    if val < 0 {
+        // Convert from two's complement negative to unsigned
+        val += 2_i64.pow(62);
+        val += 2_i64.pow(62);
+        unsigned = val as u64 + 2_u64.pow(63);
+    } else {
+        // Signed int is positive, convert straight to unsigned
+        unsigned = val as u64;
     }
-
-    while byte >= 0 {
-        serialized[byte as usize] += (int % 256) as u8;
-        int /= 256;
-        byte -= 1;
-    }
-
-    serialized
+    
+    // Serialize accounting for endianness
+    let mut res: [u8; 8] = [0; 8];
+    write_u64(&mut res, unsigned);
+    res
 }
