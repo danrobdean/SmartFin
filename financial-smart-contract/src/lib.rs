@@ -153,6 +153,10 @@ impl FinancialScInterface for FinancialScContract {
 
     // Sets the given or combinator's preference between its sub-combinators
     fn set_or_choice(&mut self, or_index: u64, prefer_first: bool) {
+        if pwasm_ethereum::sender() != self.holder {
+            panic!("Only the contract holder may set or-choices.");
+        }
+
         let index = or_index as usize;
         if index >= self.or_choices.len() {
             panic!("Given or-index does not exist.");
@@ -604,16 +608,34 @@ mod tests {
         );
     }
 
-    // Providing an or choice for a non-existent or combinator is not allowed
+    // A non-holder account providing an or-choice is not allowed.
     #[test]
-    #[should_panic(expected = "Given or-index does not exist.")]
-    fn should_panic_if_non_existent_or_choice_provided() {
+    #[should_panic(expected = "Only the contract holder may set or-choices.")]
+    fn should_panic_if_non_holder_provides_or_choice() {
         let mut contract = setup_contract(
             "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
             "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
             0,
             vec![0]
         );
+
+        ext_reset(|e| e.sender(Address::zero()));
+        contract.set_or_choice(0, true);
+    }
+
+    // Providing an or choice for a non-existent or combinator is not allowed
+    #[test]
+    #[should_panic(expected = "Given or-index does not exist.")]
+    fn should_panic_if_non_existent_or_choice_provided() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![0]
+        );
+
+        ext_reset(|e| e.sender("25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap()));
         contract.set_or_choice(0, true);
     }
 

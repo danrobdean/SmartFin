@@ -37,21 +37,23 @@ fn correct_value_and() {
 // The value of the or combinator is correct given a left or choice
 #[test]
 fn correct_value_or_left() {
-    let mut contract = setup_contract(vec![3, 0, 1]).contract;
+    let mut contract_details = setup_contract(vec![3, 0, 1]);
     
     // Set the or choice and check the value
-    contract.set_or_choice(0, true);
-    assert_eq!(contract.get_value(), 0);
+    ext_reset(|e| e.sender(contract_details.holder));
+    contract_details.contract.set_or_choice(0, true);
+    assert_eq!(contract_details.contract.get_value(), 0);
 }
 
 // The value of the or combinator is correct given a right or choice
 #[test]
 fn correct_value_or_right() {
-    let mut contract = setup_contract(vec![3, 0, 1]).contract;
+    let mut contract_details = setup_contract(vec![3, 0, 1]);
     
     // Set the or choice and check the value
-    contract.set_or_choice(0, false);
-    assert_eq!(contract.get_value(), 1);
+    ext_reset(|e| e.sender(contract_details.holder));
+    contract_details.contract.set_or_choice(0, false);
+    assert_eq!(contract_details.contract.get_value(), 1);
 }
 
 // The value of an expired truncated contract is 0
@@ -122,12 +124,15 @@ fn expired_or_ignores_choice() {
     let mut combinator_contract = vec![3, 4];
     combinator_contract.append(&mut timestamp);
     combinator_contract.append(&mut vec![1, 0]);
-    let mut contract = setup_contract(combinator_contract).contract;
+    let mut contract_details = setup_contract(combinator_contract);
 
     // Check that contract value is 0 at timestamp 1 with left or-choice
-    contract.set_or_choice(0, true);
-    ext_reset(|e| e.timestamp(1));
-    assert_eq!(contract.get_value(), 0);
+    ext_reset(|e| e
+        .timestamp(1)
+        .sender(contract_details.holder)
+    );
+    contract_details.contract.set_or_choice(0, true);
+    assert_eq!(contract_details.contract.get_value(), 0);
 }
 
 // The value of a scale combinator with the scale value provided is correct

@@ -1,11 +1,15 @@
-use super::contract_combinator::{ ContractCombinator, latest_horizon, Box, Vec };
+use super::contract_combinator::{ ContractCombinator, CombinatorDetails, latest_horizon, Box, Vec };
 
 // The and combinator
 pub struct AndCombinator {
     // The first sub-combinator
     sub_combinator0: Box<ContractCombinator>,
+
     // The second sub-combinator
-    sub_combinator1: Box<ContractCombinator>
+    sub_combinator1: Box<ContractCombinator>,
+
+    // The common combinator details
+    combinator_details: CombinatorDetails
 }
 
 // Method implementation for the and combinator
@@ -13,7 +17,8 @@ impl AndCombinator {
     pub fn new(sub_combinator0: Box<ContractCombinator>, sub_combinator1: Box<ContractCombinator>) -> AndCombinator {
         AndCombinator {
             sub_combinator0,
-            sub_combinator1
+            sub_combinator1,
+            combinator_details: CombinatorDetails::new()
         }
     }
 }
@@ -27,6 +32,20 @@ impl ContractCombinator for AndCombinator {
 
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
         self.sub_combinator0.get_value(time, or_choices, obs_values) + self.sub_combinator1.get_value(time, or_choices, obs_values)
+    }
+
+    fn get_combinator_details(&self) -> &CombinatorDetails {
+        &self.combinator_details
+    }
+
+    // Acquires the combinator, returning the balance to be paid from the holder to the counter-party
+    fn acquire(&mut self, time: u32) {
+        panic!("Method not implemented.")
+    }
+
+    // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+        panic!("Method not implemented.")
     }
 }
 

@@ -1,16 +1,20 @@
-use super::contract_combinator::{ ContractCombinator, Box, Vec };
+use super::contract_combinator::{ ContractCombinator, CombinatorDetails, Box, Vec };
 
 // The give combinator
 pub struct GiveCombinator {
     // The sub-combinator
-    sub_combinator: Box<ContractCombinator>
+    sub_combinator: Box<ContractCombinator>,
+
+    // The common combinator details
+    combinator_details: CombinatorDetails
 }
 
 // Method implementation for the give combinator
 impl GiveCombinator {
     pub fn new(sub_combinator: Box<ContractCombinator>) -> GiveCombinator {
         GiveCombinator {
-            sub_combinator
+            sub_combinator,
+            combinator_details: CombinatorDetails::new()
         }
     }
 }
@@ -23,6 +27,37 @@ impl ContractCombinator for GiveCombinator {
 
     fn get_horizon(&self) -> Option<u32> {
         self.sub_combinator.get_horizon()
+    }
+
+    fn get_combinator_details(&self) -> &CombinatorDetails {
+        &self.combinator_details
+    }
+
+    // Acquires the combinator, returning the balance to be paid from the holder to the counter-party
+    fn acquire(&mut self, time: u32) {
+        if self.past_horizon(time) {
+            panic!("Acquiring an expired contract is not allowed.");
+        }
+        if self.combinator_details.acquisition_time != None {
+            panic!("Acquiring a previously-acquired give combinator is not allowed.");
+        }
+
+        self.sub_combinator.acquire(time);
+        self.combinator_details.acquisition_time = Some(time);
+    }
+
+    // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+        // If not acquired yet or fully updated (no more pending balance), return 0
+        if self.combinator_details.acquisition_time == None
+            || self.combinator_details.acquisition_time.unwrap() > time
+            || self.combinator_details.fully_updated {
+            return 0;
+        }
+
+        let sub_value = self.sub_combinator.update(time, or_choices, obs_values);
+        self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
+        -1 * sub_value
     }
 }
 
@@ -67,5 +102,159 @@ mod tests {
             "Horizon of combinator 'give truncate 1 one' is not equal to Some(1): {:?}",
             horizon
         );
+    }
+
+    // Acquiring give-combinator sets combinator details correctly
+    #[test]
+    fn acquiring_sets_combinator_details() {
+        // Create combinator give one
+        let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+
+        // Acquire and check details
+        let time: u32 = 5;
+        combinator.acquire(time);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.acquisition_time,
+            Some(time),
+            "Acquisition time of combinator is not equal to Some(5): {:?}",
+            combinator_details.acquisition_time
+        );
+    }
+
+    // Acquiring and updating combinator returns correct value
+    #[test]
+    fn acquiring_and_updating_returns_correct_value() {
+        // Create combinator
+        let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+
+        // Acquire and check value
+        combinator.acquire(0);
+        let value = combinator.update(0, &vec![], &vec![]);
+
+        assert_eq!(
+            value,
+            -1,
+            "Update value of give one is not equal to -1: {}",
+            value
+        );
+    }
+
+    // Acquiring and updating combinator sets fully updated to true
+    #[test]
+    fn acquiring_and_updating_sets_fully_updated() {
+        // Create combinator
+        let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+
+        // Acquire and check value
+        combinator.acquire(0);
+        combinator.update(0, &vec![], &vec![]);
+        let fully_updated = combinator.get_combinator_details().fully_updated;
+
+        assert_eq!(
+            fully_updated,
+            true,
+            "fully_updated is not true: {}",
+            fully_updated
+        );
+    }
+
+    // Acquiring and updating combinator twice returns correct value
+    #[test]
+    fn acquiring_and_updating_twice_returns_correct_value() {
+        // Create combinator
+        let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+
+        // Acquire and check value
+        combinator.acquire(0);
+        combinator.update(0, &vec![], &vec![]);
+        let value = combinator.update(0, &vec![], &vec![]);
+
+        assert_eq!(
+            value,
+            0,
+            "Second update value of give one is not equal to 0: {}",
+            value
+        );
+    }
+
+    // Updating before acquiring does not set fully updated, and returns correct value
+    #[test]
+    fn updating_before_acquiring_does_nothing() {
+        // Create combinator give one
+        let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+
+        // Update check details
+        let value = combinator.update(0, &vec![], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating before acquiring != 0: {}",
+            value
+        )
+    }
+
+    // Updating before acquisition time does not set fully updated and returns correct value
+    #[test]
+    fn updating_before_acquisition_time_does_nothing() {
+        // Create combinator give one
+        let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+
+        // Update check details
+        combinator.acquire(1);
+        let value = combinator.update(0, &vec![], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating before acquiring != 0: {}",
+            value
+        )
+    }
+
+    // Acquiring combinator twice is not allowed
+    #[test]
+    #[should_panic(expected = "Acquiring a previously-acquired give combinator is not allowed.")]
+    fn should_panic_when_acquiring_combinator_twice() {
+        // Create combinator
+        let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+
+        // Acquire twice
+        combinator.acquire(0);
+        combinator.acquire(0);
+    }
+
+    // Acquiring combinator post-expiry is not allowed
+    #[test]
+    #[should_panic(expected = "Acquiring an expired contract is not allowed.")]
+    fn should_panic_when_acquiring_post_expiry() {
+        // Create combinator
+        let mut combinator = GiveCombinator::new(
+            Box::new(TruncateCombinator::new(
+                Box::new(OneCombinator::new()),
+                0
+            ))
+        );
+
+        // Acquire at time = 1
+        combinator.acquire(1);
     }
 }

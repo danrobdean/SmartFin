@@ -2,6 +2,26 @@ extern crate pwasm_std;
 
 pub use self::pwasm_std::{ Box, Vec, vec };
 
+// The details shared by all combinators
+pub struct CombinatorDetails {
+    // The acquisition time of the combinator
+    pub acquisition_time: Option<u32>,
+
+    // Whether or not the combinator is fully updated
+    pub fully_updated: bool
+}
+
+// Combinator details method implementation
+impl CombinatorDetails {
+    // Constructor
+    pub fn new() -> CombinatorDetails {
+        CombinatorDetails {
+            acquisition_time: None,
+            fully_updated: false
+        }
+    }
+}
+
 // API for combinators
 pub trait ContractCombinator {
     // Returns the horizon of the combinator, or -1 if none exists
@@ -19,6 +39,15 @@ pub trait ContractCombinator {
 
     // Returns the value of the combinator if acquired at the given time
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64;
+
+    // Returns the common combinator details of the combinator
+    fn get_combinator_details(&self) -> &CombinatorDetails;
+
+    // Acquires the combinator, setting the acquisition time in the combinator details
+    fn acquire(&mut self, time: u32);
+
+    // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64;
 }
 
 // Returns the earliest of the given horizons

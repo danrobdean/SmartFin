@@ -248,5 +248,21 @@ Fixing serialization/deserialization to use pwasm_std write/read functions, so t
 
 NB: MAY LEAD TO ISSUES LATER - the read/write functions appear to use machine's native endianness, whereas can't guarantee the JS that does the serialization will use the same endianness. Might have to define the serialization/deserialization myself, to ensure endianness matches at both sides, even if it doesn't match the native endianness.
 
+Acquisition time!! Handling acquisition finally, decided upon the following model:
+	- Every combinator has an acquisition_time: Option<u32>, and a fully_updated: bool
+	- When acquire is called, acquire is called on the combinator, which calls acquire on sub combinators
+	- In each acquire method, the combinator sets its acquisition_time to the given acquisition_time (if it hasn't been set already), and then calls on sub-combinators
+	- Combinators can only be acquired once, and only before their horizon
+	- In order to handle funds, update must be called (this should be called on the contract combinator right after calling acquire)
+	- update will pass down the current time, obs_values, and or_choices, and get the amount of ether which is pending payment
+	- calling update on non-acquired combinators does nothing and returns 0
+	- calling it on combinators acquired in the future also does nothing
+	- calling it on fully-updated combinators also does nothing
+	- calling it on acquired combinators which aren't fully updated will calculate the payment pending in said combinator (and its sub-combinators where relevant), and return the final value. Once a combinator's sub-combinator(s) are marked as fully_updated, it marks itself as fully_updated, to mark that no funds are pending
+	- Get will set the acquisition time of the sub-combinator to the future
+	- Anytime will do the same, but there will be acquire_anytime(anytime_index) functions (like obs/or) to acquire anytime combinators before the horizon
+
+Have implemented acquire/update for null, zero, one, give, and scale, as well as tests. Stubs have been added for other combinators, to be filled in over the next two days. The FinancialScContract acquire/update methods have not been implemented.
+
 
 

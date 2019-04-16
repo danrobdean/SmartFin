@@ -1,13 +1,18 @@
-use super::contract_combinator::{ ContractCombinator, Box, Vec };
+use super::contract_combinator::{ ContractCombinator, CombinatorDetails, Box, Vec };
 
 // The scale combinator
 pub struct ScaleCombinator {
     // The sub-combinator
     sub_combinator: Box<ContractCombinator>,
+
     // The observable index
     obs_index: Option<usize>,
+
     // The scale value
-    scale_value: Option<i64>
+    scale_value: Option<i64>,
+
+    // The common combinator details
+    combinator_details: CombinatorDetails
 }
 
 // Method implementation for the scale combinator
@@ -20,16 +25,14 @@ impl ScaleCombinator {
         ScaleCombinator {
             sub_combinator,
             obs_index,
-            scale_value
+            scale_value,
+            combinator_details: CombinatorDetails::new()
         }
     }
-}
 
-// Contract combinator implementation for the scale combinator
-impl ContractCombinator for ScaleCombinator {
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+    fn get_scale_value(&self, obs_values: &Vec<Option<i64>>) -> i64 {
         match self.scale_value {
-            Some(value) => value* self.sub_combinator.get_value(time, or_choices, obs_values),
+            Some(value) => value,
             None => {
                 match self.obs_index {
                     Some(index) => {
@@ -38,8 +41,8 @@ impl ContractCombinator for ScaleCombinator {
                         }
                         let obs_value = obs_values[index];
                         match obs_value {
-                            Some(value) => value * self.sub_combinator.get_value(time, or_choices, obs_values),
-                            None => panic!("Cannot get value of scale combinator with an undefined observable.")
+                            Some(value) => value,
+                            None => panic!("Cannot get value of an undefined observable.")
                         }
                     },
                     None => panic!("Scale combinator has no scale value or observable index.")
@@ -47,9 +50,47 @@ impl ContractCombinator for ScaleCombinator {
             }
         }
     }
+}
+
+// Contract combinator implementation for the scale combinator
+impl ContractCombinator for ScaleCombinator {
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+        self.get_scale_value(obs_values) * self.sub_combinator.get_value(time, or_choices, obs_values)
+    }
 
     fn get_horizon(&self) -> Option<u32> {
         self.sub_combinator.get_horizon()
+    }
+
+    fn get_combinator_details(&self) -> &CombinatorDetails {
+        &self.combinator_details
+    }
+
+    // Acquires the combinator, returning the balance to be paid from the holder to the counter-party
+    fn acquire(&mut self, time: u32) {
+        if self.past_horizon(time) {
+            panic!("Acquiring an expired contract is not allowed.");
+        }
+        if self.combinator_details.acquisition_time != None {
+            panic!("Acquiring a previously-acquired scale combinator is not allowed.");
+        }
+
+        self.sub_combinator.acquire(time);
+        self.combinator_details.acquisition_time = Some(time);
+    }
+
+    // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+        // If not acquired yet or fully updated (no more pending balance), return 0
+        if self.combinator_details.acquisition_time == None
+            || self.combinator_details.acquisition_time.unwrap() > time
+            || self.combinator_details.fully_updated {
+            return 0;
+        }
+
+        let sub_value = self.sub_combinator.update(time, or_choices, obs_values);
+        self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
+        self.get_scale_value(obs_values) * sub_value
     }
 }
 
@@ -129,6 +170,132 @@ mod tests {
             horizon
         );
     }
+
+    // Acquiring give-combinator sets combinator details correctly
+    #[test]
+    fn acquiring_sets_combinator_details() {
+        // Create combinator scale 5 one
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+
+        // Acquire and check details
+        let time: u32 = 5;
+        combinator.acquire(time);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.acquisition_time,
+            Some(time),
+            "Acquisition time of combinator is not equal to Some(5): {:?}",
+            combinator_details.acquisition_time
+        );
+    }
+
+    // Acquiring and updating combinator returns correct value
+    #[test]
+    fn acquiring_and_updating_returns_correct_value() {
+        // Create combinator scale 5 one
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+
+        // Acquire and check value
+        combinator.acquire(0);
+        let value = combinator.update(0, &vec![], &vec![]);
+
+        assert_eq!(
+            value,
+            5,
+            "Update value of scale 5 one is not equal to 5: {}",
+            value
+        );
+    }
+
+    // Acquiring and updating combinator sets fully updated to true
+    #[test]
+    fn acquiring_and_updating_sets_fully_updated() {
+        // Create combinator scale 5 one
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+
+        // Acquire and check value
+        combinator.acquire(0);
+        combinator.update(0, &vec![], &vec![]);
+        let fully_updated = combinator.get_combinator_details().fully_updated;
+
+        assert_eq!(
+            fully_updated,
+            true,
+            "fully_updated is not true: {}",
+            fully_updated
+        );
+    }
+
+    // Acquiring and updating combinator twice returns correct value
+    #[test]
+    fn acquiring_and_updating_twice_returns_correct_value() {
+        // Create combinator scale 5 one
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+
+        // Acquire and check value
+        combinator.acquire(0);
+        combinator.update(0, &vec![], &vec![]);
+        let value = combinator.update(0, &vec![], &vec![]);
+
+        assert_eq!(
+            value,
+            0,
+            "Second update value of scale 5 one is not equal to 0: {}",
+            value
+        );
+    }
+
+    // Updating before acquiring does not set fully updated, and returns correct value
+    #[test]
+    fn updating_before_acquiring_does_nothing() {
+        // Create combinator scale 5 one
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+
+        // Update check details
+        let value = combinator.update(0, &vec![], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating before acquiring != 0: {}",
+            value
+        )
+    }
+
+    // Updating before acquisition time does not set fully updated and returns correct value
+    #[test]
+    fn updating_before_acquisition_time_does_nothing() {
+        // Create combinator scale 5 one
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+
+        // Update check details
+        combinator.acquire(1);
+        let value = combinator.update(0, &vec![], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating before acquiring != 0: {}",
+            value
+        )
+    }
     
     // Scale combinator being instantiated without an observable index or scale value is not allowed
     #[test]
@@ -140,7 +307,7 @@ mod tests {
 
     // Getting value without a concrete observable value is not allowed
     #[test]
-    #[should_panic(expected = "Cannot get value of scale combinator with an undefined observable.")]
+    #[should_panic(expected = "Cannot get value of an undefined observable.")]
     fn should_panic_if_getting_value_without_concrete_observable_value() {
         // Create combinator scale obs one
         let combinator = ScaleCombinator::new(Box::from(OneCombinator::new()), Some(0), None);
@@ -158,5 +325,35 @@ mod tests {
 
         // Get value
         combinator.get_value(0, &vec![], &vec![]);
+    }
+
+    // Acquiring combinator twice is not allowed
+    #[test]
+    #[should_panic(expected = "Acquiring a previously-acquired scale combinator is not allowed.")]
+    fn should_panic_when_acquiring_combinator_twice() {
+        // Create combinator
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+
+        // Acquire twice
+        combinator.acquire(0);
+        combinator.acquire(0);
+    }
+
+    // Acquiring combinator post-expiry is not allowed
+    #[test]
+    #[should_panic(expected = "Acquiring an expired contract is not allowed.")]
+    fn should_panic_when_acquiring_post_expiry() {
+        // Create combinator
+        let mut combinator = ScaleCombinator::new(
+            Box::new(TruncateCombinator::new(
+                Box::new(OneCombinator::new()),
+                0
+            )),
+            None,
+            Some(5)
+        );
+
+        // Acquire at time = 1
+        combinator.acquire(1);
     }
 }

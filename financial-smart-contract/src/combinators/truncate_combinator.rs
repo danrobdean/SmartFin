@@ -1,11 +1,15 @@
-use super::contract_combinator::{ ContractCombinator, earliest_horizon, Box, Vec };
+use super::contract_combinator::{ ContractCombinator, CombinatorDetails, earliest_horizon, Box, Vec };
 
 // The truncate combinator
 pub struct TruncateCombinator {
     // The sub-combinator
     sub_combinator: Box<ContractCombinator>,
+
     // The truncated horizon
-    truncated_horizon: u32
+    truncated_horizon: u32,
+
+    // The common combinator details
+    combinator_details: CombinatorDetails
 }
 
 // Method implementation for the truncate combinator
@@ -13,7 +17,8 @@ impl TruncateCombinator {
     pub fn new(sub_combinator: Box<ContractCombinator>, truncated_horizon: u32) -> TruncateCombinator {
         TruncateCombinator {
             sub_combinator,
-            truncated_horizon
+            truncated_horizon,
+            combinator_details: CombinatorDetails::new()
         }
     }
 }
@@ -31,6 +36,20 @@ impl ContractCombinator for TruncateCombinator {
         } else {
             self.sub_combinator.get_value(time, or_choices, obs_values)
         }
+    }
+
+    fn get_combinator_details(&self) -> &CombinatorDetails {
+        &self.combinator_details
+    }
+
+    // Acquires the combinator, returning the balance to be paid from the holder to the counter-party
+    fn acquire(&mut self, time: u32) {
+        panic!("Method not implemented.")
+    }
+
+    // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+        panic!("Method not implemented.")
     }
 }
 
