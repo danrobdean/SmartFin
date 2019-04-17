@@ -288,5 +288,7 @@ Changed or combinator:
 Changed scale combinator:
 	- If no obs_value or scale_value given, update does nothing
 
+Tomorrow: Implement acquirable (may not need after or choice change and scale value change, since all combinators may just be able to be acquired always?), implement top-level acquire/update, implement get and anytime.
+
 
 
