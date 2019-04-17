@@ -30,20 +30,16 @@ impl ScaleCombinator {
         }
     }
 
-    fn get_scale_value(&self, obs_values: &Vec<Option<i64>>) -> i64 {
+    fn get_scale_value(&self, obs_values: &Vec<Option<i64>>) -> Option<i64> {
         match self.scale_value {
-            Some(value) => value,
+            Some(value) => Some(value),
             None => {
                 match self.obs_index {
                     Some(index) => {
                         if index >= obs_values.len() {
                             panic!("Attempted to lookup observable which does not exist.")
                         }
-                        let obs_value = obs_values[index];
-                        match obs_value {
-                            Some(value) => value,
-                            None => panic!("Cannot get value of an undefined observable.")
-                        }
+                        obs_values[index]
                     },
                     None => panic!("Scale combinator has no scale value or observable index.")
                 }
@@ -55,7 +51,12 @@ impl ScaleCombinator {
 // Contract combinator implementation for the scale combinator
 impl ContractCombinator for ScaleCombinator {
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
-        self.get_scale_value(obs_values) * self.sub_combinator.get_value(time, or_choices, obs_values)
+        let scale_value = self.get_scale_value(obs_values);
+        if scale_value == None {
+            panic!("Cannot get value of an undefined observable.")
+        }
+
+        scale_value.unwrap() * self.sub_combinator.get_value(time, or_choices, obs_values)
     }
 
     fn get_horizon(&self) -> Option<u32> {
@@ -86,16 +87,20 @@ impl ContractCombinator for ScaleCombinator {
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
     fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+        let scale_value = self.get_scale_value(obs_values);
+
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
-            || self.combinator_details.fully_updated {
+            || self.combinator_details.fully_updated
+            // If no scale value or obs value, don't update
+            || scale_value == None {
             return 0;
         }
 
         let sub_value = self.sub_combinator.update(time, or_choices, obs_values);
         self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
-        self.get_scale_value(obs_values) * sub_value
+        scale_value.unwrap() * sub_value
     }
 }
 
@@ -298,6 +303,32 @@ mod tests {
             value,
             0,
             "Value of updating before acquiring != 0: {}",
+            value
+        )
+    }
+
+    // Updating without concrete observable value does not set fully updated and returns correct value
+    #[test]
+    fn updating_without_concrete_observable_does_nothing() {
+        // Create combinator scale obs one
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), Some(0), None);
+
+        // Update check details
+        combinator.acquire(0, &vec![]);
+        let value = combinator.update(0, &vec![], &vec![None]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating without concrete observable value != 0: {}",
             value
         )
     }

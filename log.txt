@@ -283,5 +283,10 @@ Can't validate during acquisition, e.g. AND - if one branch succeeds then the se
 
 PROBLEM: Should we be able to set or choices and/or observable values AFTER acquisition? I would say that it makes sense for observable values if both parties agree and or choices if a value/choice has not already been used during an update call (i.e. can change from None to Some after calling update for the first time, but not Some(x) to Some(y)). If this change is made, should separate update and acquire (i.e. dont call update right after acquire by default), and update should lock in the concrete values. Acquire/acquirable can travers both branches on ambiguous OR, and update can return 0 on ambiguous OR/SCALE and not set fully_updated.
 
+Changed or combinator:
+	- If no or choice given, acquisition affects both branches, and update does nothing
+Changed scale combinator:
+	- If no obs_value or scale_value given, update does nothing
+
 
 

@@ -27,16 +27,16 @@ impl OrCombinator {
     }
 
     // Returns whether the current or-choice is the first sub-combinator
-    fn get_or_choice(&self, time: u32, or_choices: &Vec<Option<bool>>) -> bool {
+    fn get_or_choice(&self, time: u32, or_choices: &Vec<Option<bool>>) -> Option<bool> {
         if self.sub_combinator0.past_horizon(time) {
-            false
+            Some(false)
         } else if self.sub_combinator1.past_horizon(time) {
-            true
+            Some(true)
         } else {
             match or_choices[self.or_index] {
-                Some(true) => true,
-                Some(false) => false,
-                None => panic!("Cannot get OR choice when neither sub-combinator has been chosen or has expired.")
+                Some(true) => Some(true),
+                Some(false) => Some(false),
+                None => None
             }
         }
     }
@@ -50,7 +50,11 @@ impl ContractCombinator for OrCombinator {
     }
 
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
-        if self.get_or_choice(time, or_choices) {
+        if self.get_or_choice(time, or_choices) == None {
+            panic!("Cannot get OR choice when neither sub-combinator has been chosen or has expired.")
+        }
+
+        if self.get_or_choice(time, or_choices).unwrap() {
             self.sub_combinator0.get_value(time, or_choices, obs_values)
         } else {
             self.sub_combinator1.get_value(time, or_choices, obs_values)
@@ -75,25 +79,33 @@ impl ContractCombinator for OrCombinator {
             panic!("Acquiring a previously-acquired or combinator is not allowed.");
         }
 
-        if self.get_or_choice(time, or_choices) {
+        // Check which sub-combinator to acquire. If ambiguous, acquire both branches.
+        if self.get_or_choice(time, or_choices) == Some(true) {
             self.sub_combinator0.acquire(time, or_choices);
+        } else if self.get_or_choice(time, or_choices) == Some(false) {
+            self.sub_combinator1.acquire(time, or_choices);
         } else {
+            self.sub_combinator0.acquire(time, or_choices);
             self.sub_combinator1.acquire(time, or_choices);
         }
+
         self.combinator_details.acquisition_time = Some(time);
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
     fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+        let or_choice = self.get_or_choice(time, or_choices);
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
-            || self.combinator_details.fully_updated {
+            || self.combinator_details.fully_updated
+            // If ambiguous or choice, don't update
+            || or_choice == None {
             return 0;
         }
 
         let sub_combinator;
-        if self.get_or_choice(self.combinator_details.acquisition_time.unwrap(), or_choices) {
+        if or_choice.unwrap() {
             sub_combinator = &mut self.sub_combinator0;
         } else {
             sub_combinator = &mut self.sub_combinator1;
@@ -384,6 +396,36 @@ mod tests {
         )
     }
 
+    // Updating with ambiguous or choice does not set fully updated and returns correct value
+    #[test]
+    fn updating_ambiguous_or_choice_does_nothing() {
+        // Create combinator or one one
+        let mut combinator = OrCombinator::new(
+            Box::from(OneCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Update check details
+        combinator.acquire(0, &vec![None]);
+        let value = combinator.update(0, &vec![None], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating ambiguous or choice != 0: {}",
+            value
+        )
+    }
+
     // Updating before acquisition time does not set fully updated and returns correct value
     #[test]
     fn updating_with_different_time_to_acquisition_time_returns_correct_value() {
@@ -461,20 +503,5 @@ mod tests {
 
         // Acquire at time = 1
         combinator.acquire(1, &vec![]);
-    }
-
-    // Acquiring combinator with ambiguous or-choice is not allowed
-    #[test]
-    #[should_panic(expected = "Cannot get OR choice when neither sub-combinator has been chosen or has expired.")]
-    fn should_panic_when_acquiring_ambiguous_or_choice() {
-        // Create combinator or zero one
-        let mut combinator = OrCombinator::new(
-            Box::from(ZeroCombinator::new()),
-            Box::from(OneCombinator::new()),
-            0
-        );
-
-        // Acquire at time = 1
-        combinator.acquire(1, &vec![None]);
     }
 }
