@@ -66,8 +66,13 @@ impl ContractCombinator for ScaleCombinator {
         &self.combinator_details
     }
 
-    // Acquires the combinator, returning the balance to be paid from the holder to the counter-party
-    fn acquire(&mut self, time: u32) {
+    // Checks whether or not the combinator can currently be acquired
+    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool {
+        panic!("Method not implemented.")
+    }
+
+    // Acquires the combinator and acquirable sub-combinators
+    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
         if self.past_horizon(time) {
             panic!("Acquiring an expired contract is not allowed.");
         }
@@ -75,7 +80,7 @@ impl ContractCombinator for ScaleCombinator {
             panic!("Acquiring a previously-acquired scale combinator is not allowed.");
         }
 
-        self.sub_combinator.acquire(time);
+        self.sub_combinator.acquire(time, or_choices);
         self.combinator_details.acquisition_time = Some(time);
     }
 
@@ -179,7 +184,7 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 5;
-        combinator.acquire(time);
+        combinator.acquire(time, &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -197,7 +202,7 @@ mod tests {
         let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
 
         // Acquire and check value
-        combinator.acquire(0);
+        combinator.acquire(0, &vec![]);
         let value = combinator.update(0, &vec![], &vec![]);
 
         assert_eq!(
@@ -215,7 +220,7 @@ mod tests {
         let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
 
         // Acquire and check value
-        combinator.acquire(0);
+        combinator.acquire(0, &vec![]);
         combinator.update(0, &vec![], &vec![]);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
@@ -234,7 +239,7 @@ mod tests {
         let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
 
         // Acquire and check value
-        combinator.acquire(0);
+        combinator.acquire(0, &vec![]);
         combinator.update(0, &vec![], &vec![]);
         let value = combinator.update(0, &vec![], &vec![]);
 
@@ -278,7 +283,7 @@ mod tests {
         let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
 
         // Update check details
-        combinator.acquire(1);
+        combinator.acquire(1, &vec![]);
         let value = combinator.update(0, &vec![], &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
@@ -335,8 +340,8 @@ mod tests {
         let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
 
         // Acquire twice
-        combinator.acquire(0);
-        combinator.acquire(0);
+        combinator.acquire(0, &vec![]);
+        combinator.acquire(0, &vec![]);
     }
 
     // Acquiring combinator post-expiry is not allowed
@@ -354,6 +359,6 @@ mod tests {
         );
 
         // Acquire at time = 1
-        combinator.acquire(1);
+        combinator.acquire(1, &vec![]);
     }
 }

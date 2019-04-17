@@ -266,3 +266,22 @@ Have implemented acquire/update for null, zero, one, give, and scale, as well as
 
 
 
+========== 17 Apr ==========
+
+Implementing acquire/update for more combinators (truncate, and, or, then):
+	- Truncate very similar to give/scale
+	- And acquires/updates both children
+	- Or checks or choice (must pass around or_choices in acquire), MAY change to handle ambiguous choice case, currently just panics
+		- Be careful to update based on acquisition_time, not time
+	- Then similar to or except based on horizon, not or choice
+		- Again, use acquisition_time not time
+
+Ensure that after acquiring the contract, or_choices and obs_values do not change (or have some limitation on their modification)
+Acquiring the contract should fail if missing or_choices or obs_values (should this happen for all or_choices/obs_values, or only ones on the active branch of the contract? If only the active branch, can handle during acquisition in the combinators which are missing information by panicking, the panic should propagate up the contract - this would require passing the or_choices/obs_values through the acquire functions though.) Maybe a separate validate function on the combinators, to traverse the tree cheaply before acquisition (although more expensive if validates successfully, but cheaper on failure). Also makes it easier to implement.
+
+Can't validate during acquisition, e.g. AND - if one branch succeeds then the second fails, no way to roll-back the first acquisition, thus we need to completely validate the combinator tree before starting acquisition. Added separate acquirable method to be called before acquisition, which checks if all sub-combinators on the active branch can be acquired.
+
+PROBLEM: Should we be able to set or choices and/or observable values AFTER acquisition? I would say that it makes sense for observable values if both parties agree and or choices if a value/choice has not already been used during an update call (i.e. can change from None to Some after calling update for the first time, but not Some(x) to Some(y)). If this change is made, should separate update and acquire (i.e. dont call update right after acquire by default), and update should lock in the concrete values. Acquire/acquirable can travers both branches on ambiguous OR, and update can return 0 on ambiguous OR/SCALE and not set fully_updated.
+
+
+

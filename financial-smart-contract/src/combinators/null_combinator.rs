@@ -29,8 +29,13 @@ impl ContractCombinator for NullCombinator {
         panic!("Attempted to check the combinator details of a null combinator.");
     }
 
-    // Acquires the combinator, returning the balance to be paid from the holder to the counter-party
-    fn acquire(&mut self, time: u32) {
+    // Checks whether or not the combinator can currently be acquired
+    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool {
+        panic!("Attempted to check whether a null combinator is acquirable.")
+    }
+
+    // Acquires the combinator and acquirable sub-combinators
+    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
         panic!("Attempted to acquire a null combinator.");
     }
 
@@ -88,7 +93,16 @@ mod tests {
     fn should_panic_if_acquiring_null_combinator() {
         let mut null_combinator = NullCombinator::new();
 
-        null_combinator.acquire(0);
+        null_combinator.acquire(0, &vec![]);
+    }
+
+    // Acquiring a null-combinator is not allowed
+    #[test]
+    #[should_panic(expected = "Attempted to check whether a null combinator is acquirable.")]
+    fn should_panic_if_checking_acquirable_null_combinator() {
+        let mut null_combinator = NullCombinator::new();
+
+        null_combinator.acquirable(0, &vec![], &vec![]);
     }
 
     // Updating a null-combinator is not allowed

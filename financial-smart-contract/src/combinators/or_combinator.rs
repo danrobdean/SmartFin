@@ -25,6 +25,21 @@ impl OrCombinator {
             combinator_details: CombinatorDetails::new()
         }
     }
+
+    // Returns whether the current or-choice is the first sub-combinator
+    fn get_or_choice(&self, time: u32, or_choices: &Vec<Option<bool>>) -> bool {
+        if self.sub_combinator0.past_horizon(time) {
+            false
+        } else if self.sub_combinator1.past_horizon(time) {
+            true
+        } else {
+            match or_choices[self.or_index] {
+                Some(true) => true,
+                Some(false) => false,
+                None => panic!("Cannot get OR choice when neither sub-combinator has been chosen or has expired.")
+            }
+        }
+    }
 }
 
 // Contract combinator implementation for the or combinator
@@ -35,18 +50,10 @@ impl ContractCombinator for OrCombinator {
     }
 
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
-        // If one sub-combinator has expired, choose the other
-        if self.sub_combinator0.past_horizon(time) {
-            self.sub_combinator1.get_value(time, or_choices, obs_values)
-        } else if self.sub_combinator1.past_horizon(time) {
+        if self.get_or_choice(time, or_choices) {
             self.sub_combinator0.get_value(time, or_choices, obs_values)
         } else {
-            // If both sub-combinators can be acquired, use the provided choice, or panic if no choice has been provided
-            match or_choices[self.or_index] {
-                Some(true) => self.sub_combinator0.get_value(time, or_choices, obs_values),
-                Some(false) => self.sub_combinator1.get_value(time, or_choices, obs_values),
-                None => panic!("Cannot get value of OR combinator when neither sub-combinator has been chosen or has expired.")
-            }
+            self.sub_combinator1.get_value(time, or_choices, obs_values)
         }
     }
 
@@ -54,14 +61,46 @@ impl ContractCombinator for OrCombinator {
         &self.combinator_details
     }
 
-    // Acquires the combinator, returning the balance to be paid from the holder to the counter-party
-    fn acquire(&mut self, time: u32) {
+    // Checks whether or not the combinator can currently be acquired
+    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool {
         panic!("Method not implemented.")
+    }
+
+    // Acquires the combinator and acquirable sub-combinators
+    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
+        if self.past_horizon(time) {
+            panic!("Acquiring an expired contract is not allowed.");
+        }
+        if self.combinator_details.acquisition_time != None {
+            panic!("Acquiring a previously-acquired or combinator is not allowed.");
+        }
+
+        if self.get_or_choice(time, or_choices) {
+            self.sub_combinator0.acquire(time, or_choices);
+        } else {
+            self.sub_combinator1.acquire(time, or_choices);
+        }
+        self.combinator_details.acquisition_time = Some(time);
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
     fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
-        panic!("Method not implemented.")
+        // If not acquired yet or fully updated (no more pending balance), return 0
+        if self.combinator_details.acquisition_time == None
+            || self.combinator_details.acquisition_time.unwrap() > time
+            || self.combinator_details.fully_updated {
+            return 0;
+        }
+
+        let sub_combinator;
+        if self.get_or_choice(self.combinator_details.acquisition_time.unwrap(), or_choices) {
+            sub_combinator = &mut self.sub_combinator0;
+        } else {
+            sub_combinator = &mut self.sub_combinator1;
+        }
+        let sub_value = sub_combinator.update(time, or_choices, obs_values);
+        self.combinator_details.fully_updated = sub_combinator.get_combinator_details().fully_updated;
+        sub_value
     }
 }
 
@@ -195,9 +234,185 @@ mod tests {
         );
     }
 
+    // Acquiring give-combinator sets combinator details correctly
+    #[test]
+    fn acquiring_sets_combinator_details() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Acquire and check details
+        let time: u32 = 5;
+        combinator.acquire(time, &vec![Some(true)]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.acquisition_time,
+            Some(time),
+            "Acquisition time of combinator is not equal to Some(5): {:?}",
+            combinator_details.acquisition_time
+        );
+    }
+
+    // Acquiring and updating combinator returns correct value
+    #[test]
+    fn acquiring_and_updating_returns_correct_value() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Acquire and check value
+        combinator.acquire(0, &vec![Some(false)]);
+        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+
+        assert_eq!(
+            value,
+            1,
+            "Update value of or zero one is not equal to 1 with right or-choice: {}",
+            value
+        );
+    }
+
+    // Acquiring and updating combinator sets fully updated to true
+    #[test]
+    fn acquiring_and_updating_sets_fully_updated() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Acquire and check value
+        combinator.acquire(0, &vec![Some(false)]);
+        combinator.update(0, &vec![Some(false)], &vec![]);
+        let fully_updated = combinator.get_combinator_details().fully_updated;
+
+        assert_eq!(
+            fully_updated,
+            true,
+            "fully_updated is not true: {}",
+            fully_updated
+        );
+    }
+
+    // Acquiring and updating combinator twice returns correct value
+    #[test]
+    fn acquiring_and_updating_twice_returns_correct_value() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Acquire and check value
+        combinator.acquire(0, &vec![Some(false)]);
+        combinator.update(0, &vec![Some(false)], &vec![]);
+        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+
+        assert_eq!(
+            value,
+            0,
+            "Second update value of or zero one is not equal to 0: {}",
+            value
+        );
+    }
+
+    // Updating before acquiring does not set fully updated, and returns correct value
+    #[test]
+    fn updating_before_acquiring_does_nothing() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Update check details
+        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating before acquiring != 0: {}",
+            value
+        )
+    }
+
+    // Updating before acquisition time does not set fully updated and returns correct value
+    #[test]
+    fn updating_before_acquisition_time_does_nothing() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Update check details
+        combinator.acquire(1, &vec![Some(false)]);
+        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            combinator_details.fully_updated,
+            false,
+            "fully_updated != false: {}",
+            combinator_details.fully_updated
+        );
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating before acquiring != 0: {}",
+            value
+        )
+    }
+
+    // Updating before acquisition time does not set fully updated and returns correct value
+    #[test]
+    fn updating_with_different_time_to_acquisition_time_returns_correct_value() {
+        // Create combinator or truncate 1 zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(TruncateCombinator::new(
+                Box::from(ZeroCombinator::new()),
+                1
+            )),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Update check details
+        combinator.acquire(0, &vec![Some(true)]);
+        let value = combinator.update(2, &vec![Some(true)], &vec![]);
+        let combinator_details = combinator.get_combinator_details();
+
+        assert_eq!(
+            value,
+            0,
+            "Value of updating later than acquiring != 0: {}",
+            value
+        )
+    }
+
     // Getting value if bot sub-combinators non-expired and or-choice not made is not allowed
     #[test]
-    #[should_panic(expected = "Cannot get value of OR combinator when neither sub-combinator has been chosen or has expired.")]
+    #[should_panic(expected = "Cannot get OR choice when neither sub-combinator has been chosen or has expired.")]
     fn should_panic_if_getting_value_with_both_sub_combinators_non_expired_and_no_or_choice() {
         // Create combinator or one one
         let combinator = OrCombinator::new(
@@ -208,5 +423,58 @@ mod tests {
 
         // Get value at time = 0 with no or-choice
         combinator.get_value(2, &vec![None], &vec![]);
+    }
+
+    // Acquiring combinator twice is not allowed
+    #[test]
+    #[should_panic(expected = "Acquiring a previously-acquired or combinator is not allowed.")]
+    fn should_panic_when_acquiring_combinator_twice() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Acquire twice
+        combinator.acquire(0, &vec![Some(false)]);
+        combinator.acquire(0, &vec![Some(false)]);
+    }
+
+    // Acquiring combinator post-expiry is not allowed
+    #[test]
+    #[should_panic(expected = "Acquiring an expired contract is not allowed.")]
+    fn should_panic_when_acquiring_post_expiry() {
+        // Create combinator or truncate 0 zero truncate 0 one
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(TruncateCombinator::new(
+                Box::new(ZeroCombinator::new()),
+                0
+            )),
+            Box::from(TruncateCombinator::new(
+                Box::new(OneCombinator::new()),
+                0
+            )),
+            0
+        );
+
+        // Acquire at time = 1
+        combinator.acquire(1, &vec![]);
+    }
+
+    // Acquiring combinator with ambiguous or-choice is not allowed
+    #[test]
+    #[should_panic(expected = "Cannot get OR choice when neither sub-combinator has been chosen or has expired.")]
+    fn should_panic_when_acquiring_ambiguous_or_choice() {
+        // Create combinator or zero one
+        let mut combinator = OrCombinator::new(
+            Box::from(ZeroCombinator::new()),
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Acquire at time = 1
+        combinator.acquire(1, &vec![None]);
     }
 }

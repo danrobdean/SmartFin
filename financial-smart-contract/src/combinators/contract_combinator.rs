@@ -43,8 +43,11 @@ pub trait ContractCombinator {
     // Returns the common combinator details of the combinator
     fn get_combinator_details(&self) -> &CombinatorDetails;
 
+    // Checks whether or not the combinator can currently be acquired
+    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool;
+
     // Acquires the combinator, setting the acquisition time in the combinator details
-    fn acquire(&mut self, time: u32);
+    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>);
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
     fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64;
