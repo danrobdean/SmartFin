@@ -33,11 +33,6 @@ impl ContractCombinator for GiveCombinator {
         &self.combinator_details
     }
 
-    // Checks whether or not the combinator can currently be acquired
-    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool {
-        panic!("Method not implemented.")
-    }
-
     // Acquires the combinator and acquirable sub-combinators
     fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
         if self.past_horizon(time) {

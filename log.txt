@@ -292,3 +292,15 @@ Tomorrow: Implement acquirable (may not need after or choice change and scale va
 
 
 
+========== 18 Apr ==========
+
+- Acquiring should always succeed, so don't need acquirable
+
+Updating always succeeds, may be bad? For example, a contract and one give get 1 scale 2 one (get one now, give two later) can be acquired and updated, then when updated later without filling in the or-choice the give two never gets fulfilled. May be better to ignore non-filled-in or-choices/obs-values when updating before the acquisition time of the or/scale, but when an or/scale is updated after its acquisition time it must have a concrete or-choice or obs-value, or else it panics. This way it's harder to circumvent undesirable sub-combinators while carrying out desirable sub-combinators. This may be overkill, not really sure and probably need a discussion with another person about it. However, users may circumvent any undesirable results by simply not paying in stake, although this is easier to solve through a real world legal contract than the issue of providing or-choices.
+
+NB: QUESTIONS TO SOLVE (LATER?):
+	- Should or-choices and obs-values be unchangeable once provided, unchangeable past initial acquisition time of whole combinator, or unchangeable past the time they are relevant in calculating balance (the acquisition time of the combinator they are used by)?
+	- Should updating balance require all obs-values/or-choices upfront, only relevant obs-values/or-choices, or none (and skip ambiguous combinators)?
+
+
+

@@ -26,13 +26,8 @@ impl ContractCombinator for OneCombinator {
         &self.combinator_details
     }
 
-    // Checks whether or not the combinator can currently be acquired
-    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool {
-        panic!("Method not implemented.")
-    }
-
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
+    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>) {
         if self.combinator_details.acquisition_time != None {
             panic!("Acquiring a previously-acquired one combinator is not allowed.")
         }
@@ -41,7 +36,7 @@ impl ContractCombinator for OneCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time

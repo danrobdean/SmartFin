@@ -38,11 +38,6 @@ impl ContractCombinator for AndCombinator {
         &self.combinator_details
     }
 
-    // Checks whether or not the combinator can currently be acquired
-    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool {
-        panic!("Method not implemented.")
-    }
-
     // Acquires the combinator and acquirable sub-combinators
     fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
         if self.past_horizon(time) {
@@ -52,8 +47,12 @@ impl ContractCombinator for AndCombinator {
             panic!("Acquiring a previously-acquired and combinator is not allowed.");
         }
 
-        self.sub_combinator0.acquire(time, or_choices);
-        self.sub_combinator1.acquire(time, or_choices);
+        if !self.sub_combinator0.past_horizon(time) {
+            self.sub_combinator0.acquire(time, or_choices);
+        }
+        if !self.sub_combinator1.past_horizon(time) {
+            self.sub_combinator1.acquire(time, or_choices);
+        }
         self.combinator_details.acquisition_time = Some(time);
     }
 
@@ -140,7 +139,7 @@ mod tests {
         );
     }
 
-    // Acquiring give-combinator sets combinator details correctly
+    // Acquiring combinator sets combinator details correctly
     #[test]
     fn acquiring_sets_combinator_details() {
         // Create combinator and one one
@@ -181,6 +180,23 @@ mod tests {
             "Update value of and one one is not equal to 2: {}",
             value
         );
+    }
+
+    // Acquiring with one expired sub-combinator does not panic
+    #[test]
+    fn acquiring_with_one_expired_sub_combinator_should_not_panic() {
+        // Create combinator and truncate 0 one one
+        let mut combinator = AndCombinator::new(
+            Box::from(TruncateCombinator::new(
+                Box::from(OneCombinator::new()),
+                0
+            )),
+            Box::from(OneCombinator::new())
+        );
+
+        // Acquire and check details
+        let time: u32 = 5;
+        combinator.acquire(time, &vec![]);
     }
 
     // Acquiring and updating combinator sets fully updated to true
@@ -303,13 +319,16 @@ mod tests {
     #[test]
     #[should_panic(expected = "Acquiring an expired contract is not allowed.")]
     fn should_panic_when_acquiring_post_expiry() {
-        // Create combinator and truncate 0 one one
+        // Create combinator and truncate 0 one truncate 0 one
         let mut combinator = AndCombinator::new(
             Box::from(TruncateCombinator::new(
                 Box::from(OneCombinator::new()),
                 0
             )),
-            Box::from(OneCombinator::new())
+            Box::from(TruncateCombinator::new(
+                Box::from(OneCombinator::new()),
+                0
+            ))
         );
 
         // Acquire at time = 1

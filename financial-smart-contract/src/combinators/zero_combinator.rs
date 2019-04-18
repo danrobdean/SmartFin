@@ -26,13 +26,8 @@ impl ContractCombinator for ZeroCombinator {
         &self.combinator_details
     }
 
-    // Checks whether or not the combinator can currently be acquired
-    fn acquirable(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> bool {
-        panic!("Method not implemented.")
-    }
-
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
+    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>) {
         if self.combinator_details.acquisition_time != None {
             panic!("Acquiring a previously-acquired zero combinator is not allowed.")
         }
