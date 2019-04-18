@@ -302,5 +302,12 @@ NB: QUESTIONS TO SOLVE (LATER?):
 	- Should or-choices and obs-values be unchangeable once provided, unchangeable past initial acquisition time of whole combinator, or unchangeable past the time they are relevant in calculating balance (the acquisition time of the combinator they are used by)?
 	- Should updating balance require all obs-values/or-choices upfront, only relevant obs-values/or-choices, or none (and skip ambiguous combinators)?
 
+- Removed acquirable (should always be able to acquire a combinator now)
+- AND now checks if sub-combinators have expired before acquiring them (otherwise will panic, and should acquire one if possible even if the other is expired)
+- Added GET:
+	- Acts like GIVE without negating, and sets acquisition time on sub-combinator to its horizon
+	- value is 0 before sub-combinator's horizon, value of sub-combinator afterwards
+	- If sub-combinator has no horizon, value is always 0 and sub-combinator won't be acquired upon acquisition, update will also skip the sub-combinator (as no known update time)
+
 
 
