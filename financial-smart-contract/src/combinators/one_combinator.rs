@@ -18,7 +18,7 @@ impl OneCombinator {
 
 // Contract combinator implementation of the one combinator
 impl ContractCombinator for OneCombinator {
-    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>) -> i64 {
+    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         1
     }
 
@@ -36,7 +36,7 @@ impl ContractCombinator for OneCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>) -> i64 {
+    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
@@ -62,7 +62,7 @@ mod tests {
         let combinator = OneCombinator::new();
 
         // Check value = 1
-        let value = combinator.get_value(0, &vec![], &vec![]);
+        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
         assert_eq!(
             value,
             1,
@@ -115,7 +115,7 @@ mod tests {
         // Acquire and check details
         let time: u32 = 5;
         combinator.acquire(time, &vec![]);
-        combinator.update(time, &vec![], &vec![]);
+        combinator.update(time, &vec![], &vec![], &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -134,7 +134,7 @@ mod tests {
 
         // Acquire and check value
         combinator.acquire(0, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &vec![]);
 
         assert_eq!(
             value,
@@ -152,8 +152,8 @@ mod tests {
 
         // Acquire and check value
         combinator.acquire(0, &vec![]);
-        combinator.update(0, &vec![], &vec![]);
-        let value = combinator.update(0, &vec![], &vec![]);
+        combinator.update(0, &vec![], &vec![], &vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &vec![]);
 
         assert_eq!(
             value,
@@ -170,7 +170,7 @@ mod tests {
         let mut combinator = OneCombinator::new();
 
         // Update check details
-        let value = combinator.update(0, &vec![], &vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -196,7 +196,7 @@ mod tests {
 
         // Update check details
         combinator.acquire(1, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(

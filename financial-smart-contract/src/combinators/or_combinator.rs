@@ -1,4 +1,4 @@
-use super::contract_combinator::{ ContractCombinator, CombinatorDetails, latest_horizon, Box, Vec };
+use super::contract_combinator::{ ContractCombinator, CombinatorDetails, latest_time, Box, Vec };
 
 // The or combinator
 pub struct OrCombinator {
@@ -46,18 +46,18 @@ impl OrCombinator {
 impl ContractCombinator for OrCombinator {
     // Returns the latest of the two sub-horizons
     fn get_horizon(&self) -> Option<u32> {
-        latest_horizon(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
+        latest_time(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         if self.get_or_choice(time, or_choices) == None {
             panic!("Cannot get OR choice when neither sub-combinator has been chosen or has expired.")
         }
 
         if self.get_or_choice(time, or_choices).unwrap() {
-            self.sub_combinator0.get_value(time, or_choices, obs_values)
+            self.sub_combinator0.get_value(time, or_choices, obs_values, anytime_acquisition_times)
         } else {
-            self.sub_combinator1.get_value(time, or_choices, obs_values)
+            self.sub_combinator1.get_value(time, or_choices, obs_values, anytime_acquisition_times)
         }
     }
 
@@ -88,7 +88,7 @@ impl ContractCombinator for OrCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>) -> i64 {
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         let or_choice = self.get_or_choice(time, or_choices);
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
@@ -105,7 +105,7 @@ impl ContractCombinator for OrCombinator {
         } else {
             sub_combinator = &mut self.sub_combinator1;
         }
-        let sub_value = sub_combinator.update(time, or_choices, obs_values);
+        let sub_value = sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
         self.combinator_details.fully_updated = sub_combinator.get_combinator_details().fully_updated;
         sub_value
     }
@@ -124,7 +124,7 @@ mod tests {
         let combinator = OrCombinator::new(Box::from(ZeroCombinator::new()), Box::from(OneCombinator::new()), 0);
 
         // Check value = 0
-        let value = combinator.get_value(0, &vec![Some(true)], &vec![]);
+        let value = combinator.get_value(0, &vec![Some(true)], &vec![], &vec![]);
         assert_eq!(
             value,
             0,
@@ -140,7 +140,7 @@ mod tests {
         let combinator = OrCombinator::new(Box::from(ZeroCombinator::new()), Box::from(OneCombinator::new()), 0);
 
         // Check value = 0
-        let value = combinator.get_value(0, &vec![Some(false)], &vec![]);
+        let value = combinator.get_value(0, &vec![Some(false)], &vec![], &vec![]);
         assert_eq!(
             value,
             1,
@@ -163,7 +163,7 @@ mod tests {
         );
 
         // Check value = 1 at time = 2
-        let value = combinator.get_value(2, &vec![Some(true)], &vec![]);
+        let value = combinator.get_value(2, &vec![Some(true)], &vec![], &vec![]);
         assert_eq!(
             value,
             1,
@@ -186,7 +186,7 @@ mod tests {
         );
 
         // Check value = 1 at time = 2
-        let value = combinator.get_value(2, &vec![Some(true)], &vec![]);
+        let value = combinator.get_value(2, &vec![Some(true)], &vec![], &vec![]);
         assert_eq!(
             value,
             1,
@@ -276,7 +276,7 @@ mod tests {
 
         // Acquire and check value
         combinator.acquire(0, &vec![Some(false)]);
-        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+        let value = combinator.update(0, &vec![Some(false)], &vec![], &vec![]);
 
         assert_eq!(
             value,
@@ -298,7 +298,7 @@ mod tests {
 
         // Acquire and check value
         combinator.acquire(0, &vec![Some(false)]);
-        combinator.update(0, &vec![Some(false)], &vec![]);
+        combinator.update(0, &vec![Some(false)], &vec![], &vec![]);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert_eq!(
@@ -321,8 +321,8 @@ mod tests {
 
         // Acquire and check value
         combinator.acquire(0, &vec![Some(false)]);
-        combinator.update(0, &vec![Some(false)], &vec![]);
-        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+        combinator.update(0, &vec![Some(false)], &vec![], &vec![]);
+        let value = combinator.update(0, &vec![Some(false)], &vec![], &vec![]);
 
         assert_eq!(
             value,
@@ -343,7 +343,7 @@ mod tests {
         );
 
         // Update check details
-        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+        let value = combinator.update(0, &vec![Some(false)], &vec![], &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -373,7 +373,7 @@ mod tests {
 
         // Update check details
         combinator.acquire(1, &vec![Some(false)]);
-        let value = combinator.update(0, &vec![Some(false)], &vec![]);
+        let value = combinator.update(0, &vec![Some(false)], &vec![], &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -403,7 +403,7 @@ mod tests {
 
         // Update check details
         combinator.acquire(0, &vec![None]);
-        let value = combinator.update(0, &vec![None], &vec![]);
+        let value = combinator.update(0, &vec![None], &vec![], &vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -436,7 +436,7 @@ mod tests {
 
         // Update check details
         combinator.acquire(0, &vec![Some(true)]);
-        let value = combinator.update(2, &vec![Some(true)], &vec![]);
+        let value = combinator.update(2, &vec![Some(true)], &vec![], &vec![]);
 
         assert_eq!(
             value,
@@ -458,7 +458,7 @@ mod tests {
         );
 
         // Get value at time = 0 with no or-choice
-        combinator.get_value(2, &vec![None], &vec![]);
+        combinator.get_value(2, &vec![None], &vec![], &vec![]);
     }
 
     // Acquiring combinator twice is not allowed

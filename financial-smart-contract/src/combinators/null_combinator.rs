@@ -13,7 +13,7 @@ impl NullCombinator {
 
 // Contract combinator implementation of the null combinator
 impl ContractCombinator for NullCombinator {
-    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>) -> i64 {
+    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         panic!("Attempted to get value of a null combinator.");
     }
 
@@ -35,7 +35,7 @@ impl ContractCombinator for NullCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>) -> i64 {
+    fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         panic!("Attempted to update a null combinator.")
     }
 }
@@ -52,7 +52,7 @@ mod tests {
     fn should_panic_if_getting_value_of_null_combinator() {
         let null_combinator = NullCombinator::new();
 
-        null_combinator.get_value(0, &vec![], &vec![]);
+        null_combinator.get_value(0, &vec![], &vec![], &vec![]);
     }
 
     // Calling get_horizon on null-combinator is not allowed
@@ -97,6 +97,6 @@ mod tests {
     fn should_panic_if_updating_null_combinator() {
         let mut null_combinator = NullCombinator::new();
 
-        null_combinator.update(0, &vec![], &vec![]);
+        null_combinator.update(0, &vec![], &vec![], &vec![]);
     }
 }

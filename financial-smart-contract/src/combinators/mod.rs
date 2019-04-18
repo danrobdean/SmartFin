@@ -10,6 +10,7 @@ mod scale_combinator;
 mod give_combinator;
 mod then_combinator;
 mod get_combinator;
+mod anytime_combinator;
 
 // Re-export combinators
 pub use self::contract_combinator::ContractCombinator;
@@ -23,3 +24,4 @@ pub use self::scale_combinator::ScaleCombinator;
 pub use self::give_combinator::GiveCombinator;
 pub use self::then_combinator::ThenCombinator;
 pub use self::get_combinator::GetCombinator;
+pub use self::anytime_combinator::AnytimeCombinator;

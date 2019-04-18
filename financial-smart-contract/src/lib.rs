@@ -101,7 +101,10 @@ pub struct FinancialScContract {
     counter_party_proposed_obs_values: Vec<Option<i64>>,
 
     // The concrete values of each observable
-    concrete_obs_values: Vec<Option<i64>>
+    concrete_obs_values: Vec<Option<i64>>,
+
+    // The acquisition times for each anytime operator
+    anytime_acquisition_times: Vec<Option<u32>>
 }
 
 // The financial smart contract interface implementation
@@ -135,7 +138,7 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the current value of the contract
     fn get_value(&mut self) -> i64 {
-        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &self.or_choices, &self.concrete_obs_values)
+        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &self.or_choices, &self.concrete_obs_values, &self.anytime_acquisition_times)
     }
 
     // Gets the total stake of the caller
@@ -220,7 +223,8 @@ impl FinancialScContract {
             or_choices: Vec::new(),
             holder_proposed_obs_values: Vec::new(),
             counter_party_proposed_obs_values: Vec::new(),
-            concrete_obs_values: Vec::new()
+            concrete_obs_values: Vec::new(),
+            anytime_acquisition_times: Vec::new()
         }
     }
 

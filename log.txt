@@ -308,6 +308,22 @@ NB: QUESTIONS TO SOLVE (LATER?):
 	- Acts like GIVE without negating, and sets acquisition time on sub-combinator to its horizon
 	- value is 0 before sub-combinator's horizon, value of sub-combinator afterwards
 	- If sub-combinator has no horizon, value is always 0 and sub-combinator won't be acquired upon acquisition, update will also skip the sub-combinator (as no known update time)
+- Added ANYTIME:
+	- Acquiring does NOT acquire sub-combinator, only self combinator
+	- anytime_acquisition_times vector now carried around
+	- If updating and the sub-combinator isnt acquired, when an acquisition time before its horizon and after the anytime combinator's acquisition time is provided it is passed into sub.acquire
+	- If no time is provided but the horizon is here/passed, sub.acquire(sub.horizon) is called
+	- If neither of these two occur, update does nothing
+	- Once the combinator has been acquired, it is updated as any other sub-combinator would be
+
+To do next:
+	- Add deserialization for GET and ANYTIME (8/9)
+	- Add API functionality to set anytime acquisition times
+	- Figure out how restrictive the contract will be on setting or-choices/obs-values/anytime-acquisition-times more than once each
+	- Add top-level acquire and update to API (should be simple) and missing balance-related functions (withdraw, rename get_stake to get_balance and make signed)
+	- Add integration tests for entire contracts
+	- Test IRL on parity blockchain
+	- Write the web interface/evaluation tool
 
 
 
