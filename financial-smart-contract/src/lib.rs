@@ -82,7 +82,7 @@ pub trait FinancialScInterface {
     fn stake(&mut self) -> i64;
 
     // Withdraws positive Eth balance up to the given amount from the contract (can be called by the holder or counter-party)
-    fn withdraw(&mut self, amount: u64);
+    fn withdraw(&mut self, amount: u64) -> bool ;
 }
 
 // The financial smart contract
@@ -227,6 +227,11 @@ impl FinancialScInterface for FinancialScContract {
 
     // Acquires an anytime combinator's sub-contract
     fn acquire_anytime_sub_contract(&mut self, anytime_index: u64) {
+        let index = anytime_index as usize;
+        if index >= self.anytime_acquisition_times.len() {
+            panic!("Given anytime index does not exist.");
+        }
+
         if pwasm_ethereum::sender() != self.holder {
             panic!("Only the contract holder may acquire the combinator contract.");
         }
@@ -234,9 +239,7 @@ impl FinancialScInterface for FinancialScContract {
         let prev_acquisition_time = self.anytime_acquisition_times[anytime_index as usize];
         let new_acquisition_time = pwasm_ethereum::timestamp() as u32;
 
-        if prev_acquisition_time == None {
-            panic!("Cannot acquire a sub-combinator contract before acquiring the parent combinator contract.");
-        } else if prev_acquisition_time.unwrap() <= new_acquisition_time {
+        if prev_acquisition_time != None && prev_acquisition_time.unwrap() <= new_acquisition_time {
             panic!("Cannot acquire a sub-combinator contract which has already been acquired.");
         }
 
@@ -261,7 +264,7 @@ impl FinancialScInterface for FinancialScContract {
     }
 
     // Withdraws positive Eth balance up to the given amount from the contract (can be called by the holder or counter-party)
-    fn withdraw(&mut self, amount: u64) {
+    fn withdraw(&mut self, amount: u64) -> bool {
         let sender = pwasm_ethereum::sender();
         let final_amount;
         
@@ -276,14 +279,22 @@ impl FinancialScInterface for FinancialScContract {
             panic!("Only the contract holder or the counter-party may withdraw Ether from the contract.");
         }
 
-        if final_amount == 0 {
-            return;
+        if final_amount < CALL_GAS {
+            return false;
         }
 
         let mut result = Vec::<u8>::new();
         match pwasm_ethereum::call(CALL_GAS as u64, &sender, U256::from(final_amount - CALL_GAS), &[], &mut result) {
-            Ok(_v) => return,
-            Err(e) => panic!("Error sending Ether: {:?}", e)
+            Ok(_v) => true,
+            Err(_e) => {
+                // Payment failed, roll-back balance
+                if sender == self.holder {
+                    self.holder_balance += final_amount;
+                } else {
+                    self.counter_party_balance += final_amount;
+                }
+                false
+            }
         }
     }
 }
@@ -445,18 +456,20 @@ impl FinancialScContract {
         }
     }
 
-    // Withdraws Ether from the given contract participant, returns the amount to send
+    // Withdraws Ether from the given contract participant, returns the amount to send including gas price
     fn get_withdrawal_amount(amount: u64, balance: i64) -> i64 {
+        let final_amount = amount as i64 + CALL_GAS;
+
         // If the withdrawer can't afford the gas for the transaction, do nothing more
         if balance < CALL_GAS {
             return 0;
         }
 
         // Clamp withdrawal at balance amount
-        if (balance as u64) < amount {
+        if balance < final_amount {
             return balance;
         } else {
-            return amount as i64;
+            return final_amount as i64;
         }
     }
 }
@@ -562,6 +575,43 @@ mod tests {
         assert_eq!(contract.get_value(), 0);
     }
 
+    // Updating before acquiring the contract does nothing
+    #[test]
+    fn updating_before_acquiring_does_nothing() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![1]
+        );
+
+        ext_reset(|e| e.sender(holder));
+        contract.update();
+
+        assert_eq!(contract.holder_balance, 0);
+        assert_eq!(contract.counter_party_balance, 0);
+    }
+
+    // Updating after acquiring the contract sets the balance correctly
+    #[test]
+    fn updating_after_acquiring_updates_balances_correctly () {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![1]
+        );
+
+        ext_reset(|e| e.sender(holder));
+        contract.acquire();
+        contract.update();
+
+        assert_eq!(contract.holder_balance, 1);
+        assert_eq!(contract.counter_party_balance, -1);
+    }
+
     // Staking Eth as the holder stakes the correct amount
     #[test]
     fn holder_balance_updates() {
@@ -616,6 +666,36 @@ mod tests {
         assert_eq!(contract.get_balance(), new_stake);
         contract.stake();
         assert_eq!(contract.get_balance(), new_stake * 2);
+    }
+
+    // Withdrawal amount is calculated correctly for a normal withdrawal
+    #[test]
+    fn get_withdrawal_amount_calculates_correct_normal_amount() {
+        let balance = 10000;
+        let withdrawal = 5000;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance);
+
+        assert_eq!(amount, withdrawal as i64 + super::CALL_GAS);
+    }
+
+    // Withdrawal withdraws balance amount at maximum, even if requested amount is higher
+    #[test]
+    fn get_withdrawal_amount_clamps_withdrawal_to_balance() {
+        let balance = 5000;
+        let withdrawal = 10000;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance);
+
+        assert_eq!(balance, amount);
+    }
+
+    // Withdrawal does not withdraw anything if the balance is below the required call gas price
+    #[test]
+    fn withdraw_does_not_withdraw_if_balance_below_gas_price() {
+        let balance = (super::CALL_GAS - 1) as i64;
+        let withdrawal = (super::CALL_GAS - 1) as u64;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance);
+
+        assert_eq!(amount, 0);
     }
 
     // Attempting to create a contract with the same holder and counter-party should panic
@@ -686,6 +766,95 @@ mod tests {
 
         ext_reset(|e| e.sender("25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap()));
         contract.set_or_choice(0, true);
+    }
+
+    // Non-holders acquiring the contract is not allowed
+    #[test]
+    #[should_panic(expected = "Only the contract holder may acquire the combinator contract.")]
+    fn should_panic_if_non_holder_acquires() {
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
+            0,
+            vec![0]
+        );
+
+        ext_reset(|e| e.sender(Address::zero()));
+        contract.acquire();
+    }
+
+    // Acquiring the contract twice is not allowed
+    #[test]
+    #[should_panic(expected = "The combinator contract cannot be acquired more than once.")]
+    fn should_panic_if_contract_acquired_twice() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![0]
+        );
+
+        ext_reset(|e| e.sender(holder));
+        contract.acquire();
+        contract.acquire();
+    }
+
+    // Non-holders acquiring anytime sub-contracts is not allowed
+    #[test]
+    #[should_panic(expected = "Only the contract holder may acquire the combinator contract.")]
+    fn should_panic_if_non_holder_acquires_anytime_sub_contract() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![9, 1]
+        );
+
+        ext_reset(|e| e.sender(Address::zero()));
+        contract.acquire_anytime_sub_contract(0);
+    }
+
+    // Non-holders acquiring anytime sub-contracts is not allowed
+    #[test]
+    #[should_panic(expected = "Given anytime index does not exist.")]
+    fn should_panic_when_acquiring_non_existent_anytime_sub_contract() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![9, 1]
+        );
+
+        ext_reset(|e| e
+            .sender(holder)
+            .timestamp(0)
+        );
+        contract.acquire();
+        contract.acquire_anytime_sub_contract(1);
+    }
+
+    // Acquiring anytime sub-contracts twice is not allowed
+    #[test]
+    #[should_panic(expected = "Cannot acquire a sub-combinator contract which has already been acquired.")]
+    fn should_panic_when_acquiring_anytime_sub_contract_twice() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![9, 1]
+        );
+
+        ext_reset(|e| e
+            .sender(holder)
+            .timestamp(0)
+        );
+        contract.acquire();
+        contract.acquire_anytime_sub_contract(0);
+        contract.acquire_anytime_sub_contract(0);
     }
 
     // Overflowing the holder's stake is not allowed

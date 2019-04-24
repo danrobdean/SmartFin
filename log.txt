@@ -361,6 +361,12 @@ Adding deserialization for GET and ANYTIME, API functionality for acquire_anytim
 	- If the user isn't involved in the contract, no transfer occurs
 	- The contract transfers using the call function
 
+- Testing
+	- Added unit tests for acquire, update, anytime acquire, withdraw
+	- Testing withdraw's call functionality doesn't seem possible using pwasm_test, can only test calls to known contract methods, not the call function
+
+Need to add more integration tests, then javascript tests (deploy -> integration tests), then javascript client.
+
 
 
 
