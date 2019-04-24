@@ -52,7 +52,7 @@ impl ContractCombinator for AnytimeCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>) {
+    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<Option<u32>>) {
         if self.past_horizon(time) {
             panic!("Acquiring an expired contract is not allowed.");
         }
@@ -60,11 +60,12 @@ impl ContractCombinator for AnytimeCombinator {
             panic!("Acquiring a previously-acquired anytime combinator is not allowed.");
         }
 
+        anytime_acquisition_times[self.anytime_index] = self.sub_combinator.get_horizon();
         self.combinator_details.acquisition_time = Some(time);
     }
 
     // Updates the combinator, setting the acquisition time, and returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
@@ -76,22 +77,21 @@ impl ContractCombinator for AnytimeCombinator {
         let mut acquisition_time = self.sub_combinator.get_combinator_details().acquisition_time;
 
         // If not, check if provided
-        if acquisition_time == None {
+        if acquisition_time == None && anytime_acquisition_times[self.anytime_index] != None {
             acquisition_time = anytime_acquisition_times[self.anytime_index];
-            let sub_horizon = self.sub_combinator.get_horizon();
 
-            // If acquisition time provided and earlier/equal-to sub-horizon but later than self acquisition time, acquire with given time
-            if acquisition_time != None
-                && latest_time(acquisition_time, sub_horizon) == sub_horizon
-                && latest_time(acquisition_time, self.combinator_details.acquisition_time) == acquisition_time {
-                self.sub_combinator.acquire(acquisition_time.unwrap(), or_choices);
-            } else {
-                // No valid acquisition time provided, acquire if at/after horizon, otherwise do nothing
-                if sub_horizon != None && sub_horizon.unwrap() <= time {
-                    self.sub_combinator.acquire(sub_horizon.unwrap(), or_choices);
-                } else {
-                    return 0;
-                }
+            // If sub-horizon is before the given acquisition time, use sub-horizon as acquisition time
+            if self.sub_combinator.get_horizon() != None && self.sub_combinator.get_horizon().unwrap() < acquisition_time.unwrap() {
+                acquisition_time = self.sub_combinator.get_horizon();
+            }
+
+            if self.combinator_details.acquisition_time.unwrap() > acquisition_time.unwrap() {
+                panic!("Cannot acquire anytime sub-combinator before the anytime combinator is acquired.");
+            }
+
+            // If acquisition time has been passed then acquire sub-contract, otherwise do nothing more
+            if time > acquisition_time.unwrap() {
+                self.sub_combinator.acquire(acquisition_time.unwrap(), or_choices, anytime_acquisition_times);
             }
         }
 
@@ -228,7 +228,8 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 1;
-        combinator.acquire(time, &vec![]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(time, &vec![], &mut acquisition_times);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -252,8 +253,9 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &vec![None]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        let value = combinator.update(0, &vec![], &vec![], &mut acquisition_times);
 
         assert_eq!(
             value,
@@ -276,8 +278,10 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(2, &vec![], &vec![], &vec![None]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        assert_eq!(acquisition_times[0], Some(1));
+        let value = combinator.update(2, &vec![], &vec![], &mut acquisition_times);
 
         assert_eq!(
             value,
@@ -300,8 +304,10 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(2, &vec![], &vec![], &vec![Some(3)]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        acquisition_times[0] = Some(3);
+        let value = combinator.update(2, &vec![], &vec![], &mut acquisition_times);
 
         assert_eq!(
             value,
@@ -324,8 +330,10 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(0, &vec![], &vec![], &vec![Some(1)]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        acquisition_times[0] = Some(1);
+        combinator.update(0, &vec![], &vec![], &mut acquisition_times);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert_eq!(
@@ -349,8 +357,10 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(1, &vec![], &vec![], &vec![Some(0)]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        acquisition_times[0] = Some(0);
+        combinator.update(1, &vec![], &vec![], &mut acquisition_times);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert_eq!(
@@ -361,7 +371,7 @@ mod tests {
         );
     }
 
-    // Acquiring and updating combinator after horizon with no acquisition time sets fully updated to true
+    // Acquiring and updating combinator after horizon with no given acquisition time sets fully updated to true
     #[test]
     fn acquiring_and_updating_sets_fully_updated_after_horizon_no_acquisition_time() {
         // Create combinator anytime truncate 2 one
@@ -374,36 +384,15 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(3, &vec![], &vec![], &vec![None]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        combinator.update(3, &vec![], &vec![], &mut acquisition_times);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert_eq!(
             fully_updated,
             true,
             "fully_updated is not true: {}",
-            fully_updated
-        );
-    }
-
-    // Acquiring and updating combinator with invalid acquisition time does not acquire sub-combinator
-    #[test]
-    fn acquiring_and_updating_does_not_set_fully_updated_with_acquisition_time_before_self_acquisition() {
-        // Create combinator anytime one
-        let mut combinator = AnytimeCombinator::new(
-            Box::from(OneCombinator::new()),
-            0
-        );
-
-        // Acquire and check value
-        combinator.acquire(1, &vec![]);
-        combinator.update(2, &vec![], &vec![], &vec![Some(0)]);
-        let fully_updated = combinator.get_combinator_details().fully_updated;
-
-        assert_eq!(
-            fully_updated,
-            false,
-            "fully_updated is true: {}",
             fully_updated
         );
     }
@@ -421,9 +410,10 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(2, &vec![], &vec![], &vec![Some(0)]);
-        let value = combinator.update(2, &vec![], &vec![], &vec![Some(0)]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        combinator.update(2, &vec![], &vec![], &mut acquisition_times);
+        let value = combinator.update(2, &vec![], &vec![], &mut acquisition_times);
 
         assert_eq!(
             value,
@@ -446,9 +436,10 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(0, &vec![], &vec![], &vec![None]);
-        let value = combinator.update(2, &vec![], &vec![], &vec![None]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        combinator.update(0, &vec![], &vec![], &mut acquisition_times);
+        let value = combinator.update(2, &vec![], &vec![], &mut acquisition_times);
 
         assert_eq!(
             value,
@@ -471,7 +462,8 @@ mod tests {
         );
 
         // Update check details
-        let value = combinator.update(2, &vec![], &vec![], &vec![None]);
+        let mut acquisition_times = vec![None];
+        let value = combinator.update(2, &vec![], &vec![], &mut acquisition_times);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -502,8 +494,9 @@ mod tests {
         );
 
         // Update check details
-        combinator.acquire(1, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &vec![None]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(1, &vec![], &mut acquisition_times);
+        let value = combinator.update(0, &vec![], &vec![], &mut acquisition_times);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -531,8 +524,9 @@ mod tests {
         );
 
         // Update check details
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(10, &vec![], &vec![], &vec![None]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        let value = combinator.update(10, &vec![], &vec![], &mut acquisition_times);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -558,8 +552,9 @@ mod tests {
         let mut combinator = AnytimeCombinator::new(Box::new(OneCombinator::new()), 0);
 
         // Acquire twice
-        combinator.acquire(0, &vec![]);
-        combinator.acquire(0, &vec![]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(0, &vec![], &mut acquisition_times);
+        combinator.acquire(0, &vec![], &mut acquisition_times);
     }
 
     // Acquiring combinator post-expiry is not allowed
@@ -576,6 +571,24 @@ mod tests {
         );
 
         // Acquire at time = 1
-        combinator.acquire(1, &vec![]);
+        let mut acquisition_times = vec![None];
+        combinator.acquire(1, &vec![], &mut acquisition_times);
+    }
+
+    // Acquiring and updating combinator with invalid acquisition time is not allowed
+    #[test]
+    #[should_panic(expected = "Cannot acquire anytime sub-combinator before the anytime combinator is acquired.")]
+    fn should_panic_when_acquiring_and_updating_with_acquisition_time_before_self_acquisition() {
+        // Create combinator anytime one
+        let mut combinator = AnytimeCombinator::new(
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Acquire and check value
+        let mut acquisition_times = vec![None];
+        combinator.acquire(1, &vec![], &mut acquisition_times);
+        acquisition_times[0] = Some(0);
+        combinator.update(2, &vec![], &vec![], &mut acquisition_times);
     }
 }

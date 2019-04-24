@@ -39,7 +39,7 @@ impl ContractCombinator for GetCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>) {
+    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<Option<u32>>) {
         if self.past_horizon(time) {
             panic!("Acquiring an expired contract is not allowed.");
         }
@@ -50,14 +50,14 @@ impl ContractCombinator for GetCombinator {
         // If sub-combinator will expire, set its acquisition time to its horizon, otherwise it can never be acquired
         if self.sub_combinator.get_horizon() != None {
             let horizon = self.sub_combinator.get_horizon().unwrap();
-            self.sub_combinator.acquire(horizon, or_choices);
+            self.sub_combinator.acquire(horizon, or_choices, anytime_acquisition_times);
         }
 
         self.combinator_details.acquisition_time = Some(time);
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
@@ -171,7 +171,7 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 1;
-        combinator.acquire(time, &vec![]);
+        combinator.acquire(time, &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -194,8 +194,8 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
 
         assert_eq!(
             value,
@@ -217,8 +217,8 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(2, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        let value = combinator.update(2, &vec![], &vec![], &mut vec![]);
 
         assert_eq!(
             value,
@@ -240,8 +240,8 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(0, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.update(0, &vec![], &vec![], &mut vec![]);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert_eq!(
@@ -264,8 +264,8 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(2, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &vec![], &mut vec![]);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert_eq!(
@@ -288,9 +288,9 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(2, &vec![], &vec![], &vec![]);
-        let value = combinator.update(2, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &vec![], &mut vec![]);
+        let value = combinator.update(2, &vec![], &vec![], &mut vec![]);
 
         assert_eq!(
             value,
@@ -312,9 +312,9 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(0, &vec![], &vec![], &vec![]);
-        let value = combinator.update(2, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.update(0, &vec![], &vec![], &mut vec![]);
+        let value = combinator.update(2, &vec![], &vec![], &mut vec![]);
 
         assert_eq!(
             value,
@@ -336,7 +336,7 @@ mod tests {
         );
 
         // Update check details
-        let value = combinator.update(2, &vec![], &vec![], &vec![]);
+        let value = combinator.update(2, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -366,8 +366,8 @@ mod tests {
         );
 
         // Update check details
-        combinator.acquire(1, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &vec![]);
+        combinator.acquire(1, &vec![], &mut vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -394,8 +394,8 @@ mod tests {
         );
 
         // Update check details
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(10, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        let value = combinator.update(10, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -421,8 +421,8 @@ mod tests {
         let mut combinator = GetCombinator::new(Box::new(OneCombinator::new()));
 
         // Acquire twice
-        combinator.acquire(0, &vec![]);
-        combinator.acquire(0, &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
     }
 
     // Acquiring combinator post-expiry is not allowed
@@ -438,6 +438,6 @@ mod tests {
         );
 
         // Acquire at time = 1
-        combinator.acquire(1, &vec![]);
+        combinator.acquire(1, &vec![], &mut vec![]);
     }
 }

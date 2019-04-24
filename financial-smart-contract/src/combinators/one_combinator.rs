@@ -27,16 +27,16 @@ impl ContractCombinator for OneCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>) {
+    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) {
         if self.combinator_details.acquisition_time != None {
-            panic!("Acquiring a previously-acquired one combinator is not allowed.")
+            panic!("Acquiring a previously-acquired one combinator is not allowed.");
         }
 
         self.combinator_details.acquisition_time = Some(time);
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
+    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
@@ -95,7 +95,7 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 5;
-        combinator.acquire(time, &vec![]);
+        combinator.acquire(time, &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -114,8 +114,8 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 5;
-        combinator.acquire(time, &vec![]);
-        combinator.update(time, &vec![], &vec![], &vec![]);
+        combinator.acquire(time, &vec![], &mut vec![]);
+        combinator.update(time, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -133,8 +133,8 @@ mod tests {
         let mut combinator = OneCombinator::new();
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
 
         assert_eq!(
             value,
@@ -151,9 +151,9 @@ mod tests {
         let mut combinator = OneCombinator::new();
 
         // Acquire and check value
-        combinator.acquire(0, &vec![]);
-        combinator.update(0, &vec![], &vec![], &vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.update(0, &vec![], &vec![], &mut vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
 
         assert_eq!(
             value,
@@ -170,7 +170,7 @@ mod tests {
         let mut combinator = OneCombinator::new();
 
         // Update check details
-        let value = combinator.update(0, &vec![], &vec![], &vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -195,8 +195,8 @@ mod tests {
         let mut combinator = OneCombinator::new();
 
         // Update check details
-        combinator.acquire(1, &vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &vec![]);
+        combinator.acquire(1, &vec![], &mut vec![]);
+        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -222,7 +222,7 @@ mod tests {
         let mut combinator = OneCombinator::new();
 
         // Acquire twice
-        combinator.acquire(0, &vec![]);
-        combinator.acquire(0, &vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.acquire(0, &vec![], &mut vec![]);
     }
 }

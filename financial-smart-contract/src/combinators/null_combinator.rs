@@ -30,13 +30,13 @@ impl ContractCombinator for NullCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>) {
+    fn acquire(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) {
         panic!("Attempted to acquire a null combinator.");
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
-        panic!("Attempted to update a null combinator.")
+    fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
+        panic!("Attempted to update a null combinator.");
     }
 }
 
@@ -88,7 +88,7 @@ mod tests {
     fn should_panic_if_acquiring_null_combinator() {
         let mut null_combinator = NullCombinator::new();
 
-        null_combinator.acquire(0, &vec![]);
+        null_combinator.acquire(0, &vec![], &mut vec![]);
     }
 
     // Updating a null-combinator is not allowed
@@ -97,6 +97,6 @@ mod tests {
     fn should_panic_if_updating_null_combinator() {
         let mut null_combinator = NullCombinator::new();
 
-        null_combinator.update(0, &vec![], &vec![], &vec![]);
+        null_combinator.update(0, &vec![], &vec![], &mut vec![]);
     }
 }

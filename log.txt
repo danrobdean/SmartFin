@@ -322,8 +322,39 @@ To do next:
 	- Figure out how restrictive the contract will be on setting or-choices/obs-values/anytime-acquisition-times more than once each
 	- Add top-level acquire and update to API (should be simple) and missing balance-related functions (withdraw, rename get_stake to get_balance and make signed)
 	- Add integration tests for entire contracts
-	- Test IRL on parity blockchain
+	- Test IRL on parity blockchain, and write integration tests for entire chain (build and deploying contract, calling functions on deployed contract from js, etc)
 	- Write the web interface/evaluation tool
+
+
+
+========== 24 Apr ==========
+
+Adding deserialization for GET and ANYTIME, API functionality for acquire_anytime, acquire, update, and withdraw, and testing.
+
+- Updated get_stake:
+	- Renamed to get_balance
+	- Balance now treated as i64, updated all returns and functions using
+	- Now cannot stake more than 2^62 (as this would overflow an i64)
+	- safe_add now checks underflow (as using i64s not U256)
+	- Added tests for new changes
+
+- Updated deserialization
+	- Added deserialization of GET and ANYTIME (8/9)
+	- Serialized contract now represented as Vec<i64>!
+		- Timestamps and scale values can now be passed in/read directly, without serializing or deserializing them individually
+		- Tests updated and (de/)serialization functions removed
+
+- Added acquire and update to API
+	- Relatively straightforward, some checks, update will adjust the balances accordingly
+
+- Added acquire_anytime_sub_contract to API:
+	- If the new acquisition time (current block-time) is earlier to the existing acquisition time (None is latest), then replace - this prevents setting it to after a horizon, and implicitly prevents setting it twice (sensible imo)
+	- acquire on anytime now sets the acquisition time in the vector to the sub-combinator's horizon
+	- acquire and update on all combinators now take anytime_acquisition_times as an &mut vec
+	- update on anytime now only acquires the sub-combinator when the acquisition time has passed (simpler), and panics if the self-acquisition-time is later than sub-acquisition-time (should never get there anyway), also uses sub-horizon if the given acquisition time is later (this should never happen but done just in case)
+	- All tests adjusted
+
+
 
 
 

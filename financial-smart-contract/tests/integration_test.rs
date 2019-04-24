@@ -5,7 +5,7 @@ mod common;
 #[allow(unused_imports)]
 use self::pwasm_std::{ vec, types::{ Address, U256 } };
 use self::pwasm_test::ext_reset;
-use self::common::{ setup_contract, serialize_32_bit_int, serialize_signed_64_bit_int, FinancialScContract, FinancialScInterface };
+use self::common::{ setup_contract, FinancialScContract, FinancialScInterface };
 
 // The value of the contract is based on the given serialized combinator vector
 #[test]
@@ -60,11 +60,7 @@ fn correct_value_or_right() {
 #[test]
 fn expired_truncate_worth_0() {
     // Create contract truncate 0 one
-    let mut timestamp = serialize_32_bit_int(0).to_vec();
-    let mut combinator_contract = vec![4];
-    combinator_contract.append(&mut timestamp);
-    combinator_contract.append(&mut vec![1]);
-    let mut contract = setup_contract(combinator_contract).contract;
+    let mut contract = setup_contract(vec![4, 0, 1]).contract;
 
     // Check that contract value is 0 at timestamp 1
     ext_reset(|e| e.timestamp(1));
@@ -75,11 +71,7 @@ fn expired_truncate_worth_0() {
 #[test]
 fn non_expired_truncate_value_correct() {
     // Create contract truncate 1 one
-    let mut timestamp = serialize_32_bit_int(1).to_vec();
-    let mut combinator_contract = vec![4];
-    combinator_contract.append(&mut timestamp);
-    combinator_contract.append(&mut vec![1]);
-    let mut contract = setup_contract(combinator_contract).contract;
+    let mut contract = setup_contract(vec![4, 1, 1]).contract;
 
     // Check that contract value is 1 at timestamp 0
     ext_reset(|e| e.timestamp(0));
@@ -90,11 +82,7 @@ fn non_expired_truncate_value_correct() {
 #[test]
 fn expired_and_correct() {
     // Create contract and truncate 0 one one
-    let mut timestamp = serialize_32_bit_int(0).to_vec();
-    let mut combinator_contract = vec![3, 4];
-    combinator_contract.append(&mut timestamp);
-    combinator_contract.append(&mut vec![1, 1]);
-    let mut contract = setup_contract(combinator_contract).contract;
+    let mut contract = setup_contract(vec![3, 4, 0, 1, 1]).contract;
 
     // Check that contract value is 1 at timestamp 1
     ext_reset(|e| e.timestamp(1));
@@ -105,11 +93,7 @@ fn expired_and_correct() {
 #[test]
 fn expired_or_correct() {
     // Create contract or truncate 0 one zero
-    let mut timestamp = serialize_32_bit_int(0).to_vec();
-    let mut combinator_contract = vec![3, 4];
-    combinator_contract.append(&mut timestamp);
-    combinator_contract.append(&mut vec![1, 0]);
-    let mut contract = setup_contract(combinator_contract).contract;
+    let mut contract = setup_contract(vec![3, 4, 0, 1, 0]).contract;
 
     // Check that contract value is 0 at timestamp 1 with no or-choice
     ext_reset(|e| e.timestamp(1));
@@ -120,11 +104,7 @@ fn expired_or_correct() {
 #[test]
 fn expired_or_ignores_choice() {
     // Create contract or truncate 0 one zero
-    let mut timestamp = serialize_32_bit_int(0).to_vec();
-    let mut combinator_contract = vec![3, 4];
-    combinator_contract.append(&mut timestamp);
-    combinator_contract.append(&mut vec![1, 0]);
-    let mut contract_details = setup_contract(combinator_contract);
+    let mut contract_details = setup_contract(vec![3, 4, 0, 1, 0]);
 
     // Check that contract value is 0 at timestamp 1 with left or-choice
     ext_reset(|e| e
@@ -139,12 +119,8 @@ fn expired_or_ignores_choice() {
 #[test]
 fn scale_with_provided_scale_value_has_correct_value() {
     // Create contract or scale 2 one
-    let scale = 154120;
-    let mut scale_value = serialize_signed_64_bit_int(scale).to_vec();
-    let mut combinator_contract = vec![5, 1];
-    combinator_contract.append(&mut scale_value);
-    combinator_contract.append(&mut vec![1]);
-    let mut contract = setup_contract(combinator_contract).contract;
+    let scale = 2;
+    let mut contract = setup_contract(vec![5, 1, scale, 1]).contract;
 
     // Check that contract value is correct
     assert_eq!(contract.get_value(), scale);
@@ -154,12 +130,8 @@ fn scale_with_provided_scale_value_has_correct_value() {
 #[test]
 fn scale_with_provided_negative_scale_value_has_correct_value() {
     // Create contract or scale -1 one
-    let scale = -158812;
-    let mut scale_value = serialize_signed_64_bit_int(scale).to_vec();
-    let mut combinator_contract = vec![5, 1];
-    combinator_contract.append(&mut scale_value);
-    combinator_contract.append(&mut vec![1]);
-    let mut contract = setup_contract(combinator_contract).contract;
+    let scale = -1;
+    let mut contract = setup_contract(vec![5, 1, scale, 1]).contract;
 
     // Check that contract value is correct
     assert_eq!(contract.get_value(), scale);
@@ -263,12 +235,7 @@ fn give_value_correct() {
 #[test]
 fn then_value_equals_first_sub_combinator_pre_expiry() {
     // Create contract then truncate 1 one zero
-    let mut timestamp = serialize_32_bit_int(1).to_vec();
-    let mut contract_definiton = vec![7, 4];
-    contract_definiton.append(&mut timestamp);
-    contract_definiton.append(&mut vec![1, 0]);
-
-    let mut contract = setup_contract(contract_definiton).contract;
+    let mut contract = setup_contract(vec![7, 4, 1, 1, 0]).contract;
 
     // Check value equals 1
     ext_reset(|e| e.timestamp(1));
@@ -279,12 +246,7 @@ fn then_value_equals_first_sub_combinator_pre_expiry() {
 #[test]
 fn then_value_equals_second_sub_combinator_post_expiry() {
     // Create contract then truncate 1 one zero
-    let mut timestamp = serialize_32_bit_int(1).to_vec();
-    let mut contract_definiton = vec![7, 4];
-    contract_definiton.append(&mut timestamp);
-    contract_definiton.append(&mut vec![1, 0]);
-
-    let mut contract = setup_contract(contract_definiton).contract;
+    let mut contract = setup_contract(vec![7, 4, 1, 1, 0]).contract;
 
     // Check value equals 0
     ext_reset(|e| e.timestamp(2));
