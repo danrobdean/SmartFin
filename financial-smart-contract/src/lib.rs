@@ -16,6 +16,8 @@ use pwasm_std::{ Box, Vec, types::{ Address, U256 } };
 use pwasm_abi_derive::eth_abi;
 use combinators::*;
 
+static CALL_GAS: i64 = 2300;
+
 // Executed when the contract is called
 #[no_mangle]
 pub fn call() {
@@ -78,6 +80,9 @@ pub trait FinancialScInterface {
     // Stakes Eth with the contract (can be called by the holder or counter-party), returns the caller's total balance
     #[payable]
     fn stake(&mut self) -> i64;
+
+    // Withdraws positive Eth balance up to the given amount from the contract (can be called by the holder or counter-party)
+    fn withdraw(&mut self, amount: u64);
 }
 
 // The financial smart contract
@@ -202,23 +207,6 @@ impl FinancialScInterface for FinancialScContract {
         }
     }
 
-    // Stakes Eth with the contract, returns the caller's total balance
-    fn stake(&mut self) -> i64 {
-        let sender = pwasm_ethereum::sender();
-        let stake = pwasm_ethereum::value();
-        FinancialScContract::assert_U256_can_be_i64(stake);
-
-        if sender == self.holder {
-            self.holder_balance = FinancialScContract::safe_add(self.holder_balance, stake.low_u64() as i64);
-            self.holder_balance
-        } else if sender == self.counter_party {
-            self.counter_party_balance = FinancialScContract::safe_add(self.counter_party_balance, stake.low_u64() as i64);
-            self.counter_party_balance
-        } else {
-            panic!("Only the contract holder or the counter-party may stake ether in the contract.");
-        }
-    }
-
     // Acquires the combinator contract at the current block-time (when called by the holder)
     fn acquire(&mut self) {
         if pwasm_ethereum::sender() != self.holder {
@@ -253,6 +241,50 @@ impl FinancialScInterface for FinancialScContract {
         }
 
         self.anytime_acquisition_times[anytime_index as usize] = Some(new_acquisition_time);
+    }
+
+    // Stakes Eth with the contract, returns the caller's total balance
+    fn stake(&mut self) -> i64 {
+        let sender = pwasm_ethereum::sender();
+        let stake = pwasm_ethereum::value();
+        FinancialScContract::assert_U256_can_be_i64(stake);
+
+        if sender == self.holder {
+            self.holder_balance = FinancialScContract::safe_add(self.holder_balance, stake.low_u64() as i64);
+            self.holder_balance
+        } else if sender == self.counter_party {
+            self.counter_party_balance = FinancialScContract::safe_add(self.counter_party_balance, stake.low_u64() as i64);
+            self.counter_party_balance
+        } else {
+            panic!("Only the contract holder or the counter-party may stake Ether in the contract.");
+        }
+    }
+
+    // Withdraws positive Eth balance up to the given amount from the contract (can be called by the holder or counter-party)
+    fn withdraw(&mut self, amount: u64) {
+        let sender = pwasm_ethereum::sender();
+        let final_amount;
+        
+        // Get the amount to send (clamp at balance amount)
+        if sender == self.holder {
+            final_amount = FinancialScContract::get_withdrawal_amount(amount, self.holder_balance);
+            self.holder_balance -= final_amount;
+        } else if sender == self.counter_party {
+            final_amount = FinancialScContract::get_withdrawal_amount(amount, self.counter_party_balance);
+            self.counter_party_balance -= final_amount;
+        } else {
+            panic!("Only the contract holder or the counter-party may withdraw Ether from the contract.");
+        }
+
+        if final_amount == 0 {
+            return;
+        }
+
+        let mut result = Vec::<u8>::new();
+        match pwasm_ethereum::call(CALL_GAS as u64, &sender, U256::from(final_amount - CALL_GAS), &[], &mut result) {
+            Ok(_v) => return,
+            Err(e) => panic!("Error sending Ether: {:?}", e)
+        }
     }
 }
 
@@ -410,6 +442,21 @@ impl FinancialScContract {
     fn assert_U256_can_be_i64(val: U256) {
         if val > U256::from(2_i64.pow(62)) {
             panic!("Given value is too large to be converted to i64.");
+        }
+    }
+
+    // Withdraws Ether from the given contract participant, returns the amount to send
+    fn get_withdrawal_amount(amount: u64, balance: i64) -> i64 {
+        // If the withdrawer can't afford the gas for the transaction, do nothing more
+        if balance < CALL_GAS {
+            return 0;
+        }
+
+        // Clamp withdrawal at balance amount
+        if (balance as u64) < amount {
+            return balance;
+        } else {
+            return amount as i64;
         }
     }
 }
@@ -755,7 +802,7 @@ mod tests {
 
     // An uninvolved user attempting to stake Eth is not allowed
     #[test]
-    #[should_panic(expected = "Only the contract holder or the counter-party may stake ether in the contract.")]
+    #[should_panic(expected = "Only the contract holder or the counter-party may stake Ether in the contract.")]
     fn should_panic_if_uninvolved_user_stakes() {
         let mut contract = setup_contract(
             "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),

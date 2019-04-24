@@ -354,6 +354,13 @@ Adding deserialization for GET and ANYTIME, API functionality for acquire_anytim
 	- update on anytime now only acquires the sub-combinator when the acquisition time has passed (simpler), and panics if the self-acquisition-time is later than sub-acquisition-time (should never get there anyway), also uses sub-horizon if the given acquisition time is later (this should never happen but done just in case)
 	- All tests adjusted
 
+- Added withdraw function to API:
+	- Takes an amount to withdraw
+	- Amount is clamped by the user's balance
+	- If the user can't afford to pay 2300 Wei in gas for the transfer, no transfer occurs
+	- If the user isn't involved in the contract, no transfer occurs
+	- The contract transfers using the call function
+
 
 
 
