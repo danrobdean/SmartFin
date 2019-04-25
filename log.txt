@@ -392,7 +392,11 @@ JavaScript testing plan:
 
 Testing implementation:
 	- Realised contract deployment was broken since the test migration, caused by the deletion of .cargo/config (done in attempt to make building work without the cdylib/lib issues), added the config back and converted the Uint8Array to a normal array and now works properly
-
+	- Reorganised repo, rust contract stuff moved to contract folder, js testing in new contract-js-test folder
+	- Added mocha for testing, and babel for ES6 imports
+	- contract-utils.mjs now holds contract management functions, deploy-contract.mjs now just calls into them, as will test.js
+	- Mocha tests first deploy contract (attempted twice in case of first push), then run tests
+	- Started with get_holder and get_counter_party, but weird results. get_holder is just returning Address::zero, even though the holder is not just zero in the constructor (have checked). For the counter_party it's the same, but the sender IS Address::zero in the constructor, which it shouldn't be.
 
 
 

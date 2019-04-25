@@ -1,0 +1,174 @@
+[
+  {
+    "type": "function",
+    "name": "get_holder",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "address"
+      }
+    ],
+    "constant": true
+  },
+  {
+    "type": "function",
+    "name": "get_counter_party",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "address"
+      }
+    ],
+    "constant": true
+  },
+  {
+    "type": "function",
+    "name": "get_contract_definition",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "int64[]"
+      }
+    ],
+    "constant": true
+  },
+  {
+    "type": "function",
+    "name": "get_value",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "int64"
+      }
+    ],
+    "constant": true
+  },
+  {
+    "type": "function",
+    "name": "get_balance",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "int64"
+      }
+    ],
+    "constant": true
+  },
+  {
+    "type": "function",
+    "name": "get_concluded",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "bool"
+      }
+    ],
+    "constant": true
+  },
+  {
+    "type": "function",
+    "name": "set_or_choice",
+    "inputs": [
+      {
+        "name": "or_index",
+        "type": "uint64"
+      },
+      {
+        "name": "choice",
+        "type": "bool"
+      }
+    ],
+    "outputs": [],
+    "constant": false
+  },
+  {
+    "type": "function",
+    "name": "propose_obs_value",
+    "inputs": [
+      {
+        "name": "obs_index",
+        "type": "uint64"
+      },
+      {
+        "name": "value",
+        "type": "int64"
+      }
+    ],
+    "outputs": [],
+    "constant": false
+  },
+  {
+    "type": "function",
+    "name": "acquire",
+    "inputs": [],
+    "outputs": [],
+    "constant": false
+  },
+  {
+    "type": "function",
+    "name": "update",
+    "inputs": [],
+    "outputs": [],
+    "constant": false
+  },
+  {
+    "type": "function",
+    "name": "acquire_anytime_sub_contract",
+    "inputs": [
+      {
+        "name": "anytime_index",
+        "type": "uint64"
+      }
+    ],
+    "outputs": [],
+    "constant": false
+  },
+  {
+    "type": "function",
+    "name": "stake",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "int64"
+      }
+    ],
+    "constant": false
+  },
+  {
+    "type": "function",
+    "name": "withdraw",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "returnValue0",
+        "type": "bool"
+      }
+    ],
+    "constant": false
+  },
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "contract_definition",
+        "type": "int64[]"
+      },
+      {
+        "name": "holder",
+        "type": "address"
+      }
+    ]
+  }
+]

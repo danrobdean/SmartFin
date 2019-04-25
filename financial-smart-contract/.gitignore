@@ -1,2 +1,2 @@
-target
-node_modules
+contract/target
+contract-js-test/node_modules

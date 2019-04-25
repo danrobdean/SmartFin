@@ -1,10 +1,24 @@
 #!/bin/bash
 
-# Generate test cargo manifest
-source ./generate-cargo.sh lib
+test-rs() {
+    cd contract
+    ./test.sh
+    cd ..
+}
 
-# Run tests
-cargo test --features std $1
+test-js() {
+    cd contract-js-test
+    yarn test
+    cd ..
+}
 
-# Replace build manifest
-source ./generate-cargo.sh cdylib
+if [ $1 = "-rs" ]
+then
+    test-rs
+elif [ $1 = "-js" ]
+then
+    test-js
+else
+    test-rs
+    test-js
+fi
