@@ -104,8 +104,8 @@ function serializeCombinatorContract(combinatorContract) {
 
     console.log("Serialized combinator contract: [" + result + "]");
 
-    // Return serialized result as Uint8Array (byte array)
-    return Uint8Array.from(result);
+    // Return serialized result as i64 array
+    return result;
 }
 
 // Obtain contract from IO, then handle

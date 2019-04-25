@@ -17,6 +17,15 @@ init-account () {
     echo "Account initialised."
 }
 
+# Initialises two test accounts on the blockchain after a delay
+init-test-accounts() {
+    sleep 2
+    curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromSecret","params":["0xe919476cbaf686942002394228dc7a2c1f41ed01ef80744e24d156ac00df1fc8", "test"],"id":1}' -H "Content-Type: application/json" -X POST localhost:8545
+    echo "Account 1 initialised."
+    curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromSecret","params":["0xfa1bf117f434f89e7be33bc480b0744575f58acd2c9e1da728587be8265dcd05", "test"],"id":2}' -H "Content-Type: application/json" -X POST localhost:8545
+    echo "Account 2 initialised."
+}
+
 # Print help if requested
 if [ $1 = "-h" ]; then
     echo "To run a clean node, pass --clean."
@@ -27,5 +36,5 @@ else
         echo "Chain cleaned."
     fi
     # Initialise the account after a delay, and start the parity node
-    init-account & start-node
+    init-account & init-test-accounts & start-node
 fi

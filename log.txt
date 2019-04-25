@@ -384,6 +384,15 @@ Integration tests:
 	- get_concluded tests
 	- Extra should_panic tests for concluded contract, acquisition post-expiry
 
+JavaScript testing plan:
+	- Create scripts to initialise and run clean parity blockchain
+	- Rust smart contract should be built and then deployed to the blockchain
+	- Javascript tests should initialize, setting up web3 with hard coded test accounts
+	- Unit tests should check that interfacing with contract works correctly (i.e. the API), no need to test all combinators as they're already tested, just interaction between js client and endpoint
+
+Testing implementation:
+	- Realised contract deployment was broken since the test migration, caused by the deletion of .cargo/config (done in attempt to make building work without the cdylib/lib issues), added the config back and converted the Uint8Array to a normal array and now works properly
+
 
 
 
