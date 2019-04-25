@@ -7,7 +7,7 @@ To build the smart contract, run `build.sh` from this directory. This will outpu
 
 ### Testing the smart contract
 
-To test the smart contract, run `test.sh` from this directory. This will run any unit tests (defined with `pwasm-test`).
+To test the smart contract, run `test.sh` from this directory. This will run any unit tests (defined with `pwasm-test`) and js integration tests.
 
 ### Running the development blockchain
 
@@ -15,8 +15,8 @@ To run the development blockchain (defined in `wasm-dev-chain.json`), execute `r
 
 Once the blockchain is running, the contract can be deployed from a node console.
 
-First, execute `yarn install` to install web3 dependencies.
+First, execute `yarn install` to install web3 dependencies in the contract-js-test directory.
 
-Next, run `./deploy.sh`, which opens a node console. In this console, you can input a combinator contract, and then a holder address (can be any valid Ethereum address except the address sending the contract transaction). A smart contract will be created and the combinator contract will be passed to it, defining its behaviour.
+Next, run `./deploy.sh` from the root directory, which opens a node console. In this console, you can input a combinator contract, and then a holder address (can be any valid Ethereum address except the address sending the contract transaction). A smart contract will be created and the combinator contract will be passed to it, defining its behaviour.
 
 NB: Contract deployment fails on the first attempt per new blockchain, for unknown reasons. Trying a second time will be successful.
