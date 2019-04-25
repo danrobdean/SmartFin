@@ -41,7 +41,7 @@ impl ContractCombinator for AndCombinator {
     // Acquires the combinator and acquirable sub-combinators
     fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<Option<u32>>) {
         if self.past_horizon(time) {
-            panic!("Acquiring an expired contract is not allowed.");
+            panic!("Cannot acquire an expired contract.");
         }
         if self.combinator_details.acquisition_time != None {
             panic!("Acquiring a previously-acquired and combinator is not allowed.");
@@ -213,9 +213,8 @@ mod tests {
         combinator.update(0, &vec![], &vec![], &mut vec![]);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
-        assert_eq!(
+        assert!(
             fully_updated,
-            true,
             "fully_updated is not true: {}",
             fully_updated
         );
@@ -256,9 +255,8 @@ mod tests {
         let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );
@@ -285,9 +283,8 @@ mod tests {
         let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );
@@ -317,7 +314,7 @@ mod tests {
 
     // Acquiring combinator post-expiry is not allowed
     #[test]
-    #[should_panic(expected = "Acquiring an expired contract is not allowed.")]
+    #[should_panic(expected = "Cannot acquire an expired contract.")]
     fn should_panic_when_acquiring_post_expiry() {
         // Create combinator and truncate 0 one truncate 0 one
         let mut combinator = AndCombinator::new(

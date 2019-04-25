@@ -62,6 +62,10 @@ pub trait FinancialScInterface {
     #[constant]
     fn get_balance(&mut self) -> i64;
 
+    // Gets whether or not the contract has concluded all operation (i.e. updating will never change the balance).
+    #[constant]
+    fn get_concluded(&mut self) -> bool;
+
     // Sets the preference of the given or combinator's sub-combinators
     fn set_or_choice(&mut self, or_index: u64, choice: bool);
 
@@ -168,6 +172,13 @@ impl FinancialScInterface for FinancialScContract {
         }
     }
 
+    // Gets whether or not the contract has concluded.
+    fn get_concluded(&mut self) -> bool {
+        let combinator_details = self.combinator.get_combinator_details();
+        combinator_details.fully_updated
+            || combinator_details.acquisition_time == None && self.combinator.past_horizon(pwasm_ethereum::timestamp() as u32)
+    }
+
     // Sets the given or combinator's preference between its sub-combinators
     fn set_or_choice(&mut self, or_index: u64, prefer_first: bool) {
         if pwasm_ethereum::sender() != self.holder {
@@ -219,6 +230,11 @@ impl FinancialScInterface for FinancialScContract {
 
     // Updates the balances of the holder and counter-party
     fn update(&mut self) {
+        // If concluded, can't update.
+        if self.get_concluded() {
+            panic!("Contract has concluded, nothing more to update.");
+        }
+
         let difference = self.combinator.update(pwasm_ethereum::timestamp() as u32, &self.or_choices, &self.concrete_obs_values, &mut self.anytime_acquisition_times);
 
         self.counter_party_balance = FinancialScContract::safe_add(self.counter_party_balance, -difference);

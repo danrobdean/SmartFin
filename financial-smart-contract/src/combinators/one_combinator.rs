@@ -106,7 +106,7 @@ mod tests {
         );
     }
 
-    // Acquiring and updating combinator sets fully updated to true
+    // Acquiring and updating combinator sets fully updated to 
     #[test]
     fn acquiring_and_updating_sets_fully_updated() {
         // Create combinator one
@@ -118,10 +118,9 @@ mod tests {
         combinator.update(time, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
+        assert!(
             combinator_details.fully_updated,
-            true,
-            "fully_updated != true: {}",
+            "not fully_updated: {}",
             combinator_details.fully_updated
         );
     }
@@ -173,9 +172,8 @@ mod tests {
         let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );
@@ -199,9 +197,8 @@ mod tests {
         let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );

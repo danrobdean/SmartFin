@@ -118,9 +118,8 @@ mod tests {
         combinator.update(time, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
+        assert!(
             combinator_details.fully_updated,
-            true,
             "fully_updated != true: {}",
             combinator_details.fully_updated
         );
@@ -154,9 +153,8 @@ mod tests {
         let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );
@@ -180,9 +178,8 @@ mod tests {
         let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );

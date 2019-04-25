@@ -27,7 +27,7 @@ impl ContractCombinator for GetCombinator {
     }
 
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
-        if self.past_horizon(time) && self.sub_combinator.get_horizon() != None {
+        if self.past_horizon(time) {
             self.sub_combinator.get_value(self.get_horizon().unwrap(), or_choices, obs_values, anytime_acquisition_times)
         } else {
             0
@@ -41,7 +41,7 @@ impl ContractCombinator for GetCombinator {
     // Acquires the combinator and acquirable sub-combinators
     fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<Option<u32>>) {
         if self.past_horizon(time) {
-            panic!("Acquiring an expired contract is not allowed.");
+            panic!("Cannot acquire an expired contract.");
         }
         if self.combinator_details.acquisition_time != None {
             panic!("Acquiring a previously-acquired get combinator is not allowed.");
@@ -51,6 +51,8 @@ impl ContractCombinator for GetCombinator {
         if self.sub_combinator.get_horizon() != None {
             let horizon = self.sub_combinator.get_horizon().unwrap();
             self.sub_combinator.acquire(horizon, or_choices, anytime_acquisition_times);
+        } else {
+            self.combinator_details.fully_updated = true;
         }
 
         self.combinator_details.acquisition_time = Some(time);
@@ -244,9 +246,8 @@ mod tests {
         combinator.update(0, &vec![], &vec![], &mut vec![]);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
-        assert_eq!(
-            fully_updated,
-            false,
+        assert!(
+            !fully_updated,
             "fully_updated is not false: {}",
             fully_updated
         );
@@ -268,9 +269,8 @@ mod tests {
         combinator.update(2, &vec![], &vec![], &mut vec![]);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
-        assert_eq!(
+        assert!(
             fully_updated,
-            true,
             "fully_updated is not true: {}",
             fully_updated
         );
@@ -339,9 +339,8 @@ mod tests {
         let value = combinator.update(2, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );
@@ -370,9 +369,8 @@ mod tests {
         let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
-            combinator_details.fully_updated,
-            false,
+        assert!(
+            !combinator_details.fully_updated,
             "fully_updated != false: {}",
             combinator_details.fully_updated
         );
@@ -385,7 +383,7 @@ mod tests {
         )
     }
 
-    // Updating before acquisition time does not set fully updated and returns correct value
+    // Acquiring with no horizon sets fully_updated to true, and value to 0
     #[test]
     fn acquiring_and_updating_with_no_horizon_does_nothing() {
         // Create combinator get one
@@ -398,10 +396,9 @@ mod tests {
         let value = combinator.update(10, &vec![], &vec![], &mut vec![]);
         let combinator_details = combinator.get_combinator_details();
 
-        assert_eq!(
+        assert!(
             combinator_details.fully_updated,
-            false,
-            "fully_updated != false: {}",
+            "fully_updated != true: {}",
             combinator_details.fully_updated
         );
 
@@ -427,7 +424,7 @@ mod tests {
 
     // Acquiring combinator post-expiry is not allowed
     #[test]
-    #[should_panic(expected = "Acquiring an expired contract is not allowed.")]
+    #[should_panic(expected = "Cannot acquire an expired contract.")]
     fn should_panic_when_acquiring_post_expiry() {
         // Create combinator
         let mut combinator = GetCombinator::new(

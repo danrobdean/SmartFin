@@ -369,5 +369,22 @@ Need to add more integration tests, then javascript tests (deploy -> integration
 
 
 
+========== 25 Apr ==========
+
+Adding more integration tests, then setting up javascript testing. Also remove TODOs (get_value)
+
+Misc changes:
+	- GET combinator now sets fully_updated when the sub-combinator has no horizon (i.e. can never be acquired, so update will never give any result, hence fully updated)
+	- GET and ANYTIME when updated at horizon will count sub-combinator as already acquired, even before expiration (follows the paper more closely, acquisition is at last non-expired moment, not first expired moment)
+	- Replaced all assert_eq!(bool, x) with assert!(x)/assert!(!x) bc it's better
+	- Added get_concluded to contract API, used to check if the contract is done updating forever (checks if fully_updated or expired) - could be used for suicide in future
+
+Integration tests:
+	- GET and ANYTIME, using get_balance instead of get_value (better from integration test standpoint)
+	- get_concluded tests
+	- Extra should_panic tests for concluded contract, acquisition post-expiry
+
+
+
 
 

@@ -4,7 +4,7 @@ mod common;
 
 #[allow(unused_imports)]
 use self::pwasm_std::{ vec, types::{ Address, U256 } };
-use self::pwasm_test::ext_reset;
+use self::pwasm_test::{ ext_reset, ext_update };
 use self::common::{ setup_contract, FinancialScContract, FinancialScInterface };
 
 // The value of the contract is based on the given serialized combinator vector
@@ -253,9 +253,111 @@ fn then_value_equals_second_sub_combinator_post_expiry() {
     assert_eq!(contract.get_value(), 0);
 }
 
+// The value of a get contract is the value of the sub-combinator post-expiry (if acquired pre-expiry)
+#[test]
+fn get_has_correct_value() {
+    // Create contract get truncate 1 one
+    let contract_details = setup_contract(vec![8, 4, 1, 1]);
+
+    // Mock details
+    ext_reset(|e| e
+        .timestamp(0)
+        .sender(contract_details.holder)
+    );
+
+    // Check value is 0 before expiry
+    let mut contract = contract_details.contract;
+    contract.acquire();
+    contract.update();
+    assert_eq!(contract.get_balance(), 0);
+
+    // Check value is 1 after expiry
+    ext_update(|e| e.timestamp(1));
+    contract.update();
+    assert_eq!(contract.get_balance(), 1);
+}
+
+// The value of an anytime contract is correct with no additional acquisition
+#[test]
+fn anytime_has_correct_value_no_additional_acquisition() {
+    // Create contract anytime truncate 1 one
+    let contract_details = setup_contract(vec![9, 4, 1, 1]);
+
+    // Mock details
+    ext_reset(|e| e
+        .timestamp(0)
+        .sender(contract_details.holder)
+    );
+
+    // Check value is 0 before expiry
+    let mut contract = contract_details.contract;
+    contract.acquire();
+    contract.update();
+    assert_eq!(contract.get_balance(), 0);
+
+    // Check value is 1 after expiry
+    ext_update(|e| e.timestamp(1));
+    contract.update();
+    assert_eq!(contract.get_balance(), 1);
+}
+
+// The value of an anytime contract is correct after additional acquisition
+#[test]
+fn anytime_has_correct_value_after_additional_acquisition() {
+    // Create contract anytime truncate 5 one
+    let contract_details = setup_contract(vec![9, 4, 5, 1]);
+
+    // Mock details
+    ext_reset(|e| e
+        .timestamp(0)
+        .sender(contract_details.holder)
+    );
+
+    // Check value is 0 before acquisition
+    let mut contract = contract_details.contract;
+    contract.acquire();
+    contract.update();
+    assert_eq!(contract.get_balance(), 0);
+
+    // Acquire anytime contract
+    contract.acquire_anytime_sub_contract(0);
+
+    // Check value is 1
+    ext_update(|e| e.timestamp(1));
+    contract.update();
+    assert_eq!(contract.get_balance(), 1);
+}
+
+// An expired contract should be concluded.
+#[test]
+fn expired_contract_concluded() {
+    // Create contract truncate 0 one
+    let mut contract_details = setup_contract(vec![4, 0, 1]);
+
+    ext_reset(|e| e.timestamp(1));
+    assert!(contract_details.contract.get_concluded());
+}
+
+// A fully updated contract should be concluded.
+#[test]
+fn fully_updated_contract_concluded() {
+    // Create contract one
+    let contract_details = setup_contract(vec![1]);
+
+    ext_reset(|e| e
+        .timestamp(0)
+        .sender(contract_details.holder)
+    );
+    let mut contract = contract_details.contract;
+    contract.acquire();
+    contract.update();
+
+    assert!(contract.get_concluded());
+}
+
 // Attempting to get the value of a contract before calling the constructor is not allowed
 #[test]
-#[should_panic]
+#[should_panic(expected = "Attempted to get value of a null combinator.")]
 fn should_panic_if_getting_value_before_initialised() {
     let mut contract = FinancialScContract::new();
     contract.get_value();
@@ -263,7 +365,7 @@ fn should_panic_if_getting_value_before_initialised() {
 
 // Evaluating a contract with an ambiguous or choice is not allowed
 #[test]
-#[should_panic]
+#[should_panic(expected = "Cannot get OR choice when neither sub-combinator has been chosen or has expired.")]
 fn should_panic_if_ambiguous_or_choice() {
     let mut contract = setup_contract(vec![3, 1, 0]).contract;
     contract.get_value();
@@ -271,7 +373,7 @@ fn should_panic_if_ambiguous_or_choice() {
 
 // Getting the value of a contract with an undefined observable is not allowed
 #[test]
-#[should_panic]
+#[should_panic(expected = "Cannot get value of an undefined observable.")]
 fn should_panic_if_getting_value_with_undefined_observable() {
     let mut contract = setup_contract(vec![5, 0, 1]).contract;
     contract.get_value();
@@ -279,7 +381,7 @@ fn should_panic_if_getting_value_with_undefined_observable() {
 
 // Getting the value of a contract with an observable without a concrete value is not allowed
 #[test]
-#[should_panic]
+#[should_panic(expected = "Cannot get value of an undefined observable.")]
 fn should_panic_if_getting_value_with_observable_without_concrete_value() {
     let mut contract_details = setup_contract(vec![5, 0, 1]);
 
@@ -290,4 +392,33 @@ fn should_panic_if_getting_value_with_observable_without_concrete_value() {
     ext_reset(|e| e.sender(contract_details.counter_party));
     contract_details.contract.propose_obs_value(0, 2);
     contract_details.contract.get_value();
+}
+
+// Acquiring an expired contract is not allowed
+#[test]
+#[should_panic(expected = "Cannot acquire an expired contract.")]
+fn should_panic_if_acquiring_post_expiry() {
+    // Initialise contract truncate 0 one
+    let mut contract_details = setup_contract(vec![4, 0, 1]);
+
+    // Attempt to acquire contract
+    ext_reset(|e| e
+        .sender(contract_details.holder)
+        .timestamp(1)
+    );
+
+    contract_details.contract.acquire();
+}
+
+// A concluded contract shouldn't be able to be updated.
+#[test]
+#[should_panic(expected = "Contract has concluded, nothing more to update.")]
+fn should_panic_if_updating_concluded_contract() {
+    // Create contract truncate 0 one
+    let mut contract_details = setup_contract(vec![4, 0, 1]);
+
+    ext_reset(|e| e.timestamp(1));
+    assert!(contract_details.contract.get_concluded());
+
+    contract_details.contract.update();
 }

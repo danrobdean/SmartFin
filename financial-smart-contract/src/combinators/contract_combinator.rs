@@ -33,7 +33,7 @@ pub trait ContractCombinator {
     fn past_horizon(&self, time: u32) -> bool {
         match self.get_horizon() {
             Some(t) => t < time,
-            None => false,
+            None => false
         }
     }
 
