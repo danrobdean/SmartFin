@@ -427,5 +427,10 @@ To do still:
 	- Need to implement storage of bools, Option<T> and the combinator structs (will require serialization methods on the combinator structs themselves)
 	- Unit tests still pass (should add new ones though, specifically for key addition)
 
+REALISED A PROBLEM/SOLUTION:
+	- Vec<T> can be stored only if storage of T only uses one slot, e.g. Vec<Vec<T>> will break
+	- Same may be an issue with Option if we use 2 slots for that, Vec<Option<T>> will break
+	- Change write to return a key, representing the end of the array used, i.e. write(key, vec![1, 2, 3]) == key + 3, next write should be at key + 3 + 1
+
 
 
