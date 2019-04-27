@@ -49,5 +49,16 @@ describe('Contract tests', function() {
                 done(err);
             }
         });
-    })
+    });
+
+    it('Returns the correct counter-party address', function(done) {
+        contract.methods.get_counter_party().call({ from: counterParty.address }, function(err, res) {
+            if (res) {
+                assert.equal(res.returnValue0, counterParty.address);
+                done();
+            } else {
+                done(err);
+            }
+        });
+    });
 })

@@ -385,7 +385,7 @@ Integration tests:
 	- Extra should_panic tests for concluded contract, acquisition post-expiry
 
 JavaScript testing plan:
-	- Create scripts to initialise and run clean parity blockchain
+	- Create scripts to initialise and run clean parity blockchainf
 	- Rust smart contract should be built and then deployed to the blockchain
 	- Javascript tests should initialize, setting up web3 with hard coded test accounts
 	- Unit tests should check that interfacing with contract works correctly (i.e. the API), no need to test all combinators as they're already tested, just interaction between js client and endpoint
@@ -398,6 +398,34 @@ Testing implementation:
 	- Mocha tests first deploy contract (attempted twice in case of first push), then run tests
 	- Started with get_holder and get_counter_party, but weird results. get_holder is just returning Address::zero, even though the holder is not just zero in the constructor (have checked). For the counter_party it's the same, but the sender IS Address::zero in the constructor, which it shouldn't be.
 
+
+
+========== 27 Apr ==========
+
+Bad news, I misinterpreted the repo contract, which has a storage table stored in the struct of the contract instance. I assumed this implied that stuff stored on the struct (in rust's heap) stays around forever, but this is not the case. The storage table is simply updated while the contract is executing, and then emptied once the contract is exited. Anything not in the table at any given time will be in the contract's storage (pwasm_ethereum::write/read). This means I need to be able to serialize (and store in eth storage):
+	- All numbers associated with the contract (balance, addresses) - not a big deal
+	- Options (a bit fiddly but doable)
+	- The vectors representing OR choices (length then items, not tooo hard)
+	- The combinator structs (a massive pain)
+
+This also (annoyingly) means that there will be two separate serializations of the combinator contracts, one for the definition and one for the existing structs. I kind of hate this but I don't think there's any other way, the JS serialization shouldn't have knowledge of the RS minutiae. At least it should be easy to test
+
+Sadly, I think this will all take 3 days to a week, putting me about two weeks behind my intended deadline for the smart contract. At least I don't think the second part will take too long (front end client basically), should be doable within two weeks so shouldn't run out of time for the report.
+
+Will aim to have storage existing along with addresses/numbers stored by end of today, options/vectors and starting on combinators tomorrow, combinators by end of mon.
+
+NB: The contract struct is reinitialized every time a method is called, in the call/deploy functions. This is why everything is reset to 0 every time.
+
+Implementing storage:
+	- Implemented storage struct/methods, used same struct from the example repo contract
+	- Re-implementing i64 to/from [u8] (via u64), from old code, also implemented address to/from [u8]
+	- Have replaced holder, counter_party, holder_balance, counter_party_balance, and serialized_combinator fields with stored values, now passes js tests! So storage is working on the blockchain.
+	- Storage struct now uses Stores<T> trait, which can write/read a type T
+	- Implemented Stores for [u8; 32], i64, Address, and Vec<T> where Stores<T> (had to make a read_len and write_len so that vec lengths can always be read/written)
+
+To do still:
+	- Need to implement storage of bools, Option<T> and the combinator structs (will require serialization methods on the combinator structs themselves)
+	- Unit tests still pass (should add new ones though, specifically for key addition)
 
 
 
