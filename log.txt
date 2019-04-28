@@ -434,3 +434,31 @@ REALISED A PROBLEM/SOLUTION:
 
 
 
+========== 28 Apr ==========
+
+Implementing the fix for writing multiple slots in storage, then implementing bool and Option<T>, then starting on combinators.
+
+Another issue has reared its head. Having implemented returning end-addresses for read/writes, it's become obvious that these could change, for example if writing a vector and then re-writing it with an additional element the end address will be 1 element further into storage. If this is possible, then dynamically deciding addresses based on other addresses should never be done. There are a few options to fix this:
+	- Namespacing memory - we can use the last byte of the address as a "namespace" byte. Any dynamically-sized vectors can have their own memory namespace, and the add_to_key function can iterate only over the first 31 bytes of the addresses (so that namespace boundaries are never crossed). This is obviously quite restrictive, but it doesn't matter at all in the context of the specific smart contract.
+	- Matching IDs to memory, and dynamically organising it. This is the best design-wise, but it's a ton of work and not very efficient either. Involves keeping track of when memory for an item will overlap memory for another item, and moving the second item to fresh memory. This is a giant pain, and I almost definitely won't implement it, but it is basically the ideal solution.
+	- Enforcing type/size immutability on stored vectors. This means that if a vector has been written to storage, it cannot be re-written unless the new vector has the same size in memory (i.e. length and size of items are equal). This will prevent overlapping a vector with a vector stored after it, as it will never grow in storage. This requires adding checks and keeping track of the size/length of stored arrays, which could get difficult/inefficient with types like Vec<Vec<Option<Vec<T>>>> (not that we use anything more complicated than Vec<Option<T>>).
+
+Will probably go with the idea of namespacing memory for now, as it is very easy to implement and replace later.
+
+Stuff done:
+	- Namespacing memory (last byte is a namespace index)
+	- Reads/writes return the last read/written address (used in sequential read/writes, generally ignored outside of the Storage methods)
+	- Stores<Vec<T>> now actually works
+	- Implemented Stores<Option<T>> and Stores<bool>
+	- or_choices, obs_values, anytime_times now all stored in storage instead of members
+	- Added tests for storage of different types
+	- Using ext_reset in tests wipes out pwasm_ethereum::write/read storage (which is handily mocked as expected for testing usually), replaced all ext_reset calls with ext_update (which we should've been using anyway)
+
+Still needed:
+	- Proper serialization/deserialization/storage of combinator structs
+	- More JS tests
+	- Methods for sending or choices, obs values, and anytime acquisition times (not straightforward as they're stored as options)
+
+
+
+

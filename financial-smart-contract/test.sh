@@ -7,6 +7,7 @@ test-rs() {
 }
 
 test-js() {
+    ./build.sh
     cd contract-js-test
     yarn test
     cd ..

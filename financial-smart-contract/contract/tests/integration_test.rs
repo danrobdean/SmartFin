@@ -4,7 +4,7 @@ mod common;
 
 #[allow(unused_imports)]
 use self::pwasm_std::{ vec, types::{ Address, U256 } };
-use self::pwasm_test::{ ext_reset, ext_update };
+use self::pwasm_test::{ ext_update };
 use self::common::{ setup_contract, FinancialScContract, FinancialScInterface };
 
 // The value of the contract is based on the given serialized combinator vector
@@ -40,7 +40,7 @@ fn correct_value_or_left() {
     let mut contract_details = setup_contract(vec![3, 0, 1]);
     
     // Set the or choice and check the value
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.set_or_choice(0, true);
     assert_eq!(contract_details.contract.get_value(), 0);
 }
@@ -51,7 +51,7 @@ fn correct_value_or_right() {
     let mut contract_details = setup_contract(vec![3, 0, 1]);
     
     // Set the or choice and check the value
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.set_or_choice(0, false);
     assert_eq!(contract_details.contract.get_value(), 1);
 }
@@ -63,7 +63,7 @@ fn expired_truncate_worth_0() {
     let mut contract = setup_contract(vec![4, 0, 1]).contract;
 
     // Check that contract value is 0 at timestamp 1
-    ext_reset(|e| e.timestamp(1));
+    ext_update(|e| e.timestamp(1));
     assert_eq!(contract.get_value(), 0);
 }
 
@@ -74,7 +74,7 @@ fn non_expired_truncate_value_correct() {
     let mut contract = setup_contract(vec![4, 1, 1]).contract;
 
     // Check that contract value is 1 at timestamp 0
-    ext_reset(|e| e.timestamp(0));
+    ext_update(|e| e.timestamp(0));
     assert_eq!(contract.get_value(), 1);
 }
 
@@ -85,7 +85,7 @@ fn expired_and_correct() {
     let mut contract = setup_contract(vec![3, 4, 0, 1, 1]).contract;
 
     // Check that contract value is 1 at timestamp 1
-    ext_reset(|e| e.timestamp(1));
+    ext_update(|e| e.timestamp(1));
     assert_eq!(contract.get_value(), 1);
 }
 
@@ -96,7 +96,7 @@ fn expired_or_correct() {
     let mut contract = setup_contract(vec![3, 4, 0, 1, 0]).contract;
 
     // Check that contract value is 0 at timestamp 1 with no or-choice
-    ext_reset(|e| e.timestamp(1));
+    ext_update(|e| e.timestamp(1));
     assert_eq!(contract.get_value(), 0);
 }
 
@@ -107,7 +107,7 @@ fn expired_or_ignores_choice() {
     let mut contract_details = setup_contract(vec![3, 4, 0, 1, 0]);
 
     // Check that contract value is 0 at timestamp 1 with left or-choice
-    ext_reset(|e| e
+    ext_update(|e| e
         .timestamp(1)
         .sender(contract_details.holder)
     );
@@ -144,10 +144,10 @@ fn scale_with_concrete_obs_value_has_correct_value() {
     let mut contract_details = setup_contract(vec![5, 0, 1]);
 
     // Propose obs_value_0 = 2 from both parties
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.propose_obs_value(0, 2);
 
-    ext_reset(|e| e.sender(contract_details.counter_party));
+    ext_update(|e| e.sender(contract_details.counter_party));
     contract_details.contract.propose_obs_value(0, 2);
 
     // Check that contract value is 2
@@ -161,10 +161,10 @@ fn scale_with_concrete_negative_obs_value_has_correct_value() {
     let mut contract_details = setup_contract(vec![5, 0, 1]);
 
     // Propose obs_value_0 = -2 from both parties
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.propose_obs_value(0, -2);
 
-    ext_reset(|e| e.sender(contract_details.counter_party));
+    ext_update(|e| e.sender(contract_details.counter_party));
     contract_details.contract.propose_obs_value(0, -2);
 
     // Check that contract value is -2
@@ -178,10 +178,10 @@ fn scale_with_concrete_obs_value_has_correct_value_after_extra_proposal() {
     let mut contract_details = setup_contract(vec![5, 0, 1]);
 
     // Propose obs_value_0 = 2 from both parties
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.propose_obs_value(0, 2);
 
-    ext_reset(|e| e.sender(contract_details.counter_party));
+    ext_update(|e| e.sender(contract_details.counter_party));
     contract_details.contract.propose_obs_value(0, 2);
 
     // Check that contract value is 2
@@ -201,10 +201,10 @@ fn scale_with_concrete_obs_value_has_correct_value_after_second_agreement() {
     let mut contract_details = setup_contract(vec![5, 0, 1]);
 
     // Propose obs_value_0 = 2 from both parties
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.propose_obs_value(0, 2);
 
-    ext_reset(|e| e.sender(contract_details.counter_party));
+    ext_update(|e| e.sender(contract_details.counter_party));
     contract_details.contract.propose_obs_value(0, 2);
 
     // Check that contract value is 2
@@ -213,7 +213,7 @@ fn scale_with_concrete_obs_value_has_correct_value_after_second_agreement() {
     // Propose obs_value_0 = 3 from both parties
     contract_details.contract.propose_obs_value(0, 3);
 
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.propose_obs_value(0, 3);
 
     // Check that contract value is now 3
@@ -227,7 +227,7 @@ fn give_value_correct() {
     let mut contract = setup_contract(vec![6, 1]).contract;
 
     // Check that the contract value is -1
-    ext_reset(|e| e.timestamp(0));
+    ext_update(|e| e.timestamp(0));
     assert_eq!(contract.get_value(), -1);
 }
 
@@ -238,7 +238,7 @@ fn then_value_equals_first_sub_combinator_pre_expiry() {
     let mut contract = setup_contract(vec![7, 4, 1, 1, 0]).contract;
 
     // Check value equals 1
-    ext_reset(|e| e.timestamp(1));
+    ext_update(|e| e.timestamp(1));
     assert_eq!(contract.get_value(), 1);
 }
 
@@ -249,7 +249,7 @@ fn then_value_equals_second_sub_combinator_post_expiry() {
     let mut contract = setup_contract(vec![7, 4, 1, 1, 0]).contract;
 
     // Check value equals 0
-    ext_reset(|e| e.timestamp(2));
+    ext_update(|e| e.timestamp(2));
     assert_eq!(contract.get_value(), 0);
 }
 
@@ -260,7 +260,7 @@ fn get_has_correct_value() {
     let contract_details = setup_contract(vec![8, 4, 1, 1]);
 
     // Mock details
-    ext_reset(|e| e
+    ext_update(|e| e
         .timestamp(0)
         .sender(contract_details.holder)
     );
@@ -284,7 +284,7 @@ fn anytime_has_correct_value_no_additional_acquisition() {
     let contract_details = setup_contract(vec![9, 4, 1, 1]);
 
     // Mock details
-    ext_reset(|e| e
+    ext_update(|e| e
         .timestamp(0)
         .sender(contract_details.holder)
     );
@@ -308,7 +308,7 @@ fn anytime_has_correct_value_after_additional_acquisition() {
     let contract_details = setup_contract(vec![9, 4, 5, 1]);
 
     // Mock details
-    ext_reset(|e| e
+    ext_update(|e| e
         .timestamp(0)
         .sender(contract_details.holder)
     );
@@ -334,7 +334,7 @@ fn expired_contract_concluded() {
     // Create contract truncate 0 one
     let mut contract_details = setup_contract(vec![4, 0, 1]);
 
-    ext_reset(|e| e.timestamp(1));
+    ext_update(|e| e.timestamp(1));
     assert!(contract_details.contract.get_concluded());
 }
 
@@ -344,7 +344,7 @@ fn fully_updated_contract_concluded() {
     // Create contract one
     let contract_details = setup_contract(vec![1]);
 
-    ext_reset(|e| e
+    ext_update(|e| e
         .timestamp(0)
         .sender(contract_details.holder)
     );
@@ -386,10 +386,10 @@ fn should_panic_if_getting_value_with_observable_without_concrete_value() {
     let mut contract_details = setup_contract(vec![5, 0, 1]);
 
     // Propose two different values
-    ext_reset(|e| e.sender(contract_details.holder));
+    ext_update(|e| e.sender(contract_details.holder));
     contract_details.contract.propose_obs_value(0, 1);
 
-    ext_reset(|e| e.sender(contract_details.counter_party));
+    ext_update(|e| e.sender(contract_details.counter_party));
     contract_details.contract.propose_obs_value(0, 2);
     contract_details.contract.get_value();
 }
@@ -402,7 +402,7 @@ fn should_panic_if_acquiring_post_expiry() {
     let mut contract_details = setup_contract(vec![4, 0, 1]);
 
     // Attempt to acquire contract
-    ext_reset(|e| e
+    ext_update(|e| e
         .sender(contract_details.holder)
         .timestamp(1)
     );
@@ -417,7 +417,7 @@ fn should_panic_if_updating_concluded_contract() {
     // Create contract truncate 0 one
     let mut contract_details = setup_contract(vec![4, 0, 1]);
 
-    ext_reset(|e| e.timestamp(1));
+    ext_update(|e| e.timestamp(1));
     assert!(contract_details.contract.get_concluded());
 
     contract_details.contract.update();
