@@ -454,10 +454,22 @@ Stuff done:
 	- Added tests for storage of different types
 	- Using ext_reset in tests wipes out pwasm_ethereum::write/read storage (which is handily mocked as expected for testing usually), replaced all ext_reset calls with ext_update (which we should've been using anyway)
 
+
+Combinator serialization: Probably going to be recursive, each combinator serializes its sub-combinators and then itself, and returns the overall result. Serialization will look similar to existing serialization, except with extra data on each combinator (fully_acquired, acquisition_time).  Do we need to store indeces (or_index, obs_index, anytime_index)? In theory they can just be calculated during reconstruction (as deserialize_combinator works now), so no?
+
+Gripes:
+	- Effectively two deserialization functions for the same thing, kinda ugly
+
+Serialization/deserialization stuff done:
+	- Implemented enum for combinators (finally)
+	- Implemented serialization
+
 Still needed:
-	- Proper serialization/deserialization/storage of combinator structs
+	- Finish deserialization/storage of combinator structs, and (de)serialization testing
 	- More JS tests
 	- Methods for sending or choices, obs values, and anytime acquisition times (not straightforward as they're stored as options)
+	- Remove null combinator
+	- Think about using keys instead of passing around vectors through combinator functions
 
 
 

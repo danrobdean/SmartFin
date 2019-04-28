@@ -1,4 +1,4 @@
-use super::contract_combinator::{ ContractCombinator, CombinatorDetails, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Vec };
 
 // The null combinator - for use when the contract has no combinators (e.g. pre-initialisation)
 pub struct NullCombinator {}
@@ -13,6 +13,10 @@ impl NullCombinator {
 
 // Contract combinator implementation of the null combinator
 impl ContractCombinator for NullCombinator {
+    fn get_combinator_number(&self) -> Combinator {
+        panic!("Attempted to get combinator number of a null combinator.");
+    }
+
     fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         panic!("Attempted to get value of a null combinator.");
     }
@@ -38,6 +42,11 @@ impl ContractCombinator for NullCombinator {
     fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
         panic!("Attempted to update a null combinator.");
     }
+
+    // Serializes the combinator
+    fn serialize(&self) -> Vec<i64> {
+        panic!("Attempted to serialize a null combinator.");
+    }
 }
 
 // Unit tests
@@ -45,6 +54,15 @@ impl ContractCombinator for NullCombinator {
 mod tests {
     use super::super::{ ContractCombinator, NullCombinator };
     use super::super::contract_combinator::vec;
+
+    // Calling get_combinator_number on null-combinator is not allowed
+    #[test]
+    #[should_panic(expected = "Attempted to get combinator number of a null combinator.")]
+    fn should_panic_if_getting_number_of_null_combinator() {
+        let null_combinator = NullCombinator::new();
+
+        null_combinator.get_combinator_number();
+    }
 
     // Calling get_value on null-combinator is not allowed
     #[test]
@@ -98,5 +116,14 @@ mod tests {
         let mut null_combinator = NullCombinator::new();
 
         null_combinator.update(0, &vec![], &vec![], &mut vec![]);
+    }
+
+    // Serializing a null-combinator is not allowed
+    #[test]
+    #[should_panic(expected = "Attempted to serialize a null combinator.")]
+    fn should_panic_if_serializing_null_combinator() {
+        let null_combinator = NullCombinator::new();
+
+        null_combinator.serialize();
     }
 }

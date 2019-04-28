@@ -1,4 +1,4 @@
-use super::contract_combinator::{ ContractCombinator, CombinatorDetails, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Box, Vec };
 
 // The scale combinator
 pub struct ScaleCombinator {
@@ -50,6 +50,10 @@ impl ScaleCombinator {
 
 // Contract combinator implementation for the scale combinator
 impl ContractCombinator for ScaleCombinator {
+    fn get_combinator_number(&self) -> Combinator {
+        Combinator::SCALE
+    }
+
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         let scale_value = self.get_scale_value(obs_values);
         if scale_value == None {
@@ -96,6 +100,26 @@ impl ContractCombinator for ScaleCombinator {
         let sub_value = self.sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
         self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
         scale_value.unwrap() * sub_value
+    }
+
+    // Serializes this combinator
+    fn serialize(&self) -> Vec<i64> {
+        let mut serialized = self.serialize_details();
+
+        // Store 0 then obs_index, or 1 then scale_value, depending on which exists
+        match self.obs_index {
+            Some(i) => {
+                serialized.push(0);
+                serialized.push(i as i64);
+            },
+            None => {
+                serialized.push(1);
+                serialized.push(self.scale_value.unwrap());
+            }
+        }
+
+        serialized.extend_from_slice(&self.sub_combinator.serialize());
+        serialized
     }
 }
 

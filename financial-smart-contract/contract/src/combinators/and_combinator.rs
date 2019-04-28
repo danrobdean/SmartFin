@@ -1,4 +1,4 @@
-use super::contract_combinator::{ ContractCombinator, CombinatorDetails, latest_time, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, latest_time, Box, Vec };
 
 // The and combinator
 pub struct AndCombinator {
@@ -25,6 +25,10 @@ impl AndCombinator {
 
 // Contract combinator implementation for the and combinator
 impl ContractCombinator for AndCombinator {
+    fn get_combinator_number(&self) -> Combinator {
+        Combinator::AND
+    }
+
     // Returns the latest of the two sub-horizons
     fn get_horizon(&self) -> Option<u32> {
         latest_time(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
@@ -70,6 +74,14 @@ impl ContractCombinator for AndCombinator {
         self.combinator_details.fully_updated =
             self.sub_combinator0.get_combinator_details().fully_updated && self.sub_combinator1.get_combinator_details().fully_updated;
         sub_value0 + sub_value1
+    }
+
+    // Serializes this combinator
+    fn serialize(&self) -> Vec<i64> {
+        let mut serialized = self.serialize_details();
+        serialized.extend_from_slice(&self.sub_combinator0.serialize());
+        serialized.extend_from_slice(&self.sub_combinator1.serialize());
+        serialized
     }
 }
 

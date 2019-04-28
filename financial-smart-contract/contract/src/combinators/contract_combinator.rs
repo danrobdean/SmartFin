@@ -2,6 +2,57 @@ extern crate pwasm_std;
 
 pub use self::pwasm_std::{ Box, Vec, vec };
 
+// The types of combinators
+pub enum Combinator {
+    ZERO,
+    ONE,
+    AND,
+    OR,
+    TRUNCATE,
+    SCALE,
+    GIVE,
+    THEN,
+    GET,
+    ANYTIME
+}
+
+// Conversion from i64 to Combinator
+impl From<i64> for Combinator {
+    fn from(val: i64) -> Combinator {
+        match val {
+            0 => Combinator::ZERO,
+            1 => Combinator::ONE,
+            2 => Combinator::AND,
+            3 => Combinator::OR,
+            4 => Combinator::TRUNCATE,
+            5 => Combinator::SCALE,
+            6 => Combinator::GIVE,
+            7 => Combinator::THEN,
+            8 => Combinator::GET,
+            9 => Combinator::ANYTIME,
+            _ => panic!("Unrecognised combinator.")
+        }
+    }
+}
+
+// Conversion from Combinator to i64
+impl From<Combinator> for i64 {
+    fn from(val: Combinator) -> i64 {
+        match val {
+            Combinator::ZERO => 0,
+            Combinator::ONE => 1,
+            Combinator::AND => 2,
+            Combinator::OR => 3,
+            Combinator::TRUNCATE => 4,
+            Combinator::SCALE => 5,
+            Combinator::GIVE => 6,
+            Combinator::THEN => 7,
+            Combinator::GET => 8,
+            Combinator::ANYTIME => 9
+        }
+    }
+}
+
 // The details shared by all combinators
 pub struct CombinatorDetails {
     // The acquisition time of the combinator
@@ -18,6 +69,14 @@ impl CombinatorDetails {
         CombinatorDetails {
             acquisition_time: None,
             fully_updated: false
+        }
+    }
+
+    // Converts a serialized combinator details array to CombinatorDetails
+    pub fn deserialize_details(details_serialized: [i64; 2]) -> CombinatorDetails {
+        CombinatorDetails {
+            acquisition_time: if details_serialized[0] >= 0 { Some(details_serialized[0] as u32) } else { None },
+            fully_updated: details_serialized[1] == 1
         }
     }
 }
@@ -37,6 +96,21 @@ pub trait ContractCombinator {
         }
     }
 
+    // Serializes a combinator's number and details
+    fn serialize_details(&self) -> Vec<i64> {
+        let mut serialized: Vec<i64> = Vec::new();
+        serialized.push(self.get_combinator_number() as i64);
+
+        let details = self.get_combinator_details();
+        match details.acquisition_time {
+            Some(time) => serialized.push(time as i64),
+            None => serialized.push(-1)
+        };
+        serialized.push(if details.fully_updated { 1 } else { 0 });
+
+        serialized
+    }
+
     // Returns the value of the combinator if acquired at the given time
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64;
 
@@ -48,6 +122,14 @@ pub trait ContractCombinator {
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
     fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64;
+
+    // Gets the combinator number
+    fn get_combinator_number(&self) -> Combinator;
+
+    // Serializes this combinator
+    fn serialize(&self) -> Vec<i64> {
+        self.serialize_details()
+    }
 }
 
 // Returns the earliest of the given horizons
@@ -120,5 +202,15 @@ mod tests {
         let horizon1 = None;
 
         assert_eq!(latest_time(horizon0, horizon1), horizon1);
+    }
+
+    // Combinator to/from i64 converts correctly
+    #[test]
+    fn combinator_conversion_correct() {
+        for i in 0..10 {
+            let combinator = Combinator::from(i);
+            let val = i64::from(combinator);
+            assert_eq!(i, val);
+        }
     }
 }

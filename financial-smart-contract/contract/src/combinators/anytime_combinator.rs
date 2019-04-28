@@ -1,4 +1,4 @@
-use super::contract_combinator::{ ContractCombinator, CombinatorDetails, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Box, Vec };
 
 // The anytime combinator
 pub struct AnytimeCombinator {
@@ -25,6 +25,10 @@ impl AnytimeCombinator {
 
 // Contract combinator implementation for the anytime combinator
 impl ContractCombinator for AnytimeCombinator {
+    fn get_combinator_number(&self) -> Combinator {
+        Combinator::ANYTIME
+    }
+
     // Returns the sub-horizon
     fn get_horizon(&self) -> Option<u32> {
         self.sub_combinator.get_horizon()
@@ -97,6 +101,14 @@ impl ContractCombinator for AnytimeCombinator {
         let sub_value = self.sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
         self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
         sub_value
+    }
+
+    // Serializes this combinator
+    fn serialize(&self) -> Vec<i64> {
+        let mut serialized = self.serialize_details();
+        serialized.push(self.anytime_index as i64);
+        serialized.extend_from_slice(&self.sub_combinator.serialize());
+        serialized
     }
 }
 

@@ -1,4 +1,4 @@
-use super::contract_combinator::{ ContractCombinator, CombinatorDetails, earliest_time, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, earliest_time, Box, Vec };
 
 // The truncate combinator
 pub struct TruncateCombinator {
@@ -25,6 +25,10 @@ impl TruncateCombinator {
 
 // Contract combinator implementation for the truncate combinator
 impl ContractCombinator for TruncateCombinator {
+    fn get_combinator_number(&self) -> Combinator {
+        Combinator::TRUNCATE
+    }
+
     // Returns the latest of the sub-horizon and the truncated horizon
     fn get_horizon(&self) -> Option<u32> {
         earliest_time(self.sub_combinator.get_horizon(), Some(self.truncated_horizon))
@@ -67,6 +71,22 @@ impl ContractCombinator for TruncateCombinator {
         let sub_value = self.sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
         self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
         sub_value
+    }
+
+    // Serializes this combinator
+    fn serialize(&self) -> Vec<i64> {
+        let mut serialized = self.serialize_details();
+
+        // Store 0 or 1 then horizon (if defined)
+        match self.get_horizon() {
+            Some(time) => {
+                serialized.push(1);
+                serialized.push(time as i64);
+            },
+            None => serialized.push(0)
+        }
+        serialized.extend_from_slice(&self.sub_combinator.serialize());
+        serialized
     }
 }
 

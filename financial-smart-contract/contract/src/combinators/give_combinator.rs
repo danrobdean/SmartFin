@@ -1,4 +1,4 @@
-use super::contract_combinator::{ ContractCombinator, CombinatorDetails, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Box, Vec };
 
 // The give combinator
 pub struct GiveCombinator {
@@ -21,6 +21,10 @@ impl GiveCombinator {
 
 // Contract combinator implementation for the give combinator
 impl ContractCombinator for GiveCombinator {
+    fn get_combinator_number(&self) -> Combinator {
+        Combinator::GET
+    }
+
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
         -1 * self.sub_combinator.get_value(time, or_choices, obs_values, anytime_acquisition_times)
     }
@@ -58,6 +62,13 @@ impl ContractCombinator for GiveCombinator {
         let sub_value = self.sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
         self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
         -1 * sub_value
+    }
+
+    // Serializes this combinator
+    fn serialize(&self) -> Vec<i64> {
+        let mut serialized = self.serialize_details();
+        serialized.extend_from_slice(&self.sub_combinator.serialize());
+        serialized
     }
 }
 

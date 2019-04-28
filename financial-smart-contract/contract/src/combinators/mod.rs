@@ -14,6 +14,7 @@ mod anytime_combinator;
 
 // Re-export combinators
 pub use self::contract_combinator::ContractCombinator;
+pub use self::contract_combinator::Combinator;
 pub use self::null_combinator::NullCombinator;
 pub use self::zero_combinator::ZeroCombinator;
 pub use self::one_combinator::OneCombinator;
