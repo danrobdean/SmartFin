@@ -9,13 +9,13 @@ To build the smart contract, run `build.sh` from this directory. This will outpu
 
 To test the smart contract, run `test.sh -rs` from this directory. This will run any unit tests (defined with `pwasm-test`).
 
-To test the smart contract on the blockchain, run the development blockchain as described below, and then run `test.sh -js` from this directory.
+To test the smart contract on the blockchain, run the development blockchain with `run-node.sh --clean`, and then run `test.sh -js`, all from this directory.
 
-To run both sets of tests, run the development blockchain and execute `test.sh` from this directory.
+To run both sets of tests, run the development blockchain with `run-node.sh --clean`, and then execute `test.sh`, all from this directory.
 
 ### Running the development blockchain
 
-To run the development blockchain (defined in `wasm-dev-chain.json`), execute `run-node.sh` from this directory. The blockchain can be cleaned and then run with `run-node.sh --clean`.
+Parity must be installed to run the dev chain. To run the development blockchain (defined in `wasm-dev-chain.json`), execute `run-node.sh` from this directory. The blockchain can be cleaned and then run with `run-node.sh --clean`.
 
 Once the blockchain is running, the contract can be deployed from a node console.
 
