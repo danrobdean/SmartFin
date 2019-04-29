@@ -1,7 +1,7 @@
 import Web3 from "web3";
 import fs from "fs";
 
-const web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545")); // The local parity blockchain address
+export const web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545")); // The local parity blockchain address
 
 // Setup combinator -> byte dictionary
 const combinatorDict = {
