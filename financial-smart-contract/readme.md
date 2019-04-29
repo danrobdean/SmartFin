@@ -7,7 +7,11 @@ To build the smart contract, run `build.sh` from this directory. This will outpu
 
 ### Testing the smart contract
 
-To test the smart contract, run `test.sh` from this directory. This will run any unit tests (defined with `pwasm-test`) and js integration tests.
+To test the smart contract, run `test.sh -rs` from this directory. This will run any unit tests (defined with `pwasm-test`).
+
+To test the smart contract on the blockchain, run the development blockchain as described below, and then run `test.sh -js` from this directory.
+
+To run both sets of tests, run the development blockchain and execute `test.sh` from this directory.
 
 ### Running the development blockchain
 
