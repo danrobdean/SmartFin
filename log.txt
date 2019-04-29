@@ -473,4 +473,15 @@ Still needed:
 
 
 
+========== 29 Apr ==========
+
+Finishing off deserialization of combinator structs, adding tests, removing null combinator.
+
+Changed Stores to StoresRef and Stores:
+	- StoresRef is like stores, but for passing by reference to write - prevents having to clone everything (vectors and arrays) a bunch, as we shouldn't be modifying anything passed in either way
+	- StoresRef<Vec<T>> will now only store vecs where Stores<T>, not StoresRef<T> (which is fine for us and makes everything easier and imo nicer)
+	- Stores<Option<T>> is used instead of StoresRef as it should be impossible to modify the option if it's immutable, but either way it doesn't matter if the option has to be cloned as the cost is practically 0 (unlike vectors or arrays) - also makes it easier to store Vec<Option<T>>, which we use extensively
+
+
+
 
