@@ -501,8 +501,11 @@ Serialization and deserialization all seem to work, and all tests pass! Now need
 JS tests:
 	- Changed from calling done() to returning promises, as calling done() was causing issues in nested transaction callbacks
 	- Added stake tests (which work)
+	- Added withdraw tests (which work)
 
 Seems that the ABI generation of pwasm doesn't set the payable attribute on the JSON ABI properly. If the attribute `"payable": true` is added to the json for the payable function (stake), then it works as expected. This is clearly a bug with pwasm, as when the payable attribute was added there were no changes made to the json generation (https://github.com/paritytech/pwasm-abi/commit/e14c00d8d0e096d4609ec9c0c2b5b9c4358dd02d). For now we'll work around it by adding the payable function manually when we test, although this requires disabling the ./build.sh line in test.sh.
+
+The two payment functions (stake and withdraw) work, so assuming the execution of the smart contract runs on the blockchain as expected (not necessarily a given but looking promising), the smart contract should be working fully on real blockchains!
 
 
 
