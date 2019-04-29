@@ -216,6 +216,21 @@ mod tests {
         )
     }
 
+    // Deserializing zero-combinator is correct
+    #[test]
+    fn deserialization_correct() {
+        let mut combinator = ZeroCombinator::new();
+        let mut serialized = combinator.serialize();
+        let mut deserialized = ZeroCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
+
+        combinator.acquire(1, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &vec![], &mut vec![]);
+        serialized = combinator.serialize();
+        deserialized = ZeroCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized)
+    }
+
     // Acquiring zero-combinator twice is not allowed
     #[test]
     #[should_panic(expected = "Acquiring a previously-acquired zero combinator is not allowed.")]

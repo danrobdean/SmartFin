@@ -481,6 +481,34 @@ mod tests {
         )
     }
 
+    // Serializing or-combinator is correct
+    #[test]
+    fn serialization_correct() {
+        let sub_combinator0 = OneCombinator::new();
+        let sub_combinator1 = ZeroCombinator::new();
+        let mut sub_combinators_serialized = sub_combinator0.serialize();
+        sub_combinators_serialized.extend_from_slice(&sub_combinator1.serialize()[..]);
+        let or_index = 13;
+        let combinator = OrCombinator::new(Box::new(sub_combinator0), Box::new(sub_combinator1), or_index);
+        let serialized = combinator.serialize();
+        assert_eq!(serialized[0..3], combinator.serialize_details()[..]);
+        assert_eq!(serialized[3] as usize, or_index);
+        assert_eq!(serialized[4..], sub_combinators_serialized[..]);
+    }
+
+    // Deserializing or-combinator is correct
+    #[test]
+    fn deserialization_correct() {
+        let or_index = 0;
+        let mut combinator = OrCombinator::new(Box::new(OneCombinator::new()), Box::new(ZeroCombinator::new()), or_index);
+        let or_choices = &vec![Some(true)];
+        combinator.acquire(1, &or_choices, &mut vec![]);
+        combinator.update(2, &or_choices, &vec![], &mut vec![]);
+        let serialized = combinator.serialize();
+        let deserialized = OrCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
+    }
+
     // Getting value if bot sub-combinators non-expired and or-choice not made is not allowed
     #[test]
     #[should_panic(expected = "Cannot get OR choice when neither sub-combinator has been chosen or has expired.")]

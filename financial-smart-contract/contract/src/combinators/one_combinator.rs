@@ -235,6 +235,21 @@ mod tests {
         )
     }
 
+    // Deserializing one-combinator is correct
+    #[test]
+    fn deserialization_correct() {
+        let mut combinator = OneCombinator::new();
+        let mut serialized = combinator.serialize();
+        let mut deserialized = OneCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
+
+        combinator.acquire(1, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &vec![], &mut vec![]);
+        serialized = combinator.serialize();
+        deserialized = OneCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized)
+    }
+
     // Acquiring one-combinator twice is not allowed
     #[test]
     #[should_panic(expected = "Acquiring a previously-acquired one combinator is not allowed.")]

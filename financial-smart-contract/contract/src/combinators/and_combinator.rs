@@ -106,7 +106,7 @@ impl ContractCombinator for AndCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, Combinator, AndCombinator, OneCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, AndCombinator, OneCombinator, TruncateCombinator, ZeroCombinator };
     use super::super::contract_combinator::{ Box, vec };
 
     // Combinator number is correct
@@ -332,6 +332,30 @@ mod tests {
             "Value of updating before acquiring != 0: {}",
             value
         )
+    }
+
+    // Serializing and-combinator is correct
+    #[test]
+    fn serialization_correct() {
+        let sub_combinator0 = OneCombinator::new();
+        let sub_combinator1 = ZeroCombinator::new();
+        let mut sub_combinators_serialized = sub_combinator0.serialize();
+        sub_combinators_serialized.extend_from_slice(&sub_combinator1.serialize()[..]);
+        let combinator = AndCombinator::new(Box::new(sub_combinator0), Box::new(sub_combinator1));
+        let serialized = combinator.serialize();
+        assert_eq!(serialized[0..3], combinator.serialize_details()[..]);
+        assert_eq!(serialized[3..], sub_combinators_serialized[..]);
+    }
+
+    // Deserializing and-combinator is correct
+    #[test]
+    fn deserialization_correct() {
+        let mut combinator = AndCombinator::new(Box::new(OneCombinator::new()), Box::new(ZeroCombinator::new()));
+        combinator.acquire(1, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &vec![], &mut vec![]);
+        let serialized = combinator.serialize();
+        let deserialized = AndCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
     }
 
     // Acquiring combinator twice is not allowed

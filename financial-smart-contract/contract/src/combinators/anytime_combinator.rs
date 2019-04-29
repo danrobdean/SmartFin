@@ -599,6 +599,31 @@ mod tests {
         )
     }
 
+    // Serializing anytime-combinator is correct
+    #[test]
+    fn serialization_correct() {
+        let sub_combinator = OneCombinator::new();
+        let sub_combinator_serialized = sub_combinator.serialize();
+        let combinator = AnytimeCombinator::new(Box::new(sub_combinator), 0);
+        let serialized = combinator.serialize();
+        assert_eq!(serialized[0..3], combinator.serialize_details()[..]);
+        assert_eq!(serialized[3] as usize, combinator.anytime_index);
+        assert_eq!(serialized[4..], sub_combinator_serialized[..]);
+    }
+
+    // Deserializing anytime-combinator is correct
+    #[test]
+    fn deserialization_correct() {
+        let mut combinator = AnytimeCombinator::new(Box::new(OneCombinator::new()), 0);
+        let mut anytime_acquisition_times = vec![None];
+        combinator.acquire(1, &vec![], &mut anytime_acquisition_times);
+        combinator.update(2, &vec![], &vec![], &mut anytime_acquisition_times);
+
+        let serialized = combinator.serialize();
+        let deserialized = AnytimeCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
+    }
+
     // Acquiring combinator twice is not allowed
     #[test]
     #[should_panic(expected = "Acquiring a previously-acquired anytime combinator is not allowed.")]

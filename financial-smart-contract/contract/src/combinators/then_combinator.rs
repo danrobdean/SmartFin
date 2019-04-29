@@ -373,6 +373,30 @@ mod tests {
         )
     }
 
+    // Serializing then-combinator is correct
+    #[test]
+    fn serialization_correct() {
+        let sub_combinator0 = OneCombinator::new();
+        let sub_combinator1 = ZeroCombinator::new();
+        let mut sub_combinators_serialized = sub_combinator0.serialize();
+        sub_combinators_serialized.extend_from_slice(&sub_combinator1.serialize()[..]);
+        let combinator = ThenCombinator::new(Box::new(sub_combinator0), Box::new(sub_combinator1));
+        let serialized = combinator.serialize();
+        assert_eq!(serialized[0..3], combinator.serialize_details()[..]);
+        assert_eq!(serialized[3..], sub_combinators_serialized[..]);
+    }
+
+    // Deserializing then-combinator is correct
+    #[test]
+    fn deserialization_correct() {
+        let mut combinator = ThenCombinator::new(Box::new(OneCombinator::new()), Box::new(ZeroCombinator::new()));
+        combinator.acquire(1, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &vec![], &mut vec![]);
+        let serialized = combinator.serialize();
+        let deserialized = ThenCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
+    }
+
     // Acquiring combinator twice is not allowed
     #[test]
     #[should_panic(expected = "Acquiring a previously-acquired then combinator is not allowed.")]

@@ -380,6 +380,57 @@ mod tests {
             value
         )
     }
+
+    // Serializing scale-combinator is correct when a scale value is set
+    #[test]
+    fn serialization_correct_scale_value() {
+        let sub_combinator = OneCombinator::new();
+        let sub_combinator_serialized = sub_combinator.serialize();
+        let combinator = ScaleCombinator::new(Box::new(sub_combinator), Some(5), None);
+        let serialized = combinator.serialize();
+        assert_eq!(serialized[0..3], combinator.serialize_details()[..]);
+        assert_eq!(serialized[3], 0);
+        assert_eq!(serialized[4] as usize, combinator.obs_index.unwrap());
+        assert_eq!(serialized[5..], sub_combinator_serialized[..]);
+    }
+
+    // Serializing scale-combinator is correct when an observable index is set
+    #[test]
+    fn serialization_correct_obs_index() {
+        let sub_combinator = OneCombinator::new();
+        let sub_combinator_serialized = sub_combinator.serialize();
+        let combinator = ScaleCombinator::new(Box::new(sub_combinator), None, Some(5));
+        let serialized = combinator.serialize();
+        assert_eq!(serialized[0..3], combinator.serialize_details()[..]);
+        assert_eq!(serialized[3], 1);
+        assert_eq!(serialized[4], combinator.scale_value.unwrap());
+        assert_eq!(serialized[5..], sub_combinator_serialized[..]);
+    }
+
+    // Deserializing scale-combinator is correct when a scale value is set
+    #[test]
+    fn deserialization_correct_scale_value() {
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), None, Some(5));
+        combinator.acquire(1, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &vec![], &mut vec![]);
+
+        let serialized = combinator.serialize();
+        let deserialized = ScaleCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
+    }
+
+    // Deserializing scale-combinator is correct when an observable index is set
+    #[test]
+    fn deserialization_correct_obs_index() {
+        let mut combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), Some(0), None);
+        let obs_values = vec![Some(10)];
+        combinator.acquire(1, &vec![], &mut vec![]);
+        combinator.update(2, &vec![], &obs_values, &mut vec![]);
+
+        let serialized = combinator.serialize();
+        let deserialized = ScaleCombinator::deserialize(1, &serialized).1;
+        assert_eq!(deserialized.serialize(), serialized);
+    }
     
     // Scale combinator being instantiated without an observable index or scale value is not allowed
     #[test]
