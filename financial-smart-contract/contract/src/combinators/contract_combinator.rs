@@ -2,7 +2,21 @@ extern crate pwasm_std;
 
 pub use self::pwasm_std::{ Box, Vec, vec };
 
+use ZeroCombinator;
+use OneCombinator;
+use AndCombinator;
+use OrCombinator;
+use TruncateCombinator;
+use ScaleCombinator;
+use GiveCombinator;
+use ThenCombinator;
+use GetCombinator;
+use AnytimeCombinator;
+
 // The types of combinators
+#[derive(Debug)]
+#[derive(PartialEq)]
+#[derive(Eq)]
 pub enum Combinator {
     ZERO,
     ONE,
@@ -73,7 +87,7 @@ impl CombinatorDetails {
     }
 
     // Converts a serialized combinator details array to CombinatorDetails
-    pub fn deserialize_details(details_serialized: [i64; 2]) -> CombinatorDetails {
+    pub fn deserialize(details_serialized: [i64; 2]) -> CombinatorDetails {
         CombinatorDetails {
             acquisition_time: if details_serialized[0] >= 0 { Some(details_serialized[0] as u32) } else { None },
             fully_updated: details_serialized[1] == 1
@@ -162,11 +176,72 @@ pub fn latest_time(horizon0: Option<u32>, horizon1: Option<u32>) -> Option<u32> 
     }
 }
 
+// Deserializes a ContractCombinator
+pub fn deserialize_combinator(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+    if index >= serialized_combinator.len() {
+        panic!("Attempted to deserialize ill-formed serialized ContractCombinator.");
+    }
+    match Combinator::from(serialized_combinator[index]) {
+        Combinator::ZERO => ZeroCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::ONE => OneCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::AND => AndCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::OR => OrCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::TRUNCATE => TruncateCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::SCALE => ScaleCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::GIVE => GiveCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::THEN => ThenCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::GET => GetCombinator::deserialize(index + 1, serialized_combinator),
+        Combinator::ANYTIME => AnytimeCombinator::deserialize(index + 1, serialized_combinator)
+    }
+}
+
 // Unit tests
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+
+    // Dummy combinator
+    pub struct DummyCombinator {
+        // The common combinator details
+        combinator_details: CombinatorDetails
+    }
+
+    // Method implementation of dummy combinator
+    impl DummyCombinator {
+        // Constructor
+        pub fn new() -> DummyCombinator {
+            DummyCombinator {
+                combinator_details: CombinatorDetails::new()
+            }
+        }
+    }
+
+    // Contract combinator implementation of the dummy combinator
+    impl ContractCombinator for DummyCombinator {
+        fn get_combinator_number(&self) -> Combinator {
+            Combinator::ZERO
+        }
+
+        fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
+            panic!("Method not implemented.");
+        }
+
+        fn get_combinator_details(&self) -> &CombinatorDetails {
+            &self.combinator_details
+        }
+
+        // Acquires the combinator and acquirable sub-combinators
+        fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) {
+            self.combinator_details.acquisition_time = Some(time);
+        }
+
+        // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
+        fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
+            self.combinator_details.fully_updated = true;
+            0
+        }
+    }
 
     // Earliest horizon should return the earliest horizon correctly.
     #[test]
@@ -212,5 +287,83 @@ mod tests {
             let val = i64::from(combinator);
             assert_eq!(i, val);
         }
+    }
+
+    // Combinator details serialization is correct
+    #[test]
+    fn serialization_details_correct() {
+        let mut combinator = DummyCombinator::new();
+        let mut serialized_details = combinator.serialize_details();
+        assert_eq!(Combinator::from(serialized_details[0]), combinator.get_combinator_number());
+        assert_eq!(serialized_details[1], -1);
+        assert_eq!(serialized_details[2], 0);
+
+
+        combinator.acquire(10, &vec![], &mut vec![]);
+        combinator.update(11, &vec![], &vec![], &mut vec![]);
+        serialized_details = combinator.serialize_details();
+        
+        assert_eq!(Combinator::from(serialized_details[0]), combinator.get_combinator_number());
+        assert_eq!(serialized_details[1] as u32, combinator.get_combinator_details().acquisition_time.unwrap());
+        assert_eq!(serialized_details[2], 1);
+    }
+
+    // Combinator serialization is correct
+    #[test]
+    fn serialization_correct() {
+        let mut combinator = DummyCombinator::new();
+        let mut serialized = combinator.serialize();
+        assert_eq!(serialized, combinator.serialize());
+
+
+        combinator.acquire(10, &vec![], &mut vec![]);
+        combinator.update(11, &vec![], &vec![], &mut vec![]);
+        serialized = combinator.serialize();
+
+        assert_eq!(serialized, combinator.serialize_details());
+    }
+
+    // Combinator deserialization is correct
+    #[test]
+    fn deserialization_correct() {
+        let mut combinator = AnytimeCombinator::new(
+            Box::new(GetCombinator::new(
+                Box::new(ThenCombinator::new(
+                    Box::new(GiveCombinator::new(
+                        Box::new(ScaleCombinator::new(
+                            Box::new(AndCombinator::new(
+                                Box::new(OrCombinator::new(
+                                    Box::new(ZeroCombinator::new()),
+                                    Box::new(OneCombinator::new()),
+                                    0
+                                )),
+                                Box::new(TruncateCombinator::new(
+                                    Box::new(OneCombinator::new()),
+                                    10
+                                ))
+                            )),
+                            None,
+                            Some(5)
+                        ))
+                    )),
+                    Box::new(OneCombinator::new())
+                ))
+            )),
+            0
+        );
+        combinator.acquire(10, &vec![None], &mut vec![None]);
+        combinator.update(11, &vec![None], &vec![], &mut vec![None]);
+        let serialized = combinator.serialize();
+
+        let (_, deserialized) = deserialize_combinator(0, &serialized);
+
+        assert_eq!(deserialized.serialize(), serialized);
+    }
+
+    // Attempting to deserialize an empty vector is not allowed.
+    #[test]
+    #[should_panic(expected = "Attempted to deserialize ill-formed serialized ContractCombinator.")]
+    fn should_panic_if_deserializing_empty_vector() {
+        deserialize_combinator(0, &vec![]);
     }
 }

@@ -482,6 +482,18 @@ Changed Stores to StoresRef and Stores:
 	- StoresRef<Vec<T>> will now only store vecs where Stores<T>, not StoresRef<T> (which is fine for us and makes everything easier and imo nicer)
 	- Stores<Option<T>> is used instead of StoresRef as it should be impossible to modify the option if it's immutable, but either way it doesn't matter if the option has to be cloned as the cost is practically 0 (unlike vectors or arrays) - also makes it easier to store Vec<Option<T>>, which we use extensively
 
+Implemented deserialization:
+	- As serialization is done on each combinator (necessary for encapsulation), deserialization should also be done on each combinator (also necessary for encapsulation)
+	- We want to initialise the combinators from a serialized vector, not initialise and then replace values, so this needs to be called before the combinator is instantiated - and thus it can't be a trait method, which requires a receiver (due to rust internal stuff)
+	- Instead, each combinator has their own deserialize method
+	- ContractCombinator has higher level deserialize, used when the type of combinator isn't known (e.g. at the first call, or sub-combinators)
+
+Testing:
+	- Serialization should be tested manually
+	- Deserialization is tested by assuming serialization works (if it doesn't its tests will fail), so combinator.serialize() == deserialize(combinator.serialize()).serialize() is the assertion
+
+Null combinator removed as no longer used (no combinator is stored before initialization, deserialization will just fail)
+
 
 
 

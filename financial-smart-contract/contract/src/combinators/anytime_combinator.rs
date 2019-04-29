@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, deserialize_combinator, Box, Vec };
 
 // The anytime combinator
 pub struct AnytimeCombinator {
@@ -20,6 +20,23 @@ impl AnytimeCombinator {
             anytime_index,
             combinator_details: CombinatorDetails::new()
         }
+    }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 2 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized AnytimeCombinator.")
+        }
+        let (index0, sub_combinator) = deserialize_combinator(index + 3, serialized_combinator);
+
+        (
+            index0,
+            Box::new(AnytimeCombinator {
+                sub_combinator,
+                anytime_index: serialized_combinator[index + 2] as usize,
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
     }
 }
 
@@ -115,8 +132,15 @@ impl ContractCombinator for AnytimeCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, AnytimeCombinator, OneCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, AnytimeCombinator, OneCombinator, TruncateCombinator };
     use super::super::contract_combinator::{ Box, vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = AnytimeCombinator::new(Box::new(OneCombinator::new()), 0);
+        assert_eq!(combinator.get_combinator_number(), Combinator::ANYTIME);
+    }
     
     // Value is sub-combinator's value
     #[test]

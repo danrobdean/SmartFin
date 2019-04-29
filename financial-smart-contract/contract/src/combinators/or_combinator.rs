@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, latest_time, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, latest_time, deserialize_combinator, Box, Vec };
 
 // The or combinator
 pub struct OrCombinator {
@@ -39,6 +39,25 @@ impl OrCombinator {
                 None => None
             }
         }
+    }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 2 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized OrCombinator.")
+        }
+        let (index0, sub_combinator0) = deserialize_combinator(index + 3, serialized_combinator);
+        let (index1, sub_combinator1) = deserialize_combinator(index0, serialized_combinator);
+
+        (
+            index1,
+            Box::new(OrCombinator {
+                sub_combinator0,
+                sub_combinator1,
+                or_index: serialized_combinator[index + 2] as usize,
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
     }
 }
 
@@ -127,8 +146,15 @@ impl ContractCombinator for OrCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, OrCombinator, OneCombinator, ZeroCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, OrCombinator, OneCombinator, ZeroCombinator, TruncateCombinator };
     use super::super::contract_combinator::{ Box, vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = OrCombinator::new(Box::new(ZeroCombinator::new()), Box::new(ZeroCombinator::new()), 0);
+        assert_eq!(combinator.get_combinator_number(), Combinator::OR);
+    }
     
     // Value is value of left sub-combinator when left or-choice is made and no sub-combinators have expired
     #[test]

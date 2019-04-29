@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, deserialize_combinator, Box, Vec };
 
 // The scale combinator
 pub struct ScaleCombinator {
@@ -28,6 +28,32 @@ impl ScaleCombinator {
             scale_value,
             combinator_details: CombinatorDetails::new()
         }
+    }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 3 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized ScaleCombinator.")
+        }
+        let (index0, sub_combinator) = deserialize_combinator(index + 4, serialized_combinator);
+
+        let mut obs_index: Option<usize> = None;
+        let mut scale_value: Option<i64> = None;
+        if serialized_combinator[index + 2] == 0 {
+            obs_index = Some(serialized_combinator[index + 3] as usize);
+        } else {
+            scale_value = Some(serialized_combinator[index + 3]);
+        }
+
+        (
+            index0,
+            Box::new(ScaleCombinator {
+                sub_combinator,
+                obs_index,
+                scale_value,
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
     }
 
     fn get_scale_value(&self, obs_values: &Vec<Option<i64>>) -> Option<i64> {
@@ -126,8 +152,15 @@ impl ContractCombinator for ScaleCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, ScaleCombinator, OneCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, ScaleCombinator, OneCombinator, TruncateCombinator };
     use super::super::contract_combinator::{ Box, vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), Some(0), None);
+        assert_eq!(combinator.get_combinator_number(), Combinator::SCALE);
+    }
     
     // Value with provided positive scale value is correct
     #[test]

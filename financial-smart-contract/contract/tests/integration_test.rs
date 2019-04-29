@@ -357,7 +357,7 @@ fn fully_updated_contract_concluded() {
 
 // Attempting to get the value of a contract before calling the constructor is not allowed
 #[test]
-#[should_panic(expected = "Attempted to get value of a null combinator.")]
+#[should_panic(expected = "Attempted to deserialize ill-formed serialized ContractCombinator.")]
 fn should_panic_if_getting_value_before_initialised() {
     let mut contract = FinancialScContract::new();
     contract.get_value();

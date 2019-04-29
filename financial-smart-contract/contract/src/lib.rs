@@ -446,12 +446,6 @@ pub trait FinancialScInterface {
 pub struct FinancialScContract {
     // The contract storage table
     storage: Storage,
-
-    // // The serialized combinator contract
-    // serialized_combinators: Vec<i64>,
-
-    // The combinator contract
-    combinator: Box<ContractCombinator>
 }
 
 // The financial smart contract interface implementation
@@ -495,7 +489,8 @@ impl FinancialScInterface for FinancialScContract {
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
         let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
         let anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
-        self.combinator.get_value(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &anytime_acquisition_times)
+
+        self.get_combinator().get_value(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &anytime_acquisition_times)
     }
 
     // Gets the total balance of the caller
@@ -515,9 +510,10 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets whether or not the contract has concluded.
     fn get_concluded(&mut self) -> bool {
-        let combinator_details = self.combinator.get_combinator_details();
+        let combinator = self.get_combinator();
+        let combinator_details = combinator.get_combinator_details();
         combinator_details.fully_updated
-            || combinator_details.acquisition_time == None && self.combinator.past_horizon(pwasm_ethereum::timestamp() as u32)
+            || combinator_details.acquisition_time == None && combinator.past_horizon(pwasm_ethereum::timestamp() as u32)
     }
 
     // Sets the given or combinator's preference between its sub-combinators
@@ -572,19 +568,21 @@ impl FinancialScInterface for FinancialScContract {
 
     // Acquires the combinator contract at the current block-time (when called by the holder)
     fn acquire(&mut self) {
+        let mut combinator = self.get_combinator();
         let holder: Address = self.storage.read_ref(&holder_address_key()).0;
 
         if pwasm_ethereum::sender() != holder {
             panic!("Only the contract holder may acquire the combinator contract.");
-        } else if self.combinator.get_combinator_details().acquisition_time != None {
+        } else if combinator.get_combinator_details().acquisition_time != None {
             panic!("The combinator contract cannot be acquired more than once.");
         }
 
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
         let mut anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
-        self.combinator.acquire(pwasm_ethereum::timestamp() as u32, &or_choices, &mut anytime_acquisition_times);
+        combinator.acquire(pwasm_ethereum::timestamp() as u32, &or_choices, &mut anytime_acquisition_times);
 
+        self.set_combinator(combinator);
         self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
     }
 
@@ -596,12 +594,14 @@ impl FinancialScInterface for FinancialScContract {
         }
 
         // Update combinators
+        let mut combinator = self.get_combinator();
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
         let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
         let mut anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
-        let difference = self.combinator.update(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &mut anytime_acquisition_times);
+        let difference = combinator.update(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &mut anytime_acquisition_times);
 
+        self.set_combinator(combinator);
         self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
 
         // Adjust balances
@@ -704,8 +704,7 @@ impl FinancialScContract {
     // Instantiates a new financial smart contract
     pub fn new() -> FinancialScContract {
         FinancialScContract{
-            storage: Storage::new(),
-            combinator: Box::new(NullCombinator::new())
+            storage: Storage::new()
         }
     }
 
@@ -719,7 +718,7 @@ impl FinancialScContract {
 
         let (_, combinator) = self.deserialize_remote_combinator(0);
 
-        self.combinator = combinator;
+        self.set_combinator(combinator);
     }
 
     // Deserializes a combinator from the given combinator byte vector (obtained remotely) and index, returns the following index and the boxed combinator
@@ -846,9 +845,16 @@ impl FinancialScContract {
         }
     }
 
-    // Desererializes a serialized combinator contract (obtained locally), containing combinator details
-    fn deserialize_local_combinator(&mut self, i: usize) -> (usize, Box<ContractCombinator>) {
-        panic!("Not implemented");
+    // Gets and deserializes the ContractCombinator from storage
+    fn get_combinator(&mut self) -> Box<ContractCombinator> {
+        let serialized = self.storage.read_ref(&serialized_local_combinator_contract_key()).0;
+        deserialize_combinator(0, &serialized).1
+    }
+
+    // Serializes and stores the ContractCombinator
+    fn set_combinator(&mut self, combinator: Box<ContractCombinator>) {
+        let serialized = combinator.serialize();
+        self.storage.write_ref(&serialized_local_combinator_contract_key(), &serialized);
     }
 
     // Add numbers safely to avoid integer overflow/underflow

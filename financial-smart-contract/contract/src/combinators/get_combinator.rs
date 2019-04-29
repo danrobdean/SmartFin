@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, deserialize_combinator, Box, Vec };
 
 // The get combinator
 pub struct GetCombinator {
@@ -16,6 +16,22 @@ impl GetCombinator {
             sub_combinator,
             combinator_details: CombinatorDetails::new()
         }
+    }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 1 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized GetCombinator.")
+        }
+        let (index0, sub_combinator) = deserialize_combinator(index + 2, serialized_combinator);
+
+        (
+            index0,
+            Box::new(GetCombinator {
+                sub_combinator,
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
     }
 }
 
@@ -87,8 +103,15 @@ impl ContractCombinator for GetCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, GetCombinator, OneCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, GetCombinator, OneCombinator, TruncateCombinator };
     use super::super::contract_combinator::{ Box, vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = GetCombinator::new(Box::new(OneCombinator::new()));
+        assert_eq!(combinator.get_combinator_number(), Combinator::GET);
+    }
     
     // Value is sub-combinator's value
     #[test]

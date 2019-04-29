@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, latest_time, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, latest_time, deserialize_combinator, Box, Vec };
 
 // The then combinator
 pub struct ThenCombinator {
@@ -20,6 +20,24 @@ impl ThenCombinator {
             sub_combinator1,
             combinator_details: CombinatorDetails::new()
         }
+    }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 1 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized ThenCombinator.")
+        }
+        let (index0, sub_combinator0) = deserialize_combinator(index + 2, serialized_combinator);
+        let (index1, sub_combinator1) = deserialize_combinator(index0, serialized_combinator);
+
+        (
+            index1,
+            Box::new(ThenCombinator {
+                sub_combinator0,
+                sub_combinator1,
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
     }
 }
 
@@ -99,8 +117,15 @@ impl ContractCombinator for ThenCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, ThenCombinator, TruncateCombinator, ZeroCombinator, OneCombinator };
+    use super::super::{ ContractCombinator, Combinator, ThenCombinator, TruncateCombinator, ZeroCombinator, OneCombinator };
     use super::super::contract_combinator::{ Box, vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = ThenCombinator::new(Box::new(OneCombinator::new()), Box::new(OneCombinator::new()));
+        assert_eq!(combinator.get_combinator_number(), Combinator::THEN);
+    }
     
     // Value with left sub-combinator non-expired is correct
     #[test]

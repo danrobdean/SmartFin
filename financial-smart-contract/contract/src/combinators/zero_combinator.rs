@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Vec, Box };
 
 // The zero combinator
 pub struct ZeroCombinator {
@@ -13,6 +13,19 @@ impl ZeroCombinator {
         ZeroCombinator {
             combinator_details: CombinatorDetails::new()
         }
+    }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 1 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized ZeroCombinator.")
+        }
+        (
+            index + 2,
+            Box::new(ZeroCombinator {
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
     }
 }
 
@@ -56,8 +69,15 @@ impl ContractCombinator for ZeroCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, ZeroCombinator };
+    use super::super::{ ContractCombinator, Combinator, ZeroCombinator };
     use super::super::contract_combinator::{ vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = ZeroCombinator::new();
+        assert_eq!(combinator.get_combinator_number(), Combinator::ZERO);
+    }
     
     // Value is 0
     #[test]

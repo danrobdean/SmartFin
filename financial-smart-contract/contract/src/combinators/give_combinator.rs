@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, deserialize_combinator, Box, Vec };
 
 // The give combinator
 pub struct GiveCombinator {
@@ -17,12 +17,28 @@ impl GiveCombinator {
             combinator_details: CombinatorDetails::new()
         }
     }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 1 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized GiveCombinator.")
+        }
+        let (index0, sub_combinator) = deserialize_combinator(index + 2, serialized_combinator);
+
+        (
+            index0,
+            Box::new(GiveCombinator {
+                sub_combinator,
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
+    }
 }
 
 // Contract combinator implementation for the give combinator
 impl ContractCombinator for GiveCombinator {
     fn get_combinator_number(&self) -> Combinator {
-        Combinator::GET
+        Combinator::GIVE
     }
 
     fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
@@ -75,8 +91,15 @@ impl ContractCombinator for GiveCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, GiveCombinator, OneCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, GiveCombinator, OneCombinator, TruncateCombinator };
     use super::super::contract_combinator::{ Box, vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
+        assert_eq!(combinator.get_combinator_number(), Combinator::GIVE);
+    }
     
     // Value is negation of sub-combinator's value
     #[test]

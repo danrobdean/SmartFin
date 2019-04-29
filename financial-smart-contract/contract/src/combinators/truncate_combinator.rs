@@ -1,4 +1,4 @@
-use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, earliest_time, Box, Vec };
+use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, earliest_time, deserialize_combinator, Box, Vec };
 
 // The truncate combinator
 pub struct TruncateCombinator {
@@ -20,6 +20,23 @@ impl TruncateCombinator {
             truncated_horizon,
             combinator_details: CombinatorDetails::new()
         }
+    }
+
+    // Deserialize
+    pub fn deserialize(index: usize, serialized_combinator: &Vec<i64>) -> (usize, Box<ContractCombinator>) {
+        if index + 2 >= serialized_combinator.len() {
+            panic!("Attempted to deserialize ill-formed serialized TruncateCombinator.")
+        }
+        let (index0, sub_combinator) = deserialize_combinator(index + 3, serialized_combinator);
+
+        (
+            index0,
+            Box::new(TruncateCombinator {
+                sub_combinator,
+                truncated_horizon: serialized_combinator[index + 2] as u32,
+                combinator_details: CombinatorDetails::deserialize([serialized_combinator[index], serialized_combinator[index + 1]])
+            })
+        )
     }
 }
 
@@ -76,15 +93,7 @@ impl ContractCombinator for TruncateCombinator {
     // Serializes this combinator
     fn serialize(&self) -> Vec<i64> {
         let mut serialized = self.serialize_details();
-
-        // Store 0 or 1 then horizon (if defined)
-        match self.get_horizon() {
-            Some(time) => {
-                serialized.push(1);
-                serialized.push(time as i64);
-            },
-            None => serialized.push(0)
-        }
+        serialized.push(self.truncated_horizon as i64);
         serialized.extend_from_slice(&self.sub_combinator.serialize());
         serialized
     }
@@ -93,8 +102,15 @@ impl ContractCombinator for TruncateCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, OneCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, OneCombinator, TruncateCombinator };
     use super::super::contract_combinator::{ Box, vec };
+
+    // Combinator number is correct
+    #[test]
+    fn correct_combinator_number() {
+        let combinator = TruncateCombinator::new(Box::new(OneCombinator::new()), 0);
+        assert_eq!(combinator.get_combinator_number(), Combinator::TRUNCATE);
+    }
     
     // Value before expiry is equal to the value of the sub-combinator
     #[test]
