@@ -489,11 +489,14 @@ Implemented deserialization:
 	- ContractCombinator has higher level deserialize, used when the type of combinator isn't known (e.g. at the first call, or sub-combinators)
 
 Testing:
-	- Serialization should be tested manually
+	- Serialization is tested by checking the serialized list matches the details, stored variables, and serialized sub-combinators directly
 	- Deserialization is tested by assuming serialization works (if it doesn't its tests will fail), so combinator.serialize() == deserialize(combinator.serialize()).serialize() is the assertion
+	- Tests for all combinators written
 
 Null combinator removed as no longer used (no combinator is stored before initialization, deserialization will just fail)
 
+
+Serialization and deserialization all seem to work, and all tests pass! Now need to add JS tests.
 
 
 
