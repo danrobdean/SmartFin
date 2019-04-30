@@ -432,6 +432,10 @@ pub trait FinancialScInterface {
     #[constant]
     fn get_concluded(&mut self) -> bool;
 
+    // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
+    #[constant]
+    fn get_acquisition_times(&mut self) -> Vec<i64>;
+
     // Sets the preference of the given or combinator's sub-combinators
     fn set_or_choice(&mut self, or_index: u64, choice: bool);
 
@@ -529,6 +533,21 @@ impl FinancialScInterface for FinancialScContract {
             || combinator_details.acquisition_time == None && combinator.past_horizon(pwasm_ethereum::timestamp() as u32)
     }
 
+    // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
+    fn get_acquisition_times(&mut self) -> Vec<i64> {
+        let acquisition_time: Option<u32> = self.get_combinator().get_combinator_details().acquisition_time;
+        let anytime_acquisition_times_full: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
+
+        let mut acquisition_times: Vec<i64> = Vec::new();
+        acquisition_times.push(if acquisition_time == None { -1 } else { acquisition_time.unwrap() as i64 });
+
+        let anytime_acquisition_times: Vec<i64> =
+            anytime_acquisition_times_full.into_iter().map(|e| if e.1 == None { -1 } else { e.1.unwrap() as i64 }).collect();
+
+        acquisition_times.extend_from_slice(&anytime_acquisition_times[..]);
+        acquisition_times
+    }
+
     // Sets the given or combinator's preference between its sub-combinators
     fn set_or_choice(&mut self, or_index: u64, prefer_first: bool) {
         let holder: Address = self.storage.read_ref(&holder_address_key()).0;
@@ -597,6 +616,8 @@ impl FinancialScInterface for FinancialScContract {
 
         self.set_combinator(combinator);
         self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
+
+        self.update();
     }
 
     // Updates the balances of the holder and counter-party
@@ -651,6 +672,8 @@ impl FinancialScInterface for FinancialScContract {
 
         anytime_acquisition_times[anytime_index as usize] = (true, Some(new_acquisition_time));
         self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
+
+        self.update();
     }
 
     // Stakes Eth with the contract, returns the caller's total balance
@@ -1174,7 +1197,6 @@ mod tests {
 
         ext_update(|e| e.sender(holder));
         contract.acquire();
-        contract.update();
         assert_eq!(contract.get_balance(), 1);
 
         ext_update(|e| e.sender(counter_party));
@@ -1235,6 +1257,44 @@ mod tests {
         assert_eq!(contract.get_balance(), new_stake);
         contract.stake();
         assert_eq!(contract.get_balance(), new_stake * 2);
+    }
+
+    // Acquisition times returned correctly
+    #[test]
+    fn get_acquisition_times_returns_correct_times() {
+        let combinator_contract = vec![9, 9, 9, 9, 9, 1];
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            combinator_contract.clone()
+        );
+
+        ext_update(|e| e
+            .sender(holder)
+            .timestamp(0)
+        );
+        contract.acquire();
+        contract.update();
+
+        ext_update(|e| e.timestamp(1));
+        contract.acquire_anytime_sub_contract(0);
+        contract.update();
+
+        ext_update(|e| e.timestamp(2));
+        contract.acquire_anytime_sub_contract(1);
+        contract.update();
+
+        ext_update(|e| e.timestamp(3));
+        contract.acquire_anytime_sub_contract(2);
+        contract.update();
+
+        ext_update(|e| e.timestamp(4));
+        contract.acquire_anytime_sub_contract(3);
+        contract.update();
+
+        assert_eq!(contract.get_acquisition_times(), vec![0, 1, 2, 3, 4, -1])
     }
 
     // Withdrawal amount is calculated correctly for a normal withdrawal

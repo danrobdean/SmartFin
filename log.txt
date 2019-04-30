@@ -523,6 +523,7 @@ Tests:
 		- truncate (time passed into constructor correctly)
 		- scale (passing scale value and propose_obs_index)
 		- anytime (acquire_anytime_sub_contract)
+		- get_contract_definition
 
 Changes made to acquire_anytime_sub_contract:
 	- Previously no check that the anytime sub-contract is being acquired after the anytime contract until the contract is updated
@@ -537,6 +538,8 @@ Changes made to acquire_anytime_sub_contract:
 	- acquire_anytime_sub_contract tests for anytime_acquisition_times[index].0, if false then panics
 	- ANYTIME combinator sets anytime_acquisition_times[self.anytime_index].0 to true when acquired, thus allowing acquire_anytime_sub_contract(index) to be called
 	- Test added for acquiring sub contract before acquiring parent (should panic)
+
+NB: acquire and acquire_anytime_sub_contract will now update the contract after acquiring. This makes a lot more sense (as we were basically calling update after every acquire, and acquire_anytime_sub_contract can't be called twice without updating in between), so that non-time-based contracts are concluded immediately after acquisition. Now only time-based contracts need updating.
 
 
 

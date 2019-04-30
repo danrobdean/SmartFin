@@ -27,11 +27,11 @@ init-test-accounts() {
 }
 
 # Print help if requested
-if [ $1 = "-h" ]; then
+if [ "$1" = "-h" ]; then
     echo "To run a clean node, pass --clean."
 else
     # Clean the blockchain if requested
-    if [ $1 = "--clean" ]; then
+    if [ "$1" = "--clean" ]; then
         clean-chain
         echo "Chain cleaned."
     fi

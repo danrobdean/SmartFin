@@ -323,8 +323,6 @@ fn anytime_has_correct_value_after_additional_acquisition() {
     contract.acquire_anytime_sub_contract(0);
 
     // Check value is 1
-    ext_update(|e| e.timestamp(1));
-    contract.update();
     assert_eq!(contract.get_balance(), 1);
 }
 
@@ -350,7 +348,6 @@ fn fully_updated_contract_concluded() {
     );
     let mut contract = contract_details.contract;
     contract.acquire();
-    contract.update();
 
     assert!(contract.get_concluded());
 }

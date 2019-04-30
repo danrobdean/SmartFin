@@ -133,7 +133,7 @@ describe('Simple contract tests', function() {
         });
     });
 
-    it('Updates balances correctly after acquiring and updating', function() {
+    it('Updates balances correctly after acquiring', function() {
         // Initial balance is 0
         return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
             assert.equal(res.returnValue0, 0);
@@ -142,16 +142,13 @@ describe('Simple contract tests', function() {
 
                 // Acquire the contract
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                    // Update the contract
-                    return contract.methods.update().send({ from: holder.address }).then(function() {
-                        // New balance for holder is 1
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
-                            assert.equal(res.returnValue0, 1);
-                            
-                            // New balance for counter-party is -1
-                            return contract.methods.get_balance().call({ from: counterParty.address }).then(function(res) {
-                                assert.equal(res.returnValue0, -1);
-                            });
+                    // New balance for holder is 1
+                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        assert.equal(res.returnValue0, 1);
+                        
+                        // New balance for counter-party is -1
+                        return contract.methods.get_balance().call({ from: counterParty.address }).then(function(res) {
+                            assert.equal(res.returnValue0, -1);
                         });
                     });
                 });
@@ -164,10 +161,8 @@ describe('Simple contract tests', function() {
             assert.ok(!res.returnValue0);
 
             return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                return contract.methods.update().send({ from: holder.address }).then(function() {
-                    return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
-                        assert.ok(res.returnValue0);
-                    });
+                return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
+                    assert.ok(res.returnValue0);
                 });
             });
         });
@@ -180,10 +175,8 @@ describe('OR contract tests', function() {
         return deploy("or one zero").then(function() {
             return contract.methods.set_or_choice(0, true).send({ from: holder.address }).then(function() {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                    return contract.methods.update().send({ from: holder.address }).then(function() {
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
-                            assert.equal(res.returnValue0, 1);
-                        });
+                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        assert.equal(res.returnValue0, 1);
                     });
                 });
             });
@@ -194,10 +187,8 @@ describe('OR contract tests', function() {
         return deploy("or zero one").then(function() {
             return contract.methods.set_or_choice(0, false).send({ from: holder.address }).then(function() {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                    return contract.methods.update().send({ from: holder.address }).then(function() {
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
-                            assert.equal(res.returnValue0, 1);
-                        });
+                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        assert.equal(res.returnValue0, 1);
                     });
                 });
             });
@@ -229,10 +220,8 @@ describe('SCALE contract tests', function() {
     it('Has the correct value when a scale value is provided', function() {
         return deploy("scale 5 one").then(function() {
             return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                return contract.methods.update().send({ from: holder.address }).then(function() {
-                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
-                        assert.equal(res.returnValue0, 5);
-                    });
+                return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                    assert.equal(res.returnValue0, 5);
                 });
             });
         });
@@ -243,10 +232,8 @@ describe('SCALE contract tests', function() {
             return contract.methods.propose_obs_value(0, 5).send({ from: counterParty.address }).then(function() {
                 return contract.methods.propose_obs_value(0, 5).send({ from: holder.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                        return contract.methods.update().send({ from: holder.address }).then(function() {
-                            return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
-                                assert.equal(res.returnValue0, 5);
-                            });
+                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                            assert.equal(res.returnValue0, 5);
                         });
                     });
                 });
@@ -260,10 +247,8 @@ describe('ANYTIME contract tests', function() {
     it('Has the correct value before the anytime sub-combinator is acquired', function() {
         return deploy("anytime one").then(function() {
             return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                return contract.methods.update().send({ from: holder.address }).then(function() {
-                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
-                        assert.equal(res.returnValue0, 0);
-                    });
+                return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                    assert.equal(res.returnValue0, 0);
                 });
             });
         })
@@ -273,13 +258,24 @@ describe('ANYTIME contract tests', function() {
         return deploy("anytime one").then(function() {
             return contract.methods.acquire().send({ from: holder.address }).then(function() {
                 return contract.methods.acquire_anytime_sub_contract(0).send({ from: holder.address }).then(function() {
-                    return contract.methods.update().send({ from: holder.address }).then(function() {
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
-                            assert.equal(res.returnValue0, 1);
-                        });
+                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        assert.equal(res.returnValue0, 1);
                     });
                 });
             });
         })
     });
+});
+
+// Miscellaneous tests
+describe('Miscellaneous tests', function() {
+    it('Returns the correct serialized contract', function() {
+        let contractDefinition = "and or one zero truncate 100 get give anytime then scale 500 one zero";
+        let serializedContract = serializeCombinatorContract(contractDefinition);
+        return deploy(contractDefinition).then(function() {
+            return contract.methods.get_contract_definition().call({ from: holder.address }).then(function(res) {
+                assert.deepEqual(res.returnValue0, serializedContract);
+            });
+        });
+    }).timeout(5000);
 });
