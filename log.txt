@@ -509,3 +509,9 @@ The two payment functions (stake and withdraw) work, so assuming the execution o
 
 
 
+========== 30 Apr ==========
+
+After raising an issue on the GitHub for pwasm-abi, they fixed the issue with payable not being marked in the JSON (turns out my diagnosis was exactly correct). That was a quick fix, wowee. After changing the version of pwasm-abi to 2.2 and pwasm-abi-derive to 2.3 (and updating the Cargo.lock, which we can't change/auto-generate for weird reasons), it works perfectly.
+
+
+
