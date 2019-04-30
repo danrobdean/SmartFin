@@ -8,9 +8,9 @@ test-rs() {
 
 test-js() {
     ./build.sh
-    cd contract-js-test
+    cd contract/js-test
     yarn test
-    cd ..
+    cd ../..
 }
 
 if [ "$1" = "-rs" ]

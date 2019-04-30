@@ -1,5 +1,9 @@
 import assert from "assert";
-import { web3, unlockAccount, loadAndDeployContract, serializeCombinatorContract, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsValues } from "./contract-utils.mjs";
+import Web3 from "web3";
+import { unlockAccount, loadAndDeployContract, serializeCombinatorContract, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsValues } from "./contract-utils.mjs";
+
+// Setup web3
+const web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545")); // The local parity blockchain address
 
 // The deployed smart contract instance
 var contract;
