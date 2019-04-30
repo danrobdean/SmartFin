@@ -543,5 +543,16 @@ NB: acquire and acquire_anytime_sub_contract will now update the contract after 
 
 Added get_acquisition_times, get_or_choices, and get_obs_values - will be used in the client - and unit + JS tests.
 
+Moved js tests into contract directory.
+
+Added client directory with the basic layout set up. Will need to somehow share the contract-utils.mjs functions, but right now it's a bit difficult the way it's set up (and just in general apparently... tried converting to object with es5 exports, just times out after importing finally works). Will figure out later, probably just move js-test into the client and use the utils there, as it's kind of testing the utils.
+
+Next: Write the client!
+	- DSL contract writing
+	- DSL contract analysis
+	- Smart contract deployment
+	- Smart contract interaction
+	- Events
+
 
 
