@@ -1,5 +1,5 @@
 import assert from "assert";
-import { web3, unlockAccount, loadAndDeployContract, serializeCombinatorContract } from "./contract-utils.mjs";
+import { web3, unlockAccount, loadAndDeployContract, serializeCombinatorContract, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsValues } from "./contract-utils.mjs";
 
 // The deployed smart contract instance
 var contract;
@@ -278,4 +278,58 @@ describe('Miscellaneous tests', function() {
             });
         });
     }).timeout(5000);
+
+    it('Returns the correct acquisition times', function() {
+        let now = getUnixTime();
+
+        return deploy("anytime anytime anytime anytime one").then(function() {
+            return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                return contract.methods.acquire_anytime_sub_contract(0).send({ from: holder.address }).then(function() {
+                    return contract.methods.acquire_anytime_sub_contract(1).send({ from: holder.address }).then(function() {
+                        return contract.methods.acquire_anytime_sub_contract(2).send({ from: holder.address }).then(function() {
+                            return contract.methods.get_acquisition_times().call({ from: holder.address }).then(function(res) {
+                                var acquisitionTimes = deserializeAcquisitionTimes(res.returnValue0);
+                                // Check acquisition times within 2 seconds of deployment time
+                                for (var i = 0; i < 3; i++) {
+                                    assert.ok(now <= acquisitionTimes[i].value);
+                                    assert.ok(now + 2 > acquisitionTimes[i].value);
+                                }
+
+                                // Check unacquired anytime has undefined acquisition time
+                                assert.ok(!acquisitionTimes.defined);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    it('Returns the correct or choices', function() {
+        return deploy("or or or one zero one zero").then(function() {
+            return contract.methods.set_or_choice(0, true).send({ from: holder.address }).then(function() {
+                return contract.methods.set_or_choice(1, false).send({ from: holder.address }).then(function() {
+                    return contract.methods.get_or_choices().call({ from: holder.address }).then(function(res) {
+                        assert.deepEqual(deserializeOrChoices(res.returnValue0), [new Option(true), new Option(false), new Option(undefined)]);
+                    });
+                });
+            });
+        });
+    });
+
+    it('Returns the correct observable values', function() {
+        return deploy("scale obs scale obs scale obs one").then(function() {
+            return contract.methods.propose_obs_value(0, 1).send({ from: holder.address }).then(function() {
+                return contract.methods.propose_obs_value(2, -1).send({ from: holder.address }).then(function() {
+                    return contract.methods.propose_obs_value(0, 1).send({ from: counterParty.address }).then(function() {
+                        return contract.methods.propose_obs_value(2, -1).send({ from: counterParty.address }).then(function() {
+                            return contract.methods.get_obs_values().call({ from: holder.address }).then(function(res) {
+                                assert.deepEqual(deserializeObsValues(res.returnValue0), [new Option(1), new Option(undefined), new Option(-1)]);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
 });

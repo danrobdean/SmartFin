@@ -436,6 +436,14 @@ pub trait FinancialScInterface {
     #[constant]
     fn get_acquisition_times(&mut self) -> Vec<i64>;
 
+    // Gets the or choices
+    #[constant]
+    fn get_or_choices(&mut self) -> Vec<u8>;
+
+    // Gets the concrete observable values
+    #[constant]
+    fn get_obs_values(&mut self) -> Vec<i64>;
+
     // Sets the preference of the given or combinator's sub-combinators
     fn set_or_choice(&mut self, or_index: u64, choice: bool);
 
@@ -538,14 +546,48 @@ impl FinancialScInterface for FinancialScContract {
         let acquisition_time: Option<u32> = self.get_combinator().get_combinator_details().acquisition_time;
         let anytime_acquisition_times_full: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
-        let mut acquisition_times: Vec<i64> = Vec::new();
-        acquisition_times.push(if acquisition_time == None { -1 } else { acquisition_time.unwrap() as i64 });
+        let mut serialized_acquisition_times: Vec<i64> = Vec::new();
+        serialized_acquisition_times.push(if acquisition_time == None { -1 } else { acquisition_time.unwrap() as i64 });
 
         let anytime_acquisition_times: Vec<i64> =
             anytime_acquisition_times_full.into_iter().map(|e| if e.1 == None { -1 } else { e.1.unwrap() as i64 }).collect();
 
-        acquisition_times.extend_from_slice(&anytime_acquisition_times[..]);
-        acquisition_times
+        serialized_acquisition_times.extend_from_slice(&anytime_acquisition_times[..]);
+        serialized_acquisition_times
+    }
+
+    // Gets the or choices
+    fn get_or_choices(&mut self) -> Vec<u8> {
+        let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
+
+        // Convert None into 2, Some(true) into 1, Some(false) into 0
+        or_choices.into_iter().map(|e|
+            if e == None {
+                2
+            } else if e.unwrap() {
+                1
+            } else {
+                0
+            }
+        ).collect()
+    }
+
+    // Gets the concrete observable values
+    fn get_obs_values(&mut self) -> Vec<i64> {
+        let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
+        let mut serialized_obs_values: Vec<i64> = Vec::new();
+
+        // Serialize obs values
+        for value in concrete_obs_values {
+            if value == None {
+                serialized_obs_values.push(-1);
+            } else {
+                serialized_obs_values.push(0);
+                serialized_obs_values.push(value.unwrap());
+            }
+        }
+
+        serialized_obs_values
     }
 
     // Sets the given or combinator's preference between its sub-combinators
@@ -1276,25 +1318,64 @@ mod tests {
             .timestamp(0)
         );
         contract.acquire();
-        contract.update();
 
         ext_update(|e| e.timestamp(1));
         contract.acquire_anytime_sub_contract(0);
-        contract.update();
 
         ext_update(|e| e.timestamp(2));
         contract.acquire_anytime_sub_contract(1);
-        contract.update();
 
         ext_update(|e| e.timestamp(3));
         contract.acquire_anytime_sub_contract(2);
-        contract.update();
 
         ext_update(|e| e.timestamp(4));
         contract.acquire_anytime_sub_contract(3);
-        contract.update();
 
-        assert_eq!(contract.get_acquisition_times(), vec![0, 1, 2, 3, 4, -1])
+        assert_eq!(contract.get_acquisition_times(), vec![0, 1, 2, 3, 4, -1]);
+    }
+
+    // Or choices returned correctly
+    #[test]
+    fn get_or_choices_returns_correct_values() {
+        let combinator_contract = vec![3, 3, 3, 1, 0, 1, 0];
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            combinator_contract.clone()
+        );
+
+        ext_update(|e| e.sender(holder));
+
+        contract.set_or_choice(0, true);
+        contract.set_or_choice(1, false);
+
+        assert_eq!(contract.get_or_choices(), vec![1, 0, 2]);
+    }
+
+    // Obs values returned correctly
+    #[test]
+    fn get_obs_values_returns_correct_values() {
+        let combinator_contract = vec![5, -1, 5, -1, 5, -1, 1];
+        let counter_party = "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap();
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            counter_party,
+            holder,
+            0,
+            combinator_contract.clone()
+        );
+
+        ext_update(|e| e.sender(holder));
+        contract.propose_obs_value(0, 1);
+        contract.propose_obs_value(2, -1);
+
+        ext_update(|e| e.sender(counter_party));
+        contract.propose_obs_value(0, 1);
+        contract.propose_obs_value(2, -1);
+
+        assert_eq!(contract.get_obs_values(), vec![0, 1, -1, 0, -1]);
     }
 
     // Withdrawal amount is calculated correctly for a normal withdrawal

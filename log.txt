@@ -541,5 +541,7 @@ Changes made to acquire_anytime_sub_contract:
 
 NB: acquire and acquire_anytime_sub_contract will now update the contract after acquiring. This makes a lot more sense (as we were basically calling update after every acquire, and acquire_anytime_sub_contract can't be called twice without updating in between), so that non-time-based contracts are concluded immediately after acquisition. Now only time-based contracts need updating.
 
+Added get_acquisition_times, get_or_choices, and get_obs_values - will be used in the client - and unit + JS tests.
+
 
 

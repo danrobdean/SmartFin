@@ -17,6 +17,15 @@ const combinatorDict = {
     "anytime": 9
 };
 
+// The Option class
+export class Option {
+    // Initialises a new object of this class
+    constructor(value) {
+        this.defined = !!value;
+        this.value = value;
+    }
+}
+
 export function unlockDefaultAccount() {
     web3.eth.defaultAccount = "0x004ec07d2329997267ec62b4166639513386f32e";
     unlockAccount(web3.eth.defaultAccount, "user").then(_ => console.log("Account unlocked"), err => console.log(err));
@@ -96,6 +105,40 @@ export function serializeCombinatorContract(combinatorContract) {
 
     // Return serialized result as i64 array
     return result;
+}
+
+// Deserializes the acquisition times array into an array of Options
+export function deserializeAcquisitionTimes(acquisitionTimes) {
+    var res = [];
+
+    for (let elem of acquisitionTimes) {
+        res.push(new Option(elem == -1 ? undefined : elem));
+    }
+
+    return res;
+}
+
+// Deserializes the or choices byte array into an array of Options
+export function deserializeOrChoices(orChoices) {
+    orChoices = web3.utils.hexToBytes(orChoices);
+    var res = [];
+
+    for (let elem of orChoices) {
+        res.push(new Option(elem == 2 ? undefined : elem == 1));
+    }
+
+    return res;
+}
+
+// Deserializes the observable values array into an array of Options
+export function deserializeObsValues(obsValues) {
+    var res = [];
+
+    for (var i = 0; i < obsValues.length; i++) {
+        res.push(new Option(obsValues[i] == -1 ? undefined : obsValues[++i]));
+    }
+
+    return res;
 }
 
 
