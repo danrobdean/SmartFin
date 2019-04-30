@@ -35,7 +35,7 @@ impl ContractCombinator for ZeroCombinator {
         Combinator::ZERO
     }
 
-    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
+    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
         0
     }
 
@@ -44,7 +44,7 @@ impl ContractCombinator for ZeroCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) {
+    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) {
         if self.combinator_details.acquisition_time != None {
             panic!("Acquiring a previously-acquired zero combinator is not allowed.");
         }
@@ -53,7 +53,7 @@ impl ContractCombinator for ZeroCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
+    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time

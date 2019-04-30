@@ -13,10 +13,10 @@ test-js() {
     cd ..
 }
 
-if [ $1 = "-rs" ]
+if [ "$1" = "-rs" ]
 then
     test-rs
-elif [ $1 = "-js" ]
+elif [ "$1" = "-js" ]
 then
     test-js
 else

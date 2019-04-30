@@ -126,16 +126,16 @@ pub trait ContractCombinator {
     }
 
     // Returns the value of the combinator if acquired at the given time
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64;
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64;
 
     // Returns the common combinator details of the combinator
     fn get_combinator_details(&self) -> &CombinatorDetails;
 
     // Acquires the combinator, setting the acquisition time in the combinator details
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<Option<u32>>);
+    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>);
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64;
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64;
 
     // Gets the combinator number
     fn get_combinator_number(&self) -> Combinator;
@@ -223,7 +223,7 @@ mod tests {
             Combinator::ZERO
         }
 
-        fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
+        fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
             panic!("Method not implemented.");
         }
 
@@ -232,12 +232,12 @@ mod tests {
         }
 
         // Acquires the combinator and acquirable sub-combinators
-        fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) {
+        fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) {
             self.combinator_details.acquisition_time = Some(time);
         }
 
         // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-        fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
+        fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
             self.combinator_details.fully_updated = true;
             0
         }
@@ -351,8 +351,9 @@ mod tests {
             )),
             0
         );
-        combinator.acquire(10, &vec![None], &mut vec![None]);
-        combinator.update(11, &vec![None], &vec![], &mut vec![None]);
+        let mut anytime_acquisition_times = vec![(false, None)];
+        combinator.acquire(10, &vec![None], &mut anytime_acquisition_times);
+        combinator.update(11, &vec![None], &vec![], &mut anytime_acquisition_times);
         let serialized = combinator.serialize();
 
         let (_, deserialized) = deserialize_combinator(0, &serialized);

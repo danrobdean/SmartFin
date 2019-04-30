@@ -8,7 +8,13 @@ const combinatorDict = {
     "zero": 0,
     "one": 1,
     "and": 2,
-    "or": 3
+    "or": 3,
+    "truncate": 4,
+    "scale": 5,
+    "give": 6,
+    "then": 7,
+    "get": 8,
+    "anytime": 9
 };
 
 export function unlockDefaultAccount() {
@@ -40,7 +46,6 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender = "0
                 gas = Math.round(gas * 1.2);
                 // Commit the deployment transaction with some extra gas
                 TestDeployTransaction.send({ gas: web3.utils.toHex(gas), from: sender }).then(contract => {
-                    console.log("Contract deployed at: " + contract.options.address);
                     resolve(contract);
                 },
                 err => reject(err))
@@ -65,14 +70,29 @@ export function serializeCombinatorContract(combinatorContract) {
         }
 
         // Add combinator values to serialized result
-        switch (combinator) {
+        switch (combinators[i]) {
+            case "truncate": {
+                result.push(combinator);
+                result.push(parseInt(combinators[i + 1]));
+                i++;
+                break;
+            }
+            case "scale": {
+                result.push(combinator);
+                if (combinators[i + 1] != "obs") {
+                    result.push(1);
+                    result.push(parseInt(combinators[i + 1]));
+                } else {
+                    result.push(0);
+                }
+                i++;
+                break;
+            }
             default:
                 result.push(combinator);
                 break;
         }
     }
-
-    console.log("Serialized combinator contract: [" + result + "]");
 
     // Return serialized result as i64 array
     return result;

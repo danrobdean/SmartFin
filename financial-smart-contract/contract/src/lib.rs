@@ -304,6 +304,19 @@ impl<T> Stores<Option<T>> for Storage where Storage: Stores<T> {
     }
 }
 
+impl<T, U> Stores<(T, U)> for Storage where Storage: Stores<T> + Stores<U> {
+    fn read(&mut self, key: &H256) -> ((T, U), H256) {
+        let (first, key0): (T, H256) = self.read(key);
+        let (second, key1): (U, H256) = self.read(&add_to_key(key0, 1));
+        ((first, second), key1)
+    }
+
+    fn write(&mut self, key: &H256, value: (T, U)) -> H256 {
+        let key0 = self.write(&key, value.0);
+        self.write(&add_to_key(key0, 1), value.1)
+    }
+}
+
 // Adds a number to a storage key
 fn add_to_key(key: H256, mut value: u64) -> H256 {
     let mut i = 0;
@@ -488,7 +501,7 @@ impl FinancialScInterface for FinancialScContract {
     fn get_value(&mut self) -> i64 {
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
         let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
-        let anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
+        let anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
         self.get_combinator().get_value(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &anytime_acquisition_times)
     }
@@ -578,7 +591,7 @@ impl FinancialScInterface for FinancialScContract {
         }
 
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-        let mut anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
+        let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
         combinator.acquire(pwasm_ethereum::timestamp() as u32, &or_choices, &mut anytime_acquisition_times);
 
@@ -597,7 +610,7 @@ impl FinancialScInterface for FinancialScContract {
         let mut combinator = self.get_combinator();
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
         let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
-        let mut anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
+        let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
         let difference = combinator.update(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &mut anytime_acquisition_times);
 
@@ -615,9 +628,13 @@ impl FinancialScInterface for FinancialScContract {
     // Acquires an anytime combinator's sub-contract
     fn acquire_anytime_sub_contract(&mut self, anytime_index: u64) {
         let index = anytime_index as usize;
-        let mut anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
+        let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
         if index >= anytime_acquisition_times.len() {
             panic!("Given anytime index does not exist.");
+        }
+
+        if !anytime_acquisition_times[index].0 {
+            panic!("Given anytime combinator has not been acquired.");
         }
 
         let holder: Address = self.storage.read_ref(&holder_address_key()).0;
@@ -625,14 +642,14 @@ impl FinancialScInterface for FinancialScContract {
             panic!("Only the contract holder may acquire the combinator contract.");
         }
 
-        let prev_acquisition_time = anytime_acquisition_times[anytime_index as usize];
+        let prev_acquisition_time = anytime_acquisition_times[anytime_index as usize].1;
         let new_acquisition_time = pwasm_ethereum::timestamp() as u32;
 
         if prev_acquisition_time != None && prev_acquisition_time.unwrap() <= new_acquisition_time {
             panic!("Cannot acquire a sub-combinator contract which has already been acquired.");
         }
 
-        anytime_acquisition_times[anytime_index as usize] = Some(new_acquisition_time);
+        anytime_acquisition_times[anytime_index as usize] = (true, Some(new_acquisition_time));
         self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
     }
 
@@ -832,9 +849,9 @@ impl FinancialScContract {
             // anytime combinator
             Combinator::ANYTIME => {
                 // Keep track of anytime_index and anytime_acquisition_times
-                let mut anytime_acquisition_times: Vec<Option<u32>> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
+                let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
                 let anytime_index = anytime_acquisition_times.len();
-                anytime_acquisition_times.push(None);
+                anytime_acquisition_times.push((false, None));
                 self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
 
                 // Deserialize sub-combinator
@@ -996,6 +1013,22 @@ mod tests {
         let value1: Option<i64> = None;
         contract.storage.write(&H256::zero(), value1);
         assert_eq!(contract.storage.read(&H256::zero()), (value1, H256::zero()));
+    }
+
+    // Storage of a tuple works correctly
+    #[test]
+    fn stores_and_retrieves_tuple_correctly() {
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
+            0,
+            vec![0]
+        );
+
+        let value0: Option<i64> = Some(123);
+        let value1: i64 = 10;
+        contract.storage.write(&H256::zero(), (value0, value1));
+        assert_eq!(contract.storage.read(&H256::zero()), ((value0, value1), add_to_key(H256::zero(), 2)));
     }
 
     // Storage of a multi-slot typed Vec works correctly
@@ -1347,6 +1380,8 @@ mod tests {
             0,
             vec![9, 1]
         );
+        ext_update(|e| e.sender(holder));
+        contract.acquire();
 
         ext_update(|e| e.sender(Address::zero()));
         contract.acquire_anytime_sub_contract(0);
@@ -1390,6 +1425,21 @@ mod tests {
         );
         contract.acquire();
         contract.acquire_anytime_sub_contract(0);
+        contract.acquire_anytime_sub_contract(0);
+    }
+
+    // Acquiring anytime sub-contracts before the parent contract is not allowed
+    #[test]
+    #[should_panic(expected = "Given anytime combinator has not been acquired.")]
+    fn should_panic_if_acquiring_anytime_sub_contract_before_parent_contract() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![9, 1]
+        );
+        ext_update(|e| e.sender(holder));
         contract.acquire_anytime_sub_contract(0);
     }
 

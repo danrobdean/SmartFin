@@ -80,7 +80,7 @@ impl ContractCombinator for ScaleCombinator {
         Combinator::SCALE
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<Option<u32>>) -> i64 {
+    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
         let scale_value = self.get_scale_value(obs_values);
         if scale_value == None {
             panic!("Cannot get value of an undefined observable.");
@@ -98,7 +98,7 @@ impl ContractCombinator for ScaleCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<Option<u32>>) {
+    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) {
         if self.past_horizon(time) {
             panic!("Cannot acquire an expired contract.");
         }
@@ -111,7 +111,7 @@ impl ContractCombinator for ScaleCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<Option<u32>>) -> i64 {
+    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
         let scale_value = self.get_scale_value(obs_values);
 
         // If not acquired yet or fully updated (no more pending balance), return 0

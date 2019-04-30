@@ -513,5 +513,30 @@ The two payment functions (stake and withdraw) work, so assuming the execution o
 
 After raising an issue on the GitHub for pwasm-abi, they fixed the issue with payable not being marked in the JSON (turns out my diagnosis was exactly correct). That was a quick fix, wowee. After changing the version of pwasm-abi to 2.2 and pwasm-abi-derive to 2.3 (and updating the Cargo.lock, which we can't change/auto-generate for weird reasons), it works perfectly.
 
+Tests:
+	- Implemented serialization for rest of combinators in JS (mostly direct, truncate and scale require the extra argument to be serialized but that's all)
+	- Added JS tests for API functions:
+		- get_concluded
+		- acquire
+		- update
+		- set_or_choice
+		- truncate (time passed into constructor correctly)
+		- scale (passing scale value and propose_obs_index)
+		- anytime (acquire_anytime_sub_contract)
+
+Changes made to acquire_anytime_sub_contract:
+	- Previously no check that the anytime sub-contract is being acquired after the anytime contract until the contract is updated
+	- This throws an error when the contract is updated after being used incorrectly, but still allows the incorrect usage in the first place
+	- Need some way to throw when the anytime sub-combinator is acquired before the anytime is acquired
+	- Should keep track of whether the anytime is acquired in the anytime_acquisition_times, may use a tuple of (bool, Option<u32>) where (true, x) means that anytime has been acquired
+	- Requires storing (T, U) tuples, and updating anytime
+
+	- Stores<(T, U)> where Storage: Stores<T> + Stores<U> implemented
+	- anytime_acquisition_times changed from Vec<Option<u32>> to Vec<(bool, Option<u32>)> everywhere
+	- Tests/code updated
+	- acquire_anytime_sub_contract tests for anytime_acquisition_times[index].0, if false then panics
+	- ANYTIME combinator sets anytime_acquisition_times[self.anytime_index].0 to true when acquired, thus allowing acquire_anytime_sub_contract(index) to be called
+	- Test added for acquiring sub contract before acquiring parent (should panic)
+
 
 

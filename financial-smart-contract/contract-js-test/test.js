@@ -20,6 +20,28 @@ const counterParty = {
     password: "test"
 }
 
+// Deploy the given combinator contract string
+function deploy(contractDefinition) {
+    // Get serialized test contract
+    var combinatorContract = serializeCombinatorContract(contractDefinition);
+
+    // First deployment may fail
+    return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
+        // First deployment succeeded
+        contract = res;
+    }, function(_) {
+        // Should deploy successfully
+        return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
+            contract = res;
+        });
+    });
+}
+
+// Get the current UNIX time
+function getUnixTime() {
+    return Date.now() / 1000 | 0;
+}
+
 // Testing hooks
 
 // Unlock accounts before all tests
@@ -32,25 +54,13 @@ before(function() {
     });
 });
 
-// Redeploy the smart contract before each test (each deployment has fresh state)
-beforeEach(function() {
-    // Get serialized test contract
-    var combinatorContract = serializeCombinatorContract("one");
-
-    // First deployment may fail
-    return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
-        // First deployment succeeded
-        contract = res;
-    }, function(_) {
-        // Should deploy successfully
-        return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
-            contract = res;
-        });
+// Tests for a simple "one" contract
+describe('Simple contract tests', function() {
+    // Redeploy the smart contract before each test (each deployment has fresh state)
+    beforeEach(function() {
+        return deploy("one");
     });
-});
 
-// Tests
-describe('Contract tests', function() {
     it('Returns the correct holder address', function() {
         return contract.methods.get_holder().call({ from: uninvolved.address }).then(function(res) {
             assert.equal(res.returnValue0, holder.address);
@@ -122,4 +132,154 @@ describe('Contract tests', function() {
             });
         });
     });
-})
+
+    it('Updates balances correctly after acquiring and updating', function() {
+        // Initial balance is 0
+        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+            assert.equal(res.returnValue0, 0);
+            return contract.methods.get_balance().call({ from: counterParty.address }).then(function(res) {
+                assert.equal(res.returnValue0, 0);
+
+                // Acquire the contract
+                return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                    // Update the contract
+                    return contract.methods.update().send({ from: holder.address }).then(function() {
+                        // New balance for holder is 1
+                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                            assert.equal(res.returnValue0, 1);
+                            
+                            // New balance for counter-party is -1
+                            return contract.methods.get_balance().call({ from: counterParty.address }).then(function(res) {
+                                assert.equal(res.returnValue0, -1);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    it('Returns concluded only when contract is fully updated', function() {
+        return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
+            assert.ok(!res.returnValue0);
+
+            return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                return contract.methods.update().send({ from: holder.address }).then(function() {
+                    return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
+                        assert.ok(res.returnValue0);
+                    });
+                });
+            });
+        });
+    });
+});
+
+// Tests for an OR contract
+describe('OR contract tests', function() {
+    it('Has the value of the left sub-combinator when the or choice is set to true', function() {
+        return deploy("or one zero").then(function() {
+            return contract.methods.set_or_choice(0, true).send({ from: holder.address }).then(function() {
+                return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                    return contract.methods.update().send({ from: holder.address }).then(function() {
+                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                            assert.equal(res.returnValue0, 1);
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    it('Has the value of the right sub-combinator when the or choice is set to false', function() {
+        return deploy("or zero one").then(function() {
+            return contract.methods.set_or_choice(0, false).send({ from: holder.address }).then(function() {
+                return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                    return contract.methods.update().send({ from: holder.address }).then(function() {
+                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                            assert.equal(res.returnValue0, 1);
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
+
+// Tests for a TRUNCATE contract
+describe('TRUNCATE contract tests', function() {
+    it('Is not concluded when the given time is in the past', function() {
+        return deploy("truncate " + (getUnixTime() - 100) + " one").then(function() {
+            return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
+                assert.ok(res.returnValue0);
+            });
+        });
+    });
+
+    it('Is concluded when the given time is in the future', function() {
+        return deploy("truncate " + (getUnixTime() + 100) + " one").then(function() {
+            return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
+                assert.ok(!res.returnValue0);
+            });
+        });
+    });
+});
+
+// Tests for a SCALE contract
+describe('SCALE contract tests', function() {
+    it('Has the correct value when a scale value is provided', function() {
+        return deploy("scale 5 one").then(function() {
+            return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                return contract.methods.update().send({ from: holder.address }).then(function() {
+                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        assert.equal(res.returnValue0, 5);
+                    });
+                });
+            });
+        });
+    });
+
+    it('Has the correct value when an observable value is provided', function() {
+        return deploy("scale obs one").then(function() {
+            return contract.methods.propose_obs_value(0, 5).send({ from: counterParty.address }).then(function() {
+                return contract.methods.propose_obs_value(0, 5).send({ from: holder.address }).then(function() {
+                    return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                        return contract.methods.update().send({ from: holder.address }).then(function() {
+                            return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                                assert.equal(res.returnValue0, 5);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
+
+// Tests for an ANYTIME contract
+describe('ANYTIME contract tests', function() {
+    it('Has the correct value before the anytime sub-combinator is acquired', function() {
+        return deploy("anytime one").then(function() {
+            return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                return contract.methods.update().send({ from: holder.address }).then(function() {
+                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        assert.equal(res.returnValue0, 0);
+                    });
+                });
+            });
+        })
+    });
+
+    it('Has the correct value after the anytime sub-combinator is acquired', function() {
+        return deploy("anytime one").then(function() {
+            return contract.methods.acquire().send({ from: holder.address }).then(function() {
+                return contract.methods.acquire_anytime_sub_contract(0).send({ from: holder.address }).then(function() {
+                    return contract.methods.update().send({ from: holder.address }).then(function() {
+                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                            assert.equal(res.returnValue0, 1);
+                        });
+                    });
+                });
+            });
+        })
+    });
+});
