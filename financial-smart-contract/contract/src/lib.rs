@@ -93,17 +93,17 @@ impl Storage {
     }
     
     // Convert a stored value into an address
-    fn to_address(value: &[u8; 32]) -> Address {
+    pub fn to_address(value: &[u8; 32]) -> Address {
         H256::from(value).into()
     }
 
     // Convert an address into a storable value
-    fn from_address(value: &Address) -> [u8; 32] {
+    pub fn from_address(value: &Address) -> [u8; 32] {
         H256::from(value.clone()).into()
     }
 
     // Convert a storable value into an i64
-    fn to_i64(value: &[u8; 32]) -> i64 {
+    pub fn to_i64(value: &[u8; 32]) -> i64 {
         let mut res: i64;
 
         // Deserialize accounting for endianness
@@ -124,7 +124,7 @@ impl Storage {
     }
 
     // Convert an i64 into a storable value
-    fn from_i64(mut value: i64) -> [u8; 32] {
+    pub fn from_i64(mut value: i64) -> [u8; 32] {
         // Convert to u64
         let unsigned;
         if value < 0 {
@@ -144,12 +144,12 @@ impl Storage {
     }
 
     // Converts a storable value into a bool
-    fn to_bool(value: &[u8; 32]) -> bool {
+    pub fn to_bool(value: &[u8; 32]) -> bool {
         H256::from(value) != H256::zero()
     }
 
     // Converts a bool into a storable value
-    fn from_bool(value: bool) -> [u8; 32] {
+    pub fn from_bool(value: bool) -> [u8; 32] {
         let mut res: [u8; 32];
         if value {
             res= [0; 32];
@@ -197,14 +197,14 @@ impl StoresRef<[u8; 32]> for Storage {
     }
 }
 
-impl StoresRef<Address> for Storage {
-    fn read_ref(&mut self, key: &H256) -> (Address, H256) {
+impl Stores<Address> for Storage {
+    fn read(&mut self, key: &H256) -> (Address, H256) {
         let (value, last_used): ([u8; 32], H256) = self.read_ref(key);
         (Storage::to_address(&value), last_used)
     }
 
-    fn write_ref(&mut self, key: &H256, value: &Address) -> H256 {
-        self.write_ref(key, &Storage::from_address(value));
+    fn write(&mut self, key: &H256, value: Address) -> H256 {
+        self.write_ref(key, &Storage::from_address(&value));
         *key
     }
 }
@@ -317,6 +317,41 @@ impl<T, U> Stores<(T, U)> for Storage where Storage: Stores<T> + Stores<U> {
     }
 }
 
+// Converts an address to an array of i64s
+pub fn address_to_i64(value: Address) -> [i64; 4] {
+    let mut res: [i64; 4] = [0; 4];
+
+    // Get address as storable
+    let addr: [u8; 32] = Storage::from_address(&value);
+    for i in 0..4 {
+        // Convert first byte to storable i64
+        let mut addr_storable: [u8; 32] = [0; 32];
+        for j in 0..8 {
+            addr_storable[j] = addr[(i * 8) + j];
+        }
+        // Convert to i64, and push
+        res[i] = Storage::to_i64(&addr_storable);
+    }
+
+    res
+}
+
+// Converts an array of i64s to an address
+pub fn i64_to_address(value: [i64; 4]) -> Address {
+    // Get i64s as storable
+    let mut vals: [u8; 32] = [0; 32];
+    for i in 0..4 {
+        // Get i'th i64 as storable
+        let mut storable = Storage::from_i64(value[i]);
+        for j in 0..8 {
+            // Get first 8 bytes of storable i64, store in address
+            vals[i * 8 + j] = storable[j];
+        }
+    }
+
+    Storage::to_address(&vals)
+}
+
 // Adds a number to a storage key
 fn add_to_key(key: H256, mut value: u64) -> H256 {
     let mut i = 0;
@@ -372,34 +407,22 @@ fn or_choices_key() -> H256 {
     H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2])
 }
 
-// The holder's proposed observable values storage key (first slot is length, the following are elements)
-fn holder_proposed_obs_values_key() -> H256 {
+// The observable values storage key (first slot is length, the following are elements)
+fn obs_entries_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
     H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3])
-}
-
-// The counter-party's proposed observable values storage key (first slot is length, the following are elements)
-fn counter_party_proposed_obs_values_key() -> H256 {
-    // Store in own memory namespace as Vec storage size is not constant
-    H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4])
-}
-
-// The concrete observable values storage key (first slot is length, the following are elements)
-fn concrete_obs_values_key() -> H256 {
-    // Store in own memory namespace as Vec storage size is not constant
-    H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5])
 }
 
 // The anytime acquisition times key storage key (first slot is length, the following are elements)
 fn anytime_acquisition_times_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
-    H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6])
+    H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4])
 }
 
 // The serialized combinator contract (obtained locally) storage key (first slot is length, the following are elements)
 fn serialized_local_combinator_contract_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
-    H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7])
+    H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5])
 }
 
 // The financial smart contract interface
@@ -442,13 +465,13 @@ pub trait FinancialScInterface {
 
     // Gets the concrete observable values
     #[constant]
-    fn get_obs_values(&mut self) -> Vec<i64>;
+    fn get_obs_entries(&mut self) -> Vec<i64>;
 
     // Sets the preference of the given or combinator's sub-combinators
     fn set_or_choice(&mut self, or_index: u64, choice: bool);
 
-    // Proposes a value for the given observable
-    fn propose_obs_value(&mut self, obs_index: u64, value: i64);
+    // Sets a value for the given observable
+    fn set_obs_value(&mut self, obs_index: u64, value: i64);
 
     // Acquires the combinator contract at the current block-time (when called by the holder)
     fn acquire(&mut self);
@@ -485,8 +508,8 @@ impl FinancialScInterface for FinancialScContract {
         }
 
         // Initialise storage
-        self.storage.write_ref(&holder_address_key(), &holder);
-        self.storage.write_ref(&counter_party_address_key(), &pwasm_ethereum::sender());
+        self.storage.write(&holder_address_key(), holder);
+        self.storage.write(&counter_party_address_key(), pwasm_ethereum::sender());
         self.storage.write(&holder_balance_key(), 0_i64);
         self.storage.write(&counter_party_balance_key(), 0_i64);
         self.storage.write_ref(&serialized_remote_combinator_contract_key() , &contract_definition);
@@ -496,12 +519,12 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the address of the holder
     fn get_holder(&mut self) -> Address {
-        self.storage.read_ref(&holder_address_key()).0
+        self.storage.read(&holder_address_key()).0
     }
 
     // Gets the address of the counter-party
     fn get_counter_party(&mut self) -> Address {
-        self.storage.read_ref(&counter_party_address_key()).0
+        self.storage.read(&counter_party_address_key()).0
     }
 
     // Gets the combinator contract definition (serialized)
@@ -512,17 +535,17 @@ impl FinancialScInterface for FinancialScContract {
     // Gets the current value of the contract
     fn get_value(&mut self) -> i64 {
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-        let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
+        let obs_values: Vec<Option<i64>> = self.get_obs_values();
         let anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
-        self.get_combinator().get_value(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &anytime_acquisition_times)
+        self.get_combinator().get_value(pwasm_ethereum::timestamp() as u32, &or_choices, &obs_values, &anytime_acquisition_times)
     }
 
     // Gets the total balance of the caller
     fn get_balance(&mut self) -> i64 {
         let sender = pwasm_ethereum::sender();
-        let holder: Address = self.storage.read_ref(&holder_address_key()).0;
-        let counter_party: Address = self.storage.read_ref(&counter_party_address_key()).0;
+        let holder: Address = self.storage.read(&holder_address_key()).0;
+        let counter_party: Address = self.storage.read(&counter_party_address_key()).0;
 
         if sender == holder {
             self.storage.read(&holder_balance_key()).0
@@ -573,26 +596,35 @@ impl FinancialScInterface for FinancialScContract {
     }
 
     // Gets the concrete observable values
-    fn get_obs_values(&mut self) -> Vec<i64> {
-        let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
-        let mut serialized_obs_values: Vec<i64> = Vec::new();
+    fn get_obs_entries(&mut self) -> Vec<i64> {
+        let obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
+        let mut serialized_obs_entries: Vec<i64> = Vec::new();
 
         // Serialize obs values
-        for value in concrete_obs_values {
-            if value == None {
-                serialized_obs_values.push(-1);
+        for value in obs_entries {
+            // Convert address to four i64s and then store
+
+            // Convert to i64s
+            let address: [i64; 4] = address_to_i64(value.0);
+            for i in 0..4 {
+                serialized_obs_entries.push(address[i]);
+            }
+
+            // Push value
+            if value.1 == None {
+                serialized_obs_entries.push(-1);
             } else {
-                serialized_obs_values.push(0);
-                serialized_obs_values.push(value.unwrap());
+                serialized_obs_entries.push(0);
+                serialized_obs_entries.push(value.1.unwrap());
             }
         }
 
-        serialized_obs_values
+        serialized_obs_entries
     }
 
     // Sets the given or combinator's preference between its sub-combinators
     fn set_or_choice(&mut self, or_index: u64, prefer_first: bool) {
-        let holder: Address = self.storage.read_ref(&holder_address_key()).0;
+        let holder: Address = self.storage.read(&holder_address_key()).0;
         if pwasm_ethereum::sender() != holder {
             panic!("Only the contract holder may set or-choices.");
         }
@@ -607,43 +639,32 @@ impl FinancialScInterface for FinancialScContract {
         self.storage.write_ref(&or_choices_key(), &or_choices);
     }
 
-    // Proposes the given observable's value
-    fn propose_obs_value(&mut self, obs_index: u64, value: i64) {
-        // Check that index is within bounds
+    // Sets the given observable's value
+    fn set_obs_value(&mut self, obs_index: u64, value: i64) {
+        let mut obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
+
+        // Check index in bounds
         let index: usize = obs_index as usize;
-        let mut holder_proposed_obs_values: Vec<Option<i64>> = self.storage.read_ref(&holder_proposed_obs_values_key()).0;
-        let mut counter_party_proposed_obs_values: Vec<Option<i64>> = self.storage.read_ref(&counter_party_proposed_obs_values_key()).0;
-        if index >= holder_proposed_obs_values.len() {
+        if index >= obs_entries.len() {
             panic!("Given observable-index does not exist.");
         }
 
-        // Set the proposed value for the sender
-        let sender = pwasm_ethereum::sender();
-        let holder: Address = self.storage.read_ref(&holder_address_key()).0;
-        let counter_party: Address = self.storage.read_ref(&counter_party_address_key()).0;
-
-        if sender == holder {
-            holder_proposed_obs_values[index] = Some(value);
-            self.storage.write_ref(&holder_proposed_obs_values_key(), &holder_proposed_obs_values);
-        } else if sender == counter_party {
-            counter_party_proposed_obs_values[index] = Some(value);
-            self.storage.write_ref(&counter_party_proposed_obs_values_key(), &counter_party_proposed_obs_values);
-        } else {
-            panic!("Only the holder or counter-party set the value of observables.");
+        // Check sender
+        let arbiter: Address = obs_entries[index].0;
+        let sender: Address = pwasm_ethereum::sender();
+        if sender != arbiter {
+            panic!("Sender cannot set value for given observable-index.");
         }
 
-        // Check if proposed values match
-        if holder_proposed_obs_values[index] == counter_party_proposed_obs_values[index] {
-            let mut concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
-            concrete_obs_values[index] = Some(value);
-            self.storage.write_ref(&concrete_obs_values_key(), &concrete_obs_values);
-        }
+        // Set the value
+        obs_entries[index] = (arbiter, Some(value));
+        self.storage.write_ref(&obs_entries_key(), &obs_entries);
     }
 
     // Acquires the combinator contract at the current block-time (when called by the holder)
     fn acquire(&mut self) {
         let mut combinator = self.get_combinator();
-        let holder: Address = self.storage.read_ref(&holder_address_key()).0;
+        let holder: Address = self.storage.read(&holder_address_key()).0;
 
         if pwasm_ethereum::sender() != holder {
             panic!("Only the contract holder may acquire the combinator contract.");
@@ -672,10 +693,10 @@ impl FinancialScInterface for FinancialScContract {
         // Update combinators
         let mut combinator = self.get_combinator();
         let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-        let concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
+        let obs_values: Vec<Option<i64>> = self.get_obs_values();
         let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
-        let difference = combinator.update(pwasm_ethereum::timestamp() as u32, &or_choices, &concrete_obs_values, &mut anytime_acquisition_times);
+        let difference = combinator.update(pwasm_ethereum::timestamp() as u32, &or_choices, &obs_values, &mut anytime_acquisition_times);
 
         self.set_combinator(combinator);
         self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
@@ -700,7 +721,7 @@ impl FinancialScInterface for FinancialScContract {
             panic!("Given anytime combinator has not been acquired.");
         }
 
-        let holder: Address = self.storage.read_ref(&holder_address_key()).0;
+        let holder: Address = self.storage.read(&holder_address_key()).0;
         if pwasm_ethereum::sender() != holder {
             panic!("Only the contract holder may acquire the combinator contract.");
         }
@@ -723,8 +744,8 @@ impl FinancialScInterface for FinancialScContract {
         let sender = pwasm_ethereum::sender();
         let stake = pwasm_ethereum::value();
         FinancialScContract::assert_U256_can_be_i64(stake);
-        let holder: Address = self.storage.read_ref(&holder_address_key()).0;
-        let counter_party: Address = self.storage.read_ref(&counter_party_address_key()).0;
+        let holder: Address = self.storage.read(&holder_address_key()).0;
+        let counter_party: Address = self.storage.read(&counter_party_address_key()).0;
         let key;
 
         // Check which party is enquiring
@@ -749,8 +770,8 @@ impl FinancialScInterface for FinancialScContract {
         let final_amount;
         let original_balance;
         let key;
-        let holder: Address = self.storage.read_ref(&holder_address_key()).0;
-        let counter_party: Address = self.storage.read_ref(&counter_party_address_key()).0;
+        let holder: Address = self.storage.read(&holder_address_key()).0;
+        let counter_party: Address = self.storage.read(&counter_party_address_key()).0;
         
         // Get the amount to send (clamp at balance amount)
         if sender == holder {
@@ -793,9 +814,7 @@ impl FinancialScContract {
     // Constructs the combinators from a serialized combinator contract
     fn set_remote_combinator(&mut self) {
         self.storage.write_ref(&or_choices_key(), &Vec::<Option<bool>>::new());
-        self.storage.write_ref(&holder_proposed_obs_values_key(), &Vec::<Option<i64>>::new());
-        self.storage.write_ref(&counter_party_proposed_obs_values_key(), &Vec::<Option<i64>>::new());
-        self.storage.write_ref(&concrete_obs_values_key(), &Vec::<Option<i64>>::new());
+        self.storage.write_ref(&obs_entries_key(), &Vec::<(Address, Option<i64>)>::new());
         self.storage.write_ref(&anytime_acquisition_times_key(), &Vec::<Option<u32>>::new());
 
         let (_, combinator) = self.deserialize_remote_combinator(0);
@@ -854,7 +873,7 @@ impl FinancialScContract {
 
             // scale combinator
             Combinator::SCALE => {
-                // Check if observable is provided, if so then deserialize it, otherwise record in obs_values
+                // Check if observable is provided, if so then deserialize it, otherwise record in obs_entries
                 let provided: i64 = serialized_combinators[i + 1];
                 let mut obs_index: Option<usize>;
                 let mut scale_value: Option<i64>;
@@ -865,19 +884,19 @@ impl FinancialScContract {
                     scale_value = Some(serialized_combinators[i0]);
                     i0 += 1;
                 } else {
-                    let mut holder_proposed_obs_values: Vec<Option<i64>> = self.storage.read_ref(&holder_proposed_obs_values_key()).0;
-                    let mut counter_party_proposed_obs_values: Vec<Option<i64>> = self.storage.read_ref(&counter_party_proposed_obs_values_key()).0;
-                    let mut concrete_obs_values: Vec<Option<i64>> = self.storage.read_ref(&concrete_obs_values_key()).0;
+                    let mut obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
 
-                    obs_index = Some(concrete_obs_values.len());
-                    holder_proposed_obs_values.push(None);
-                    counter_party_proposed_obs_values.push(None);
-                    concrete_obs_values.push(None);
+                    // Deserialize arbiter address
+                    let mut serialized_address: [i64; 4] = [0; 4];
+                    serialized_address.copy_from_slice(&serialized_combinators[(i + 2)..(i + 6)]);
+                    let address = i64_to_address(serialized_address);
 
-                    self.storage.write_ref(&holder_proposed_obs_values_key(), &holder_proposed_obs_values);
-                    self.storage.write_ref(&counter_party_proposed_obs_values_key(), &counter_party_proposed_obs_values);
-                    self.storage.write_ref(&concrete_obs_values_key(), &concrete_obs_values);
+                    obs_index = Some(obs_entries.len());
+                    obs_entries.push((address, None));
+
+                    self.storage.write_ref(&obs_entries_key(), &obs_entries);
                     scale_value = None;
+                    i0 += 4;
                 }
 
                 // Deserialize sub-contract
@@ -939,6 +958,12 @@ impl FinancialScContract {
         self.storage.write_ref(&serialized_local_combinator_contract_key(), &serialized);
     }
 
+    // Gets the observable values
+    fn get_obs_values(&mut self) -> Vec<Option<i64>> {
+        let obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
+        obs_entries.into_iter().map(|e| e.1).collect()
+    }
+
     // Add numbers safely to avoid integer overflow/underflow
     fn safe_add(x: i64, y: i64) -> i64 {
         if y > 0 && x > 2_i64.pow(62) - y {
@@ -981,7 +1006,7 @@ impl FinancialScContract {
 mod tests {
     extern crate pwasm_test;
 
-    use super::{ FinancialScContract, FinancialScInterface, Storage, Stores, StoresRef, add_to_key };
+    use super::{ FinancialScContract, FinancialScInterface, Storage, Stores, StoresRef, add_to_key, address_to_i64, i64_to_address };
     use super::pwasm_std::{ Vec, vec, types::{ Address, U256, H256 } };
     use self::pwasm_test::{ ext_reset, ext_update };
 
@@ -1000,9 +1025,11 @@ mod tests {
     // Storage of an i64 works correctly
     #[test]
     fn stores_and_retrieves_i64_correctly() {
+        let holder: Address = "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap();
+        let counter_party: Address = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
         let mut contract = setup_contract(
-            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
-            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
+            holder,
+            counter_party,
             0,
             vec![0]
         );
@@ -1057,8 +1084,8 @@ mod tests {
         );
 
         let value: Address = Address::from([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]);
-        contract.storage.write_ref(&H256::zero(), &value);
-        assert_eq!(contract.storage.read_ref(&H256::zero()), (value, H256::zero()));
+        contract.storage.write(&H256::zero(), value);
+        assert_eq!(contract.storage.read(&H256::zero()), (value, H256::zero()));
     }
 
     // Storage of an Option works correctly
@@ -1124,6 +1151,16 @@ mod tests {
         let value: Vec<Option<i64>> = vec![Some(15425), None, Some(1346134), Some(123093), None];
         contract.storage.write_ref(&H256::zero(), &value);
         assert_eq!(contract.storage.read_ref(&H256::zero()), (value, add_to_key(H256::zero(), 8)));
+    }
+
+    // Conversion between Address and i64 works correctly
+    #[test]
+    fn converts_between_i64_and_address_correctly() {
+        let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+        let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
+
+        assert_eq!(arbiter, i64_to_address(arbiter_serialized));
+        assert_eq!(arbiter_serialized, [0; 4]);
     }
 
     // The counter-party of the contract is set to the deployer
@@ -1354,12 +1391,20 @@ mod tests {
         assert_eq!(contract.get_or_choices(), vec![1, 0, 2]);
     }
 
-    // Obs values returned correctly
+    // Obs entries returned correctly
     #[test]
-    fn get_obs_values_returns_correct_values() {
-        let combinator_contract = vec![5, -1, 5, -1, 5, -1, 1];
-        let counter_party = "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap();
+    fn get_obs_entries_returns_correct_entries() {
         let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let counter_party = "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap();
+        let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+        let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
+
+        let combinator_contract = vec![
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            1
+        ];
         let mut contract = setup_contract(
             counter_party,
             holder,
@@ -1367,15 +1412,43 @@ mod tests {
             combinator_contract.clone()
         );
 
-        ext_update(|e| e.sender(holder));
-        contract.propose_obs_value(0, 1);
-        contract.propose_obs_value(2, -1);
+        ext_update(|e| e.sender(arbiter));
+        contract.set_obs_value(0, 1);
+        contract.set_obs_value(2, -1);
 
-        ext_update(|e| e.sender(counter_party));
-        contract.propose_obs_value(0, 1);
-        contract.propose_obs_value(2, -1);
+        assert_eq!(contract.get_obs_entries(), vec![
+            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 0, 1,
+            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], -1,
+            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 0, -1
+        ]);
+    }
 
-        assert_eq!(contract.get_obs_values(), vec![0, 1, -1, 0, -1]);
+    // Obs values returned correctly
+    #[test]
+    fn get_obs_values_returns_correct_values() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let counter_party = "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap();
+        let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+        let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
+
+        let combinator_contract = vec![
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            1
+        ];
+        let mut contract = setup_contract(
+            counter_party,
+            holder,
+            0,
+            combinator_contract.clone()
+        );
+
+        ext_update(|e| e.sender(arbiter));
+        contract.set_obs_value(0, 1);
+        contract.set_obs_value(2, -1);
+
+        assert_eq!(contract.get_obs_values(), vec![Some(1), None, Some(-1)]);
     }
 
     // Withdrawal amount is calculated correctly for a normal withdrawal

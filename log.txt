@@ -560,5 +560,17 @@ Next: Write the client!
 
 In all my fiddling with the structure, turns out I deleted the node modules/yarn.lock in the right combination to accidentally update web3 from beta.46 to beta.53. This actually broke the tests. Should figure out how to upgrade to beta.53, but in the meantime have changed the version to specifically beta.46 in the package.json for javascript tests.
 
+- Had meeting with susan/sophia
+- Changed observable system:
+	- Now relies on an arbiter, so scale obs 1 now looks like scale obs <addr> 1
+	- propose_obs_value replaced by set_obs_value
+	- obs_entries now stored, vector of tuples of each observable's arbiter and value
+	- get_obs_entries now returns the address (serialized as i64s) and the value
+	- implemented (de)serialization of addresses to/from i64s in rust
+	- implemented (de)serialization of addresses to/from BigInts in js
+
+Bug found: When calling withdraw, the contract will attempt to pay if the user's balance is positive, even if the contract doesn't have enough ether. Should add a check to ensure that the contract doesn't try to pay more than it has.
+Also add tests and update JS tests for new obs system.
+
 
 

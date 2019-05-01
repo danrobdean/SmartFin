@@ -5,7 +5,7 @@ mod common;
 #[allow(unused_imports)]
 use self::pwasm_std::{ vec, types::{ Address, U256 } };
 use self::pwasm_test::{ ext_update };
-use self::common::{ setup_contract, FinancialScContract, FinancialScInterface };
+use self::common::{ setup_contract, FinancialScContract, FinancialScInterface, address_to_i64 };
 
 // The value of the contract is based on the given serialized combinator vector
 #[test]
@@ -140,15 +140,18 @@ fn scale_with_provided_negative_scale_value_has_correct_value() {
 // The value of a scale combinator with an agreed-upon observable scale value is correct
 #[test]
 fn scale_with_concrete_obs_value_has_correct_value() {
-    // Create contract or scale obs one
-    let mut contract_details = setup_contract(vec![5, 0, 1]);
+    let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+    let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
 
-    // Propose obs_value_0 = 2 from both parties
-    ext_update(|e| e.sender(contract_details.holder));
-    contract_details.contract.propose_obs_value(0, 2);
+    // Create contract or scale obs arbiter one
+    let mut contract_details = setup_contract(vec![
+        5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        1
+    ]);
 
-    ext_update(|e| e.sender(contract_details.counter_party));
-    contract_details.contract.propose_obs_value(0, 2);
+    // Propose obs_value_0 = 2 from the arbiter
+    ext_update(|e| e.sender(arbiter));
+    contract_details.contract.set_obs_value(0, 2);
 
     // Check that contract value is 2
     assert_eq!(contract_details.contract.get_value(), 2);
@@ -157,64 +160,45 @@ fn scale_with_concrete_obs_value_has_correct_value() {
 // The value of a scale combinator with an agreed-upon negative observable scale value is correct
 #[test]
 fn scale_with_concrete_negative_obs_value_has_correct_value() {
-    // Create contract or scale obs one
-    let mut contract_details = setup_contract(vec![5, 0, 1]);
+    let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+    let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
 
-    // Propose obs_value_0 = -2 from both parties
-    ext_update(|e| e.sender(contract_details.holder));
-    contract_details.contract.propose_obs_value(0, -2);
+    // Create contract or scale obs arbiter one
+    let mut contract_details = setup_contract(vec![
+        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        1
+    ]);
 
-    ext_update(|e| e.sender(contract_details.counter_party));
-    contract_details.contract.propose_obs_value(0, -2);
+    // Propose obs_value_0 = -2 from the arbiter
+    ext_update(|e| e.sender(arbiter));
+    contract_details.contract.set_obs_value(0, -2);
 
     // Check that contract value is -2
     assert_eq!(contract_details.contract.get_value(), -2);
 }
 
-// The value of a scale combinator with an agreed-upon observable scale value does not change after one extra proposal
-#[test]
-fn scale_with_concrete_obs_value_has_correct_value_after_extra_proposal() {
-    // Create contract or scale obs one
-    let mut contract_details = setup_contract(vec![5, 0, 1]);
-
-    // Propose obs_value_0 = 2 from both parties
-    ext_update(|e| e.sender(contract_details.holder));
-    contract_details.contract.propose_obs_value(0, 2);
-
-    ext_update(|e| e.sender(contract_details.counter_party));
-    contract_details.contract.propose_obs_value(0, 2);
-
-    // Check that contract value is 2
-    assert_eq!(contract_details.contract.get_value(), 2);
-
-    // Propose obs_value_0 = 3 from the counter-party
-    contract_details.contract.propose_obs_value(0, 3);
-
-    // Check that contract value is still 2
-    assert_eq!(contract_details.contract.get_value(), 2);
-}
-
 // The value of a scale combinator with an agreed-upon observable scale value changes after a new agreed-upon proposal
 #[test]
 fn scale_with_concrete_obs_value_has_correct_value_after_second_agreement() {
-    // Create contract or scale obs one
-    let mut contract_details = setup_contract(vec![5, 0, 1]);
+    let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+    let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
 
-    // Propose obs_value_0 = 2 from both parties
-    ext_update(|e| e.sender(contract_details.holder));
-    contract_details.contract.propose_obs_value(0, 2);
+    // Create contract or scale obs arbiter one
+    let mut contract_details = setup_contract(vec![
+        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        1
+    ]);
 
-    ext_update(|e| e.sender(contract_details.counter_party));
-    contract_details.contract.propose_obs_value(0, 2);
+
+    // Propose obs_value_0 = 2 from the arbiter
+    ext_update(|e| e.sender(arbiter));
+    contract_details.contract.set_obs_value(0, 2);
 
     // Check that contract value is 2
     assert_eq!(contract_details.contract.get_value(), 2);
 
-    // Propose obs_value_0 = 3 from both parties
-    contract_details.contract.propose_obs_value(0, 3);
-
-    ext_update(|e| e.sender(contract_details.holder));
-    contract_details.contract.propose_obs_value(0, 3);
+    // Propose obs_value_0 = 3 from the arbiter
+    contract_details.contract.set_obs_value(0, 3);
 
     // Check that contract value is now 3
     assert_eq!(contract_details.contract.get_value(), 3);
@@ -372,23 +356,16 @@ fn should_panic_if_ambiguous_or_choice() {
 #[test]
 #[should_panic(expected = "Cannot get value of an undefined observable.")]
 fn should_panic_if_getting_value_with_undefined_observable() {
-    let mut contract = setup_contract(vec![5, 0, 1]).contract;
+    let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+    let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
+
+    // Create contract or scale obs arbiter one
+    let mut contract = setup_contract(vec![
+        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        1
+    ]).contract;
+
     contract.get_value();
-}
-
-// Getting the value of a contract with an observable without a concrete value is not allowed
-#[test]
-#[should_panic(expected = "Cannot get value of an undefined observable.")]
-fn should_panic_if_getting_value_with_observable_without_concrete_value() {
-    let mut contract_details = setup_contract(vec![5, 0, 1]);
-
-    // Propose two different values
-    ext_update(|e| e.sender(contract_details.holder));
-    contract_details.contract.propose_obs_value(0, 1);
-
-    ext_update(|e| e.sender(contract_details.counter_party));
-    contract_details.contract.propose_obs_value(0, 2);
-    contract_details.contract.get_value();
 }
 
 // Acquiring an expired contract is not allowed

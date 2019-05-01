@@ -107,6 +107,36 @@ export function serializeCombinatorContract(combinatorContract) {
     return result;
 }
 
+// Serializes an address into 4 integers
+export function serializeAddress(address) {
+    var bytes = [0,0,0,0].concat(web3.utils.hexToBytes(address));
+
+    var res = new Array(4).fill(0);
+
+    for (var i = 0; i < 3; i++) {
+        for (var j = 7; j >= 0; j--) {
+            res[i + 1] = web3.utils.toBN(res[i + 1]).mul(web3.utils.toBN(256)).add(web3.utils.toBN(bytes[i * 8 + j]));
+        }
+    }
+
+    return res;
+}
+
+// Deserializes 4 integers into an address
+export function deserializeAddress(address) {
+    var bytes = new Array(20);
+
+    for (var i = 1; i < 4; i++) {
+        var block = address[i];
+        for (var j = 0; j < 8; j++) {
+            bytes[(i - 1) * 8 + j] = block.umod(web3.utils.toBN(256));
+            block = block.div(web3.utils.toBN(256));
+        }
+    }
+
+    return web3.utils.toChecksumAddress(web3.utils.bytesToHex(bytes));
+}
+
 // Deserializes the acquisition times array into an array of Options
 export function deserializeAcquisitionTimes(acquisitionTimes) {
     var res = [];
