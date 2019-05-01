@@ -556,3 +556,9 @@ Next: Write the client!
 
 
 
+========== 1 May ==========
+
+In all my fiddling with the structure, turns out I deleted the node modules/yarn.lock in the right combination to accidentally update web3 from beta.46 to beta.53. This actually broke the tests. Should figure out how to upgrade to beta.53, but in the meantime have changed the version to specifically beta.46 in the package.json for javascript tests.
+
+
+

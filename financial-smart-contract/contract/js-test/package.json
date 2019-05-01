@@ -12,7 +12,7 @@
     "@babel/preset-env": "^7.4.3",
     "@babel/register": "^7.4.0",
     "mocha": "^6.1.4",
-    "web3": "^1.0.0-beta.33"
+    "web3": "1.0.0-beta.46"
   },
   "scripts": {
     "test": "mocha --require @babel/register"
