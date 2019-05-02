@@ -584,5 +584,10 @@ Moving tests into client dir, starting client development
 
 NB: Can't get dynamic folder location working, so resource location in contract-utils.mjs is based on the directory you're calling from. This means that any code using contract-utils.mjs must be called from the client directory, or else it won't be able to find the resource files. test.sh and deploy.sh both account for this right now.
 
+Started client implementation:
+	- Landing page with metamask connection (not implemented) or manual blockchain connection/account unlocking (implemented)
+	- Main menu and page transitions
+	- Architecture and CSS styling
+
 
 
