@@ -1160,7 +1160,7 @@ mod tests {
         let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
 
         assert_eq!(arbiter, i64_to_address(arbiter_serialized));
-        assert_eq!(arbiter_serialized, [0; 4]);
+        assert_eq!(arbiter_serialized, [0, 7989671873971486720, -6645747367859330040, -3554995745399102586]);
     }
 
     // The counter-party of the contract is set to the deployer

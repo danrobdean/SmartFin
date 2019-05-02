@@ -28,6 +28,9 @@ module.exports = {
             }
         ]
     },
+    node: {
+        __dirname: false
+    },
     plugins: [
         new HtmlWebpackPlugin({
             template: './src/index.html',

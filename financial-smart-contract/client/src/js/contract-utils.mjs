@@ -17,12 +17,44 @@ const combinatorDict = {
     "anytime": 9
 };
 
+const ABI_PATH = "./resources/abi.json";
+const CODE_PATH = "./resources/contract.wasm";
+
 // The Option class
 export class Option {
     // Initialises a new object of this class
     constructor(value) {
         this.defined = !!value;
         this.value = value;
+    }
+
+    // Returns true/false if this option's value is/isn't defined
+    isDefined() {
+        return this.defined;
+    }
+
+    // Returns the value of this option
+    getValue() {
+        return this.value;
+    }
+}
+
+// The observable entry class
+export class ObservableEntry {
+    // Initialises a new object of this class
+    constructor(address, value) {
+        this.address = address;
+        this.value = new Option(value);
+    }
+
+    // Returns the address of the account that this observable entry can be modified by
+    getAddress() {
+        return this.address;
+    }
+
+    // Returns the Optional value of this entry
+    getValue() {
+        return this.value;
     }
 }
 
@@ -37,10 +69,10 @@ export async function unlockAccount(address, password) {
 
 // Loads and deploys the contract (from a fixed contract for this test), returns the contract object
 export function loadAndDeployContract(contractBytes, contractHolder, sender = "0x004ec07d2329997267ec62b4166639513386f32e") {
-    var abi = getAbi();
+    var abi = JSON.parse(fs.readFileSync(ABI_PATH));
 
     // Format the contract correctly
-    var codeHex = '0x' + fs.readFileSync("./resources/contract.wasm").toString('hex');
+    var codeHex = '0x' + fs.readFileSync(CODE_PATH).toString('hex');
     
     // Construct a contract object
     var TestContract = new web3.eth.Contract(abi);
@@ -93,6 +125,11 @@ export function serializeCombinatorContract(combinatorContract) {
                     result.push(parseInt(combinators[i + 1]));
                 } else {
                     result.push(0);
+                    var address_serialized = serializeAddress(combinators[i + 2]);
+                    for (let part of address_serialized) {
+                        result.push(part.toString());
+                    }
+                    i++;
                 }
                 i++;
                 break;
@@ -111,11 +148,12 @@ export function serializeCombinatorContract(combinatorContract) {
 export function serializeAddress(address) {
     var bytes = [0,0,0,0].concat(web3.utils.hexToBytes(address));
 
-    var res = new Array(4).fill(0);
+    var buffer = new ArrayBuffer(32);
+    var res = new BigInt64Array(buffer);
 
     for (var i = 0; i < 3; i++) {
         for (var j = 7; j >= 0; j--) {
-            res[i + 1] = web3.utils.toBN(res[i + 1]).mul(web3.utils.toBN(256)).add(web3.utils.toBN(bytes[i * 8 + j]));
+            res[i + 1] = res[i + 1] * BigInt(256) + BigInt(bytes[i * 8 + j]);
         }
     }
 
@@ -127,14 +165,21 @@ export function deserializeAddress(address) {
     var bytes = new Array(20);
 
     for (var i = 1; i < 4; i++) {
-        var block = address[i];
+        var block = web3.utils.toBN(address[i].toString());
+        // Convert number into bytes
         for (var j = 0; j < 8; j++) {
-            bytes[(i - 1) * 8 + j] = block.umod(web3.utils.toBN(256));
+            // Mod by 256
+            var remainder = block.umod(web3.utils.toBN(256));
+            bytes[(i - 1) * 8 + j] = remainder;
+            // Remove accounted-for byte
+            block = block.sub(remainder);
+            // Divide by 256
             block = block.div(web3.utils.toBN(256));
         }
     }
 
-    return web3.utils.toChecksumAddress(web3.utils.bytesToHex(bytes));
+    var hex = web3.utils.bytes
+    return bytesToAddress(bytes);
 }
 
 // Deserializes the acquisition times array into an array of Options
@@ -160,19 +205,27 @@ export function deserializeOrChoices(orChoices) {
     return res;
 }
 
-// Deserializes the observable values array into an array of Options
-export function deserializeObsValues(obsValues) {
+// Deserializes the observable entries array into an array of ObservableEntries
+export function deserializeObsEntries(obsEntries) {
     var res = [];
 
-    for (var i = 0; i < obsValues.length; i++) {
-        res.push(new Option(obsValues[i] == -1 ? undefined : obsValues[++i]));
+    for (var i = 0; i < obsEntries.length; i += 5) {
+        var address = deserializeAddress(obsEntries.slice(i, i + 4));
+        var value = undefined;
+        if (obsEntries[i + 4] != -1) {
+            value = obsEntries[i + 5];
+            i++;
+        } 
+        res.push(new ObservableEntry(address, value));
     }
 
     return res;
 }
 
+// Converts an array of bytes to an address
+function bytesToAddress(bytes) {
+    var hex = web3.utils.bytesToHex(bytes).substring(2);
+    hex = "0x" + hex.padStart(40, "0");
 
-// Loads the contract abi
-function getAbi() {
-    return JSON.parse(fs.readFileSync("./resources/abi.json"));
+    return web3.utils.toChecksumAddress(hex);
 }

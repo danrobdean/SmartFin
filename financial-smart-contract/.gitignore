@@ -1,5 +1,5 @@
-contract/target
-contract/js-test/resources
+**/contract/target
+**/client/resources
 
 **/node_modules
 **/yarn.lock

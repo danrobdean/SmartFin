@@ -574,3 +574,15 @@ Also add tests and update JS tests for new obs system.
 
 
 
+========== 2 May ==========
+
+Added/fixed tests for new observable system.
+Fixed issue with address calculation rounding based on already-accounted-for bytes, making address bytes off by 1
+Fixed issue with deserialized addresses needing padding with 0s
+
+Moving tests into client dir, starting client development
+
+NB: Can't get dynamic folder location working, so resource location in contract-utils.mjs is based on the directory you're calling from. This means that any code using contract-utils.mjs must be called from the client directory, or else it won't be able to find the resource files. test.sh and deploy.sh both account for this right now.
+
+
+

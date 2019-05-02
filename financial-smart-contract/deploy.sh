@@ -1,5 +1,5 @@
-cd contract-js-test
+cd client
 
-node --experimental-modules ./deploy-contract.mjs
+node --experimental-modules ./src/js/deploy-contract.mjs
 
-cd ..
+cd -

@@ -24,6 +24,8 @@ init-test-accounts() {
     echo "Account 1 initialised."
     curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromSecret","params":["0xfa1bf117f434f89e7be33bc480b0744575f58acd2c9e1da728587be8265dcd05", "test"],"id":2}' -H "Content-Type: application/json" -X POST localhost:8545
     echo "Account 2 initialised."
+    curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromSecret","params":["0x688df665ef8e734c4dd86f7c759a0a50f7dadfe2638b550ab01b44ff4dbf57c5", "test"],"id":3}' -H "Content-Type: application/json" -X POST localhost:8545
+    echo "Account 3 initialised."
 }
 
 # Print help if requested

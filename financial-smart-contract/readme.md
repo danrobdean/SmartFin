@@ -19,7 +19,7 @@ Parity must be installed to run the dev chain. To run the development blockchain
 
 Once the blockchain is running, the contract can be deployed from a node console.
 
-First, execute `yarn install` to install web3 dependencies in the contract-js-test directory.
+First, execute `yarn install` to install web3 dependencies in the client directory.
 
 Next, run `./deploy.sh` from the root directory, which opens a node console. In this console, you can input a combinator contract, and then a holder address (can be any valid Ethereum address except the address sending the contract transaction). A smart contract will be created and the combinator contract will be passed to it, defining its behaviour.
 

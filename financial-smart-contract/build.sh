@@ -11,6 +11,6 @@ wasm-build --target=wasm32-unknown-unknown ./target financial_smart_contract
 
 cd ..
 
-mkdir -p ./contract/js-test/resources
-cp ./contract/target/json/FinancialScInterface.json ./contract/js-test/resources/abi.json
-cp ./contract/target/financial_smart_contract.wasm ./contract/js-test/resources/contract.wasm
+mkdir -p ./client/resources
+cp ./contract/target/json/FinancialScInterface.json ./client/resources/abi.json
+cp ./contract/target/financial_smart_contract.wasm ./client/resources/contract.wasm
