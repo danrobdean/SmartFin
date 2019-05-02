@@ -1,0 +1,183 @@
+/* Page container should fill window */
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+/* Set default button style */
+button {
+    font-size: 1.5em;
+    border: none;
+    background-color: hsl(0, 0%, 90%);
+    padding: 0.5em;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    border-radius: 5px;
+}
+
+button:hover {
+    background-color: hsl(0, 0%, 85%);
+    cursor: pointer;
+}
+
+button:active {
+    background-color: hsl(0, 0%, 79%)
+}
+
+button:disabled {
+    background-color: hsl(0, 0%, 85%);
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Set default font */
+* {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+
+/* React component styling */
+
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+.connect-account__main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.connect-account__metamask-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+
+    flex: 1 0 1em;
+    margin-top: 7em;
+}
+
+.connect-account__metamask-title {
+    margin: 1em;
+    font-size: 2em;
+}
+
+.connect-account__manual-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1 0 1em;
+    justify-content: flex-start;
+
+    margin: 2em;
+}
+
+.connect-account__manual-title {
+    font-size: 1.5em;
+    margin-bottom: 2em;
+}
+
+.connect-account__manual-url-container,
+.connect-account__manual-account-details-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.connect-account__manual-account-details-container--hidden {
+    display: none;
+}
+
+.connect-account__manual-labels-inputs-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: end;
+}
+
+.connect-account__manual-label-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0.4em;
+}
+
+.connect-account__manual-input-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.connect-account__manual-address-label,
+.connect-account__manual-password-label,
+.connect-account__manual-url-label {
+    font-size: 1.2em;
+    width: 8em;
+    text-align: right;
+}
+
+.connect-account__manual-address-input,
+.connect-account__manual-password-input,
+.connect-account__manual-url-input {
+    font-size: 1.2em;
+    margin: 0.2em;
+}
+
+.connect-account__manual-connect-button {
+    margin: 1em 0;
+}
+
+.connect-account__manual-unlock-account-button {
+    margin: 1em 0;
+}
+
+.main-menu__main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    height: 100%;
+    padding-bottom: 10em;
+    box-sizing: border-box;
+}
+
+.main-menu__button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.main-menu__composition-button,
+.main-menu__monitoring-button {
+    margin: 2em;
+    font-size: 2em;
+}
+
+.main__back-button-container {
+    display: flex;
+    flex-direction: column;
+
+    height: 100%;
+    width: 100%;
+}
+
+.main__wrapper {
+    flex: 0 0 auto;
+}
+
+.main__container {
+    flex: 1 1 auto;
+}
+
+.main__back-button {
+    font-size: 2em;
+    padding: 0;
+    width: 5em;
+    margin: 0.25em;
+}

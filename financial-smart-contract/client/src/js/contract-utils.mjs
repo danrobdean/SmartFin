@@ -1,7 +1,7 @@
 import Web3 from "web3";
 import fs from "fs";
 
-export const web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545")); // The local parity blockchain address
+var web3;
 
 // Setup combinator -> byte dictionary
 const combinatorDict = {
@@ -58,17 +58,39 @@ export class ObservableEntry {
     }
 }
 
+export function setupWeb3(url = "http://localhost:8545") {
+    var provider = new Web3.providers.HttpProvider(url);
+    if (!web3) {
+        web3 = new Web3(provider);
+    } else {
+        web3.setProvider(provider);
+    }
+    return web3;
+}
+
 export function unlockDefaultAccount() {
+    if (!web3) {
+        setupWeb3();
+    }
+
     web3.eth.defaultAccount = "0x004ec07d2329997267ec62b4166639513386f32e";
     unlockAccount(web3.eth.defaultAccount, "user").then(_ => console.log("Account unlocked"), err => console.log(err));
 }
 
 export async function unlockAccount(address, password) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     return web3.eth.personal.unlockAccount(address, password, web3.utils.toHex(0));
 }
 
 // Loads and deploys the contract (from a fixed contract for this test), returns the contract object
 export function loadAndDeployContract(contractBytes, contractHolder, sender = "0x004ec07d2329997267ec62b4166639513386f32e") {
+    if (!web3) {
+        setupWeb3();
+    }
+
     var abi = JSON.parse(fs.readFileSync(ABI_PATH));
 
     // Format the contract correctly
@@ -99,6 +121,10 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender = "0
 
 // Serializes a combinator contract from a string
 export function serializeCombinatorContract(combinatorContract) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     var combinators = combinatorContract.split(/[ \(\),]/)
         .filter(c => c.length != 0)
         .map(c => c.toLowerCase());
@@ -146,6 +172,10 @@ export function serializeCombinatorContract(combinatorContract) {
 
 // Serializes an address into 4 integers
 export function serializeAddress(address) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     var bytes = [0,0,0,0].concat(web3.utils.hexToBytes(address));
 
     var buffer = new ArrayBuffer(32);
@@ -162,6 +192,10 @@ export function serializeAddress(address) {
 
 // Deserializes 4 integers into an address
 export function deserializeAddress(address) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     var bytes = new Array(20);
 
     for (var i = 1; i < 4; i++) {
@@ -195,6 +229,10 @@ export function deserializeAcquisitionTimes(acquisitionTimes) {
 
 // Deserializes the or choices byte array into an array of Options
 export function deserializeOrChoices(orChoices) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     orChoices = web3.utils.hexToBytes(orChoices);
     var res = [];
 
@@ -224,6 +262,10 @@ export function deserializeObsEntries(obsEntries) {
 
 // Converts an array of bytes to an address
 function bytesToAddress(bytes) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     var hex = web3.utils.bytesToHex(bytes).substring(2);
     hex = "0x" + hex.padStart(40, "0");
 

@@ -29,7 +29,8 @@ module.exports = {
         ]
     },
     node: {
-        __dirname: false
+        __dirname: false,
+        fs: 'empty'
     },
     plugins: [
         new HtmlWebpackPlugin({

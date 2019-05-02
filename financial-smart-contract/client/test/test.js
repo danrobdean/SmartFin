@@ -1,8 +1,9 @@
 import assert from "assert";
-import { web3, unlockAccount, loadAndDeployContract, serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, serializeAddress, deserializeAddress } from "../src/js/contract-utils.mjs";
+import { setupWeb3, unlockAccount, loadAndDeployContract, serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, serializeAddress, deserializeAddress } from "../src/js/contract-utils.mjs";
 
 // The deployed smart contract instance
 var contract;
+var web3 = setupWeb3();
 
 // Address/password pairs
 const uninvolved = {
