@@ -260,6 +260,11 @@ export function deserializeObsEntries(obsEntries) {
     return res;
 }
 
+// Converts the given date object to a Unix timestamp
+export function dateToUnixTimestamp(date) {
+    return date.getTime() / 1000 | 0;
+}
+
 // Converts an array of bytes to an address
 function bytesToAddress(bytes) {
     if (!web3) {

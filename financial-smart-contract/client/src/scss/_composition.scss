@@ -1,0 +1,75 @@
+// The styling for the Composition component.
+
+.composition__main-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+
+    height: 100%;
+    width: 100%;
+}
+
+.composition__wrapping-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.composition__composition-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+
+    margin: 2em;
+}
+
+.composition__composition-title {
+    margin-bottom: 0.5em;
+    margin-left: 0.1em;
+}
+
+.composition__controls-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+
+    margin: 2em 2em 2em 0;
+    height: 100%;
+}
+
+.composition__control-button {
+    flex: 1 1 auto;
+    width: 10em;
+    margin-top: 0.5em;
+}
+
+.composition__select-time-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.composition__time-row-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+
+    width: 100%;
+}
+
+.composition__time-input-container {
+    margin: 2em 0;
+}
+
+.composition__time-input {
+    margin-left: 1em;
+}
+
+.composition__insert-time-button {
+    margin: 0.5em;
+    float: right;
+}

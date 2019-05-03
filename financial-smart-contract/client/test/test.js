@@ -1,5 +1,5 @@
 import assert from "assert";
-import { setupWeb3, unlockAccount, loadAndDeployContract, serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, serializeAddress, deserializeAddress } from "../src/js/contract-utils.mjs";
+import { setupWeb3, unlockAccount, loadAndDeployContract, serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, serializeAddress, deserializeAddress, dateToUnixTimestamp } from "../src/js/contract-utils.mjs";
 
 // The deployed smart contract instance
 var contract;
@@ -40,7 +40,7 @@ function deploy(contractDefinition) {
 
 // Get the current UNIX time
 function getUnixTime() {
-    return Date.now() / 1000 | 0;
+    return dateToUnixTimestamp(new Date());
 }
 
 describe('Contract utility tests', function() {

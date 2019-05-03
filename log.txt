@@ -591,3 +591,27 @@ Started client implementation:
 
 
 
+========== 3 May ==========
+
+More work on the client, the contract composition page. Need:
+	- Explanation of how to write contracts
+	- Way to type contract (click/drag and drop?)
+	- Way to verify syntax (should be simple, basically just number of combinators)
+	- Way to input timestamps (datetime input)
+	- Way to set observable arbiters (variables? or just addresses)
+	- prefix or infix (and then convert to prefix)? prefix is easier to handle in every way, but less human readable. infix works better if contracts not typed by hand (in a simple system)
+
+Additions to client:
+	- SASS instead of CSS monolith
+	- Composition view with textarea, and help/time/submit buttons
+	- Modals!
+	- Modal for help in composition (basic, still needs proper explanation of DSL)
+	- Error messages
+	- Working datetime input in composition
+	- Better styling/colours (subjectively)
+	- Added a dropdown description component (not styled or used anywhere)
+
+To do: contract parsing, error reporting (basic), contract submission (returns contract address), evaluation??, then contract monitoring
+
+
+

@@ -1,0 +1,68 @@
+// The styling for the Modal component.
+@import "assets/variables";
+
+.modal__overlay {
+    display: block;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: #000000;
+    background-color: $colour-overlay;
+}
+
+.modal__overlay--hidden {
+    display: none;
+}
+
+.modal__container {
+    background-color: $colour-background;
+    margin: 10% auto;
+    width: 80%;
+}
+
+.modal__titlebar {
+    display: flex;
+    flex-direction: row;
+    align-content: center;
+    justify-content: space-between;
+
+    color: $colour-text-primary;
+    background-color: $colour_primary;
+    padding: 0.5em 1em 0.5em 2em;
+}
+
+.modal__title {
+    flex: 0 0 auto;
+    font-size: 1.5em;
+    margin: 0.5em 0;
+    vertical-align: bottom;
+}
+
+.modal__close-button {
+    flex: 0 0 auto;
+    font-size: 2em;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+}
+
+.modal__close-button:hover {
+    text-shadow: 0 0 0.2em $colour-text-primary-dark;
+}
+
+.modal__close-button:active {
+    text-shadow: 0 0 0.2em $colour-text-primary-dark;
+    color: $colour-text-primary-dark;
+}
+
+.modal__close-icon {
+    margin: 0;
+}
+
+.modal__content-container {
+    padding: 2em;
+}

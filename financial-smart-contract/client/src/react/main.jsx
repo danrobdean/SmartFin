@@ -5,9 +5,13 @@ import ConnectAccount from "./connect-account.jsx";
 import MainMenu from "./main-menu.jsx";
 import Monitoring from "./monitoring.jsx";
 
-// The main UI component.
+/** 
+ * The main UI component.
+ */
 export default class Main extends React.Component {
-    // The CSS block name for this component
+    /**
+     * The CSS block name for this component.
+     */
     static blockName = "main";
 
     /**

@@ -1,0 +1,15 @@
+@import "assets/variables";
+
+.error-msg__container {
+    border-radius: 5px;
+    border: 2px solid $colour-err;
+    background-color: $colour-err-light;
+    width: 100%;
+    padding: 0.5em;
+    box-sizing: border-box;
+    color: $colour-text-err;
+}
+
+.error-msg__container--hidden {
+    display: none;
+}

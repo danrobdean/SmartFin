@@ -1,0 +1,50 @@
+@import "assets/variables";
+
+// Page container should fill window
+html, body, #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background-color: $colour-background;
+}
+
+// Set default button style
+button {
+    font-size: 1.5em;
+    border: none;
+    background-color: $colour-primary;
+    color: $colour-text-primary;
+    padding: 0.5em;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    border-radius: 5px;
+    box-shadow: 2px 2px 4px 0.5px $colour-shadow;
+    user-select: none;
+}
+
+button:hover {
+    background-color: $colour-primary-dark;
+    cursor: pointer;
+}
+
+button:active {
+    background-color: $colour-primary-darker;
+}
+
+button:disabled {
+    background-color: $colour-primary;
+    opacity: 0.5;
+    cursor: default;
+}
+
+// Disable resizeable on textareas
+textarea {
+    resize: none;
+    font-size: 1.5em;
+}
+
+// Set default font
+* {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}

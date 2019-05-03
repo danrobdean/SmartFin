@@ -1,0 +1,25 @@
+// The styling for the MainMenu component.
+
+.main-menu__main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    height: 100%;
+    padding-bottom: 5em;
+    box-sizing: border-box;
+}
+
+.main-menu__button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.main-menu__composition-button,
+.main-menu__monitoring-button {
+    margin: 2em;
+    font-size: 2em;
+    width: 80%;
+}

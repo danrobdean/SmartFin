@@ -58,7 +58,7 @@ export default class ConnectAccount extends React.Component {
                                     <input
                                         className={ConnectAccount.blockName + "__manual-url-input"}
                                         ref={r => this.urlInput = r}
-                                        onChange={e => this.handleUrlInputChanged(e)}
+                                        onChange={e => this.handleUrlInputChange(e)}
                                         onKeyPress={e => this.handleUrlInputKeyPress(e)}
                                         placeholder={LOCAL_BLOCKCHAIN_URL}
                                         size={45}
@@ -84,7 +84,7 @@ export default class ConnectAccount extends React.Component {
                                     <input
                                         className={ConnectAccount.blockName + "__manual-address-input"}
                                         ref={r => this.addressInput = r}
-                                        onChange={e => this.handleAddressInputChanged(e)}
+                                        onChange={e => this.handleAddressInputChange(e)}
                                         onKeyPress={e => this.handleAccountInputKeyPress(e)}
                                         placeholder="0x..."
                                         size={45}
@@ -92,7 +92,7 @@ export default class ConnectAccount extends React.Component {
                                     <input
                                         className={ConnectAccount.blockName + "__manual-password-input"}
                                         ref={r => this.passwordInput = r}
-                                        onChange={e => this.handlePasswordInputChanged(e)}
+                                        onChange={e => this.handlePasswordInputChange(e)}
                                         onKeyPress={e => this.handleAccountInputKeyPress(e)}
                                         type="password"
                                         name="password"
@@ -161,7 +161,7 @@ export default class ConnectAccount extends React.Component {
      * Handles the inputChange event on the address input.
      * @param event The event.
      */
-    handleAddressInputChanged(event) {
+    handleAddressInputChange(event) {
         event.preventDefault();
 
         this.setState({
@@ -173,7 +173,7 @@ export default class ConnectAccount extends React.Component {
      * Handles the inputChange event on the password input.
      * @param event The event.
      */ 
-    handlePasswordInputChanged(event) {
+    handlePasswordInputChange(event) {
         event.preventDefault();
 
         this.setState({
@@ -185,7 +185,7 @@ export default class ConnectAccount extends React.Component {
      * Handles the inputChange event on the URL input.
      * @param event The event.
      */
-    handleUrlInputChanged(event) {
+    handleUrlInputChange(event) {
         event.preventDefault();
         var url = this.urlInput.value;
         if (url == "") {

@@ -1,49 +1,4 @@
-/* Page container should fill window */
-html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-}
-
-/* Set default button style */
-button {
-    font-size: 1.5em;
-    border: none;
-    background-color: hsl(0, 0%, 90%);
-    padding: 0.5em;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    border-radius: 5px;
-}
-
-button:hover {
-    background-color: hsl(0, 0%, 85%);
-    cursor: pointer;
-}
-
-button:active {
-    background-color: hsl(0, 0%, 79%)
-}
-
-button:disabled {
-    background-color: hsl(0, 0%, 85%);
-    opacity: 0.5;
-    cursor: default;
-}
-
-/* Set default font */
-* {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-
-/* React component styling */
-
-#root {
-    width: 100%;
-    height: 100%;
-}
+// The styling for the ConnectAccount component
 
 .connect-account__main-container {
     display: flex;
@@ -75,6 +30,12 @@ button:disabled {
     justify-content: flex-start;
 
     margin: 2em;
+}
+
+.connect-account__metamask-connect-button,
+.connect-account__manual-connect-button,
+.connect-account__manual-unlock-account-button {
+    width: 12em;
 }
 
 .connect-account__manual-title {
@@ -134,50 +95,4 @@ button:disabled {
 
 .connect-account__manual-unlock-account-button {
     margin: 1em 0;
-}
-
-.main-menu__main-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-
-    height: 100%;
-    padding-bottom: 10em;
-    box-sizing: border-box;
-}
-
-.main-menu__button-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.main-menu__composition-button,
-.main-menu__monitoring-button {
-    margin: 2em;
-    font-size: 2em;
-}
-
-.main__back-button-container {
-    display: flex;
-    flex-direction: column;
-
-    height: 100%;
-    width: 100%;
-}
-
-.main__wrapper {
-    flex: 0 0 auto;
-}
-
-.main__container {
-    flex: 1 1 auto;
-}
-
-.main__back-button {
-    font-size: 2em;
-    padding: 0;
-    width: 5em;
-    margin: 0.25em;
 }
