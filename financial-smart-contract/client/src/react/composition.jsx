@@ -1,9 +1,12 @@
 import React from "react";
 
-import ErrorMsg from "./error-msg.jsx";
+import DeployControls from "./deploy-controls.jsx";
+import Help from "./help.jsx";
+import Message from "./message.jsx";
 import Modal from "./modal.jsx";
+import TimeSelect from "./time-select.jsx";
 
-import { dateToUnixTimestamp } from "./../js/contract-utils.mjs";
+import { verifyContract } from "./../js/contract-utils.mjs"
 
 /**
  * The contract composition component.
@@ -13,16 +16,6 @@ export default class Composition extends React.Component {
      * The CSS block name.
      */
     static blockName = "composition";
-
-    /**
-     * The time input.
-     */
-    timeInput;
-
-    /**
-     * The date input.
-     */
-    dateInput;
 
     /**
      * The contract composition input. 
@@ -41,8 +34,10 @@ export default class Composition extends React.Component {
             contract: "",
             helpOpen: false,
             timePickerOpen: false,
-            error: false,
-            timeErrorMsg: ""
+            deployOpen: false,
+            contractWarning: "",
+            contractError: "",
+            contractErrorStack: ""
         }
     }
 
@@ -53,80 +48,47 @@ export default class Composition extends React.Component {
         return (
             <div className={Composition.blockName + "__main-container"}>
                 <Modal title="Help" closeModal={() => this.closeModals()} visible={this.state.helpOpen}>
-                    <span className={Composition.blockName + "__help-text"}>
-                        First, write a contract in the text box.
-                        <br/>
-                        <br/>
-                        If the contract concerns time, press the <em>Select Time</em> button to input a time into the contract at the cursor's position.
-                        <br/>
-                        <br/>
-                        Once the contract is complete, press the <em>Submit Contract</em> button to deploy it to the blockchain.
-                    </span>
+                    <Help/>
                 </Modal>
 
                 <Modal title="Select Time" closeModal={() => this.closeModals()} visible={this.state.timePickerOpen}>
-                    <div className={Composition.blockName + "__select-time-container"}>
-                        <div className={Composition.blockName + "__time-row-container"}>
-                            <div className={Composition.blockName + "__time-left-container"}>
-
-                                <span className={Composition.blockName + "__select-time-text"}>
-                                    Select a date and time:
-                                </span>
-
-                                <div className={Composition.blockName + "__time-input-container"}>
-                                    <input
-                                        className={Composition.blockName + "__date-input"}
-                                        ref={r => this.dateInput = r}
-                                        type="date"/>
-
-                                    <input
-                                        className={Composition.blockName + "__time-input"}
-                                        ref={r => this.timeInput = r}
-                                        type="time"/>
-                                </div>
-                            </div>
-
-                            <div className={Composition.blockName + "__time-right-container"}>
-                                <button
-                                    className={Composition.blockName + "__insert-time-button"}
-                                    onClick={() => this.insertTime()}>
-                                    Insert Time
-                                </button>
-                            </div>
-                        </div>
-
-                        <ErrorMsg error={this.state.error}>{this.state.timeErrorMsg}</ErrorMsg>
-                    </div>
+                    <TimeSelect returnTime={unixTime => this.insertTime(unixTime)}/>
                 </Modal>
 
-                <div className={Composition.blockName + "__wrapping-container"}>
-                    <div className={Composition.blockName + "__composition-container"}>
-                        <span className={Composition.blockName + "__composition-title"}>Enter your contract here:</span>
-                        <textarea
-                            className={Composition.blockName + "__composition-input"}
-                            ref={r => this.compositionInput = r}
-                            onChange={e => this.handleCompositionInputChange(e)}
-                            onKeyPress={e => this.handleCompositionInputKeyPress(e)}
-                            rows={15}
-                            cols={70}/>
+                <Modal title="Deploy Contract" closeModal={() => this.closeModals()} visible={this.state.deployOpen}>
+                    <DeployControls address={this.props.address} contract={this.state.contract} warning={this.state.contractWarning}/>
+                </Modal>
+                <div className={Composition.blockName + "__size-container"}>
+                    <div className={Composition.blockName + "__wrapping-container"}>
+                        <div className={Composition.blockName + "__composition-container"}>
+                            <span className={Composition.blockName + "__composition-title"}>Enter your contract here:</span>
+                            <textarea
+                                className={Composition.blockName + "__composition-input"}
+                                ref={r => this.compositionInput = r}
+                                onChange={e => this.handleCompositionInputChange(e)}
+                                onKeyPress={e => this.handleCompositionInputKeyPress(e)}
+                                rows={15}
+                                cols={70}/>
+                        </div>
+                        <div className={Composition.blockName + "__controls-container"}>
+                            <button
+                                className={Composition.blockName + "__control-button"}
+                                onClick={() => this.displayHelp()}>
+                                Help
+                            </button>
+                            <button
+                                className={Composition.blockName + "__control-button"}
+                                onClick={() => this.displayTimePicker()}>
+                                Select Time
+                            </button>
+                            <button
+                                className={Composition.blockName + "__control-button"}
+                                onClick={() => this.displayDeploy()}>
+                                Deploy Contract
+                            </button>
+                        </div>
                     </div>
-                    <div className={Composition.blockName + "__controls-container"}>
-                        <button
-                            className={Composition.blockName + "__control-button"}
-                            onClick={() => this.displayHelp()}>
-                            Help
-                        </button>
-                        <button
-                            className={Composition.blockName + "__control-button"}
-                            onClick={() => this.displayTimePicker()}>
-                            Select Time
-                        </button>
-                        <button
-                            className={Composition.blockName + "__control-button"}
-                            onClick={() => this.submitContract()}>
-                            Submit Contract
-                        </button>
-                    </div>
+                    {Message.renderError(this.state.contractError, this.state.contractErrorStack)}
                 </div>
             </div>
         );
@@ -135,39 +97,20 @@ export default class Composition extends React.Component {
     /**
      * Inserts the date/time from the date and time inputs into the contract.
      */
-    insertTime() {
-        var date = this.dateInput.value;
-        var time = this.timeInput.value;
-        if (date == "") {
-            this.setState({
-                timeErrorMsg: "Please select a date.",
-                error: true
-            });
-            return;
-        } else if (time == "") {
-            this.setState({
-                timeErrorMsg: "Please select a time.",
-                error: true
-            });
-            return;
-        }
-
-        this.setState({
-            timeErrorMsg: "",
-            error: false
-        });
-
+    insertTime(unixTime) {
         this.closeModals(() => {
-            var dateTime = new Date(date + " " + time);
-
-            this.closeModals();
             this.compositionInput.focus();
     
             var pos = this.compositionInput.selectionStart;
             this.compositionInput.value =
                 this.compositionInput.value.substring(0, pos)
-                + dateToUnixTimestamp(dateTime)
+                + unixTime
                 + this.compositionInput.value.substring(pos, this.compositionInput.value.length);
+            this.compositionInput.setSelectionRange(pos + unixTime.toString().length, pos + unixTime.toString().length);
+
+            this.setState({
+                contract: this.compositionInput.value
+            });
         });
     }
 
@@ -192,22 +135,37 @@ export default class Composition extends React.Component {
     }
 
     /**
+     * Displays the deploy contract modal.
+     */
+    displayDeploy() {
+        var res = verifyContract(this.state.contract);
+
+        if (res.error) {
+            this.setState({
+                contractWarning: "",
+                contractError: res.error,
+                contractErrorStack: res.stack
+            });
+        } else {
+            this.setState({
+                contractWarning: res.warning,
+                contractError: "",
+                contractErrorStack: "",
+                deployOpen: true
+            });
+        }
+    }
+
+    /**
      * Closes the modals.
+     * @param callback Called once the modals have been closed.
      */
     closeModals(callback = () => {}) {
         this.setState({
             helpOpen: false,
             timePickerOpen: false,
-            timeErrorMsg: "",
-            error: false
+            deployOpen: false
         }, callback);
-    }
-
-    /**
-     * Submits the combinator contract to the blockchain.
-     */
-    submitContract() {
-        alert("Not implemented.");
     }
 
     /**
@@ -227,10 +185,10 @@ export default class Composition extends React.Component {
      * @param event The key press event.
      */
     handleCompositionInputKeyPress(event) {
-        // If the key code is ENTER (13), connect to the blockchain
+        // If the key code is ENTER (13), display deploy modal
         if ((event.keyCode ? event.keyCode : event.which) == 13) {
             event.preventDefault();
-            this.submitContract();
+            this.displayDeploy();
         }
     }
 }

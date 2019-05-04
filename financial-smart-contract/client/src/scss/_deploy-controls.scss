@@ -1,0 +1,38 @@
+.deploy-controls__container {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+}
+
+.deploy-controls__details-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.deploy-controls__contract {
+    margin: 0.8em 0 1em 0;
+}
+
+.deploy-controls__holder-label {
+    margin-top: 2em;
+}
+
+.deploy-controls__holder-input {
+    margin: 1em 0 1em 0;
+    font-size: 1.2em;
+}
+
+.deploy-controls__button-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+
+    width: 100%;
+    margin-top: 3em;
+}
+
+.deploy-controls__deploy-button {
+    flex: 0 0 auto;
+}

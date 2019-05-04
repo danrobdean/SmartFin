@@ -1,11 +1,20 @@
 import React from "react";
 
+import Message from "./message.jsx";
+import Spinner from "./spinner.jsx";
+
 import { setupWeb3, unlockAccount } from "./../js/contract-utils.mjs";
 
 const LOCAL_BLOCKCHAIN_URL = "http://localhost:8545";
 
 // The UI for connecting an account via MetaMask or direct input.
 export default class ConnectAccount extends React.Component {
+    // The timeout for connecting to a blockchain manually.
+    static CONNECT_TIMEOUT = 10000;
+
+    // The timeout for unlocking an account manually.
+    static UNLOCK_TIMEOUT = 10000;
+
     // The CSS block name for this component
     static blockName = "connect-account";
 
@@ -18,6 +27,9 @@ export default class ConnectAccount extends React.Component {
     // Reference to the manual blockchain URL input.
     urlInput;
 
+    // Set of scheduled timeouts.
+    timeouts = [];
+
     /**
      * Initialises an instance of this class.
      * @param props.setWeb3 Function to set the web3 instance.
@@ -29,7 +41,11 @@ export default class ConnectAccount extends React.Component {
             address: "",
             password: "",
             url: LOCAL_BLOCKCHAIN_URL,
-            web3: null
+            web3: null,
+            manualConnectError: "",
+            manualAccountUnlockError: "",
+            connecting: false,
+            unlocking: false
         }
     }
 
@@ -72,6 +88,9 @@ export default class ConnectAccount extends React.Component {
                                 onClick={() => this.connectManual()}>
                                 Connect Manually
                             </button>
+
+                            {Spinner.renderNotice((this.state.connecting) ? "Connecting" : null)}
+                            {Message.renderError(this.state.manualConnectError)}
                         </div>
                         <div className={ConnectAccount.blockName + "__manual-account-details-container" + manualAccountClassModifier}>
                             <div className={ConnectAccount.blockName + "__manual-labels-inputs-container"}>
@@ -105,11 +124,23 @@ export default class ConnectAccount extends React.Component {
                                 onClick={() => this.unlockAccountManual()}>
                                 Unlock Account
                             </button>
+
+                            {Spinner.renderNotice((this.state.unlocking) ? "Unlocking" : null)}
+                            {Message.renderError(this.state.manualAccountUnlockError)}
                         </div>
                     </div>
                 </div>
             </div>
         );
+    }
+
+    /**
+     * Cancel all scheduled callbacks.
+     */
+    componentWillUnmount() {
+        for (var timeout of this.timeouts) {
+            clearTimeout(timeout);
+        }
     }
 
     /**
@@ -122,39 +153,100 @@ export default class ConnectAccount extends React.Component {
     /**
      * Attempts to connect to the manually input blockchain.
      */
-    async connectManual() {
+    connectManual() {
         // Setup web3 connection
         var web3 = setupWeb3(this.state.url);
 
-        // Check if connection successful
-        web3.eth.net.isListening().then(() => {
-            this.setState({
-                web3: web3
-            });
+        var successfulState = {
+            web3: web3,
+            manualConnectError: "",
+            connecting: false
+        };
+        var failedState = (errorMsg) => {return {
+            web3: null,
+            manualConnectError: errorMsg,
+            connecting: false
+        }}
+
+        this.setState({
+            manualConnectError: "",
+            connecting: true
         }, () => {
-            this.setState({
-                web3: null
+            // Set connection timeout.
+            var timeout = setTimeout(() => {
+                if (this.state.connecting) {
+                    // Connection timed out, set failed.
+                    this.setState(failedState("Manual connection timed out! Please check the blockchain URL."));
+                }
+            }, ConnectAccount.CONNECT_TIMEOUT);
+            this.timeouts.push(timeout);
+
+            // Check if connection successful
+            web3.eth.net.isListening().then(() => {
+                if (this.state.connecting) {
+                    // Connection succeeded, set successful.
+                    this.setState(successfulState);
+                }
+            }).catch(() => {
+                if (this.state.connecting) {
+                    // Connection erred, set failed.
+                    this.setState(failedState("Manual connection failed! Please check the blockchain URL."));
+                }
             });
-            alert("Manual connection failed!\nPlease check the blockchain URL.");
         });
     }
 
+    /**
+     * Tries to unlock the blockchain account, reverts state and shows error if fails.
+     */
     async unlockAccountManual() {
-        // Check if connection is live
-        this.state.web3.eth.net.isListening().then(() => {
-            // Unlock the given account
-            unlockAccount(this.state.address, this.state.password).then(() => {
-                this.props.setWeb3(this.state.web3, this.state.address);
-            }, () => {
-                alert("Account could not be unlocked!\nPlease check the account details.");
-            });
-        }, () => {
-            this.setState({
-                web3: null
-            });
+        var successfulState = {
+            unlocking: false,
+            manualConnectError: "",
+            manualAccountUnlockError: ""
+        }
 
-            alert("Manual connection failed!\nPlease check the blockchain URL.");
-        })
+        var failedState = (unlockErr, connectErr) => {
+            return {
+                web3: (connectErr) ? null : this.state.web3,
+                unlocking: false,
+                manualConnectError: connectErr,
+                manualAccountUnlockError: unlockErr
+            };
+        };
+        this.setState({
+            unlocking: true
+        }, () => {
+            // Set unlock timeout.
+            var timeout = setTimeout(() => {
+                if (this.state.unlocking) {
+                    // Unlocking timed out, set connection failed.
+                    this.setState(failedState("", "Manual connection timed out! Please check the blockchain URL."));
+                }
+            }, ConnectAccount.UNLOCK_TIMEOUT);
+            this.timeouts.push(timeout);
+
+            // Check if connection is live
+            this.state.web3.eth.net.isListening().then(() => {
+                // Unlock the given account
+                unlockAccount(this.state.address, this.state.password).then(() => {
+                    if (this.state.unlocking) {
+                        // Success
+                        this.props.setWeb3(this.state.web3, this.state.address);
+                    }
+                }, () => {
+                    if (this.state.unlocking) {
+                        // Unlocking erred
+                        this.setState(failedState("Account could not be unlocked!\nPlease check the account details.", ""));
+                    }
+                });
+            }, () => {
+                if (this.state.unlocking) {
+                    // Connection erred
+                    this.setState(failedState("", "Manual connection failed! Please check the blockchain URL."));
+                }
+            });
+        });
     }
 
     /**

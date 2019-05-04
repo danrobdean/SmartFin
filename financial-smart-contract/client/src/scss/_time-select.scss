@@ -1,0 +1,28 @@
+.time-select__container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.time-select__row-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.time-select__input-container {
+    margin: 1em 0;
+}
+
+.time-select__time-input {
+    margin-left: 1em;
+}
+
+.time-select__select-time-button {
+    margin: 0.5em;
+    float: right;
+}

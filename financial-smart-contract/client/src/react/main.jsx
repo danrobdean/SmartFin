@@ -24,7 +24,7 @@ export default class Main extends React.Component {
         this.state = {
             web3: null,
             address: "",
-            appState: "connect"
+            appState: "connect" //Todo: set to "connect"
         }
     }
 

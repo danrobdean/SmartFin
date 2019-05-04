@@ -615,3 +615,32 @@ To do: contract parsing, error reporting (basic), contract submission (returns c
 
 
 
+========== 4 May ==========
+
+More on the client:
+	- UI improvements
+	- Improve contract composition + submission
+	- Probably monitoring before evaluation
+
+Done:
+	- Changed ErrorMsg to Message, now has functionality of Description, just has different types, and only shows dropdown if it has children
+		- These two components had very similar functionality, uses, and styling, so just rolled into one
+		- Deleted description (which was unused anyway)
+		- Static function for rendering errors, should use similar functions for other types of messages
+	- Spinner!
+	- Connect account now shows error Messages and timeout after 10s (as network errors cannot be caught, so can only check for network error in web3 calls via timeout)
+	- Warning messages
+	- Use new error messages when connecting/logging in fails
+		- Detecting connection fails with timeout since sometimes returns uncatchable errors
+	- Contract verification in composition view
+		- Verifies addresses, combinators, unexpected termination, numbers (and their size), etc, returns error and stack
+	- Contract deployment view, verifies holder address
+
+Need to do next:
+	- Quantify contract.wasm and abi.json in a JS file, so that they can be imported without fs
+	- Automate this and add to build process
+	- Contract monitoring
+	- Contract evaluation
+
+
+

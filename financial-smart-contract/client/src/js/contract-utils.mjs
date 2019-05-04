@@ -58,6 +58,19 @@ export class ObservableEntry {
     }
 }
 
+// The verification error class.
+export class VerificationError {
+    /**
+     * Initialises a new verification error.
+     * @param error The verification error.
+     * @param stack The verification error stack.
+     */
+    constructor(error = "", stack = "") {
+        this.error = error;
+        this.stack = [stack];
+    }
+}
+
 export function setupWeb3(url = "http://localhost:8545") {
     var provider = new Web3.providers.HttpProvider(url);
     if (!web3) {
@@ -170,6 +183,146 @@ export function serializeCombinatorContract(combinatorContract) {
     return result;
 }
 
+// Verifies a combinator contract, and returns an error message and description if it is ill-formed.
+export function verifyContract(contract) {
+    if (!contract || contract.length == 0) {
+        return {
+            error: "No contract given! Please input a combinator contract.",
+            description: ""
+        };
+    }
+
+    var combinators = contract.split(/[ \(\),]/)
+        .filter(c => Boolean(c) && c.length != 0)
+        .map(c => c.toLowerCase());
+
+    var res = verifyCombinator(combinators, 0);
+    if (!res.error && res.endIndex + 1 < combinators.length) {
+        res.warning = "This contract contains extraneous combinators after atom " + res.endIndex + ". These will have no effect.";
+    }
+
+    return res;
+}
+
+// Verifies the combinator at the given index in the given list of combinator atoms.
+function verifyCombinator(combinators, i) {
+    // Function to generate an error description.
+    const errDesc = (index) => {
+        return "At: '" + combinators[index] + "', atom: " + index + " of the contract."
+    };
+
+    // Function to add a description to an error stack.
+    const addToErrStack = (err, index) => {
+        err.stack.push(errDesc(index));
+        return err;
+    }
+
+    if (combinators.length <= i) {
+        return new VerificationError("Expected combinator, found end of contract.", "At atom " + i + " of the contract.");
+    }
+
+    if (!(combinators[i] in combinatorDict)) {
+        return new VerificationError("Expected combinator, found: '" + combinators[i] + "'.", errDesc(i));
+    }
+
+
+    switch (combinators[i]) {
+        case "zero":
+        case "one":
+            // Terminated, return index of termination
+            return {
+                endIndex: i
+            };
+        
+        case "give":
+        case "get":
+        case "anytime":
+            // One sub-combinator, check it and return index
+            var res = verifyCombinator(combinators, i + 1);
+            if (res.error) {
+                return addToErrStack(res, i);
+            } else {
+                return res;
+            }
+        
+        case "and":
+        case "or":
+        case "then":
+            // Two sub-combinators, check them and return index
+            var res;
+            var checked = i;
+            for (var j = 0; j < 2; j++) {
+                res = verifyCombinator(combinators, checked + 1);
+
+                if (res.error) {
+                    return addToErrStack(res, i)
+                } else {
+                    checked = res.endIndex;
+                }
+            }
+            return res;
+
+        case "truncate":
+            // Unix time and sub-combinator, check them and return index
+            if (combinators.length <= i + 1) {
+                return new VerificationError("Expected a unix timestamp, found end of contract.",errDesc(i));
+            }
+
+
+            // Check timestamp
+            var time = combinators[i + 1];
+            if (isNaN(time)) {
+                return new VerificationError("Expected a valid unix timestamp, found: '" + time + "'.", errDesc(i));
+            } else if (combinators[i + 1] < 0 || combinators[i + 1] > Math.pow(2, 32) - 1) {
+                // Timestamp is outside of u32 range
+                return new VerificationError("Expected unsigned 32-bit unix timestamp, found: '" + time + "'.", errDesc(i));
+            }
+
+            // Check sub-combinator
+            var res = verifyCombinator(combinators, i + 2);
+            if (res.error) {
+                return addToErrStack(res, i);
+            } else {
+                return res;
+            }
+
+        case "scale":
+            // Observable and address or scale value, and sub-combinator, check them and return index
+            var subCombinatorIndex = i + 2;
+
+            if (combinators.length <= i + 1) {
+                return new VerificationError("Expected observable or scale value, found end of contract.", errDesc(i));
+            }
+            var maxValue = BigInt(2) ** BigInt(63);
+
+
+            if (combinators[i + 1] == "obs") {
+                // Observable, check address
+                subCombinatorIndex += 1;
+
+                if (combinators.length <= i + 2) {
+                    return new VerificationError("Expected observable arbiter address, found end of contract.", errDesc(i));
+                }
+
+                var address = combinators[i + 2];
+                if (!web3.utils.isAddress(address)) {
+                    return new VerificationError("Expected a valid address, found: '" + address + "'.", errDesc(i));
+                }
+            } else if (isNaN(combinators[i + 1])) {
+                return new VerificationError("Expected scale value or 'obs', found: '" + combinators[i + 1] + "'.", errDesc(i));
+            } else if (BigInt(combinators[i + 1]) > maxValue - BigInt(1) || BigInt(combinators[i + 1] < -maxValue)) {
+                return new VerificationError("Expected signed 64-bit scale value, found: '" + combinators[i + 1] + "'.", errDesc(i));
+            }
+
+            var res = verifyCombinator(combinators, subCombinatorIndex);
+            if (res.error) {
+                return addToErrStack(res, i);
+            } else {
+                return res;
+            }
+    }
+}
+
 // Serializes an address into 4 integers
 export function serializeAddress(address) {
     if (!web3) {
@@ -263,6 +416,11 @@ export function deserializeObsEntries(obsEntries) {
 // Converts the given date object to a Unix timestamp
 export function dateToUnixTimestamp(date) {
     return date.getTime() / 1000 | 0;
+}
+
+// Checks whether or not the given address is valid.
+export function isValidAddress(address) {
+    return web3.utils.isAddress(address);
 }
 
 // Converts an array of bytes to an address

@@ -3,6 +3,7 @@ $colour-primary: #5BC1F2;
 $colour-primary-light: #99D7F5;
 $colour-primary-dark: #22ADF1;
 $colour-primary-darker: #02A2EF;
+$colour-primary-darkest: hsl(199, 98%, 20%);
 
 $colour-text-primary: white;
 $colour-text-primary-dark: #e2e2e2;
@@ -15,4 +16,15 @@ $colour-overlay: #00000030;
 
 $colour-err: hsl(12, 80%, 67%);
 $colour-err-light: hsl(12, 80%, 90%);
+$colour-err-dark: hsl(12, 80%, 40%);
 $colour-text-err: hsl(12, 80%, 20%);
+
+$colour-info: $colour-primary;
+$colour-info-light: $colour-primary-light;
+$colour-info-dark: $colour-primary-dark;
+$colour-text-info: $colour-primary-darkest;
+
+$colour-warning: #FFD157;
+$colour-warning-light: #FFE39A;
+$colour-warning-dark: hsl(43, 100%, 50%);
+$colour-text-warning: hsl(43, 100%, 20%);
