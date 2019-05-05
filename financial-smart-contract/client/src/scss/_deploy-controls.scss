@@ -33,7 +33,7 @@
     justify-content: flex-end;
 
     width: 100%;
-    margin-top: 3em;
+    margin-top: 1em;
 }
 
 .deploy-controls__deploy-button {
@@ -41,5 +41,9 @@
 }
 
 .deploy-controls__contract-error {
+    margin-top: 1em;
+}
+
+.deploy-controls__holder-error {
     margin-top: 1em;
 }

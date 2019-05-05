@@ -76,7 +76,7 @@ export default class DeployControls extends React.Component {
                         rows={50}/>
 
                     {Message.renderInfo("The contract holder is the only account that has the ability to acquire the contract.")}
-                    {Message.renderError(this.state.holderError)}
+                    {Message.renderError(this.state.holderError, null, DeployControls.blockName + "__holder-error")}
                 </div>
                 <div className={DeployControls.blockName + "__button-container"}>
                     <button

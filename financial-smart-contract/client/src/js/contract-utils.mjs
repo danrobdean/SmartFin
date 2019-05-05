@@ -420,7 +420,31 @@ export function dateToUnixTimestamp(date) {
 
 // Checks whether or not the given address is valid.
 export function isValidAddress(address) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     return web3.utils.isAddress(address);
+}
+
+// Checks whether the account with the given address is a smart contract.
+export async function isSmartContract(address) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return web3.eth.getCode(address).then((code) => {
+        if (code == "0x") {
+            return Promise.reject("Given address: '" + address + "' corresponds to an externally owned account, not a contract account.");
+        } else {
+            return Promise.resolve();
+        }
+    });
+}
+
+// Gets the contract at the given address.
+export function getContractAtAddress(address) {
+    return new web3.eth.Contract(ABI, address);
 }
 
 // Converts an array of bytes to an address

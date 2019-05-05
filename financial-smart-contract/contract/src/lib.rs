@@ -770,20 +770,24 @@ impl FinancialScInterface for FinancialScContract {
         let final_amount;
         let original_balance;
         let key;
+        let holder_balance = self.storage.read(&holder_balance_key()).0;
+        let counter_party_balance = self.storage.read(&counter_party_balance_key()).0;
         let holder: Address = self.storage.read(&holder_address_key()).0;
         let counter_party: Address = self.storage.read(&counter_party_address_key()).0;
         
         // Get the amount to send (clamp at balance amount)
         if sender == holder {
             key = holder_balance_key();
+            original_balance = holder_balance;
         } else if sender == counter_party {
             key = counter_party_balance_key();
+            original_balance = counter_party_balance;
         } else {
             panic!("Only the contract holder or the counter-party may withdraw Ether from the contract.");
         }
 
-        original_balance = self.storage.read(&key).0;
-        final_amount = FinancialScContract::get_withdrawal_amount(amount, original_balance);
+        let funds = holder_balance + counter_party_balance;
+        final_amount = FinancialScContract::get_withdrawal_amount(amount, original_balance, funds);
         self.storage.write(&key, original_balance - final_amount);
 
         if final_amount < CALL_GAS {
@@ -983,20 +987,23 @@ impl FinancialScContract {
     }
 
     // Withdraws Ether from the given contract participant, returns the amount to send including gas price
-    fn get_withdrawal_amount(amount: u64, balance: i64) -> i64 {
-        let final_amount = amount as i64 + CALL_GAS;
+    fn get_withdrawal_amount(amount: u64, balance: i64, funds: i64) -> i64 {
+        let mut final_amount = amount as i64 + CALL_GAS;
 
-        // If the withdrawer can't afford the gas for the transaction, do nothing more
-        if balance < CALL_GAS {
+        // If the withdrawer or contract can't afford the gas for the transaction, do nothing more
+        if balance < CALL_GAS || funds < CALL_GAS {
             return 0;
         }
 
-        // Clamp withdrawal at balance amount
+        // Clamp withdrawal at balance and fund amount
         if balance < final_amount {
-            return balance;
-        } else {
-            return final_amount as i64;
+            final_amount = balance;
         }
+        if funds < final_amount {
+            final_amount = funds;
+        }
+
+        return final_amount as i64;
     }
 }
 
@@ -1456,7 +1463,7 @@ mod tests {
     fn get_withdrawal_amount_calculates_correct_normal_amount() {
         let balance = 10000;
         let withdrawal = 5000;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance);
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, balance as i64);
 
         assert_eq!(amount, withdrawal as i64 + super::CALL_GAS);
     }
@@ -1466,17 +1473,39 @@ mod tests {
     fn get_withdrawal_amount_clamps_withdrawal_to_balance() {
         let balance = 5000;
         let withdrawal = 10000;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance);
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, balance as i64);
 
         assert_eq!(balance, amount);
+    }
+
+    // Withdrawal withdraws funds amount at maximum, even if requested amount is higher
+    #[test]
+    fn get_withdrawal_amount_clamps_withdrawal_to_funds() {
+        let balance = 5000;
+        let withdrawal = 10000;
+        let funds = 2500;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, funds);
+
+        assert_eq!(funds, amount);
     }
 
     // Withdrawal does not withdraw anything if the balance is below the required call gas price
     #[test]
     fn withdraw_does_not_withdraw_if_balance_below_gas_price() {
         let balance = (super::CALL_GAS - 1) as i64;
-        let withdrawal = (super::CALL_GAS - 1) as u64;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance);
+        let withdrawal = 1 as u64;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, 10000);
+
+        assert_eq!(amount, 0);
+    }
+
+    // Withdrawal does not withdraw anything if the funds are below the required call gas price
+    #[test]
+    fn withdraw_does_not_withdraw_if_funds_below_gas_price() {
+        let balance = 10000 as i64;
+        let withdrawal = 1 as u64;
+        let funds = super::CALL_GAS - 1;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, funds as i64);
 
         assert_eq!(amount, 0);
     }

@@ -99,7 +99,7 @@ export default class Main extends React.Component {
     setWeb3Instance(web3, address) {
         this.setState({
             web3: web3,
-            address: address
+            address: web3.utils.toChecksumAddress(address)
         });
 
         this.goToMainMenu();

@@ -656,6 +656,33 @@ NB ABOVE REDACTED: I'm just dumb, the anon function passed to ConnectAccount onl
 - Success messages
 - Error/success messages for contract deployment
 	- Timeout to detect silent failure
+- Work on monitoring UI
+
+Monitoring thoughts:
+	- Contract instance stored in main, passed to/sent back up from relevant components
+	- Contract address passed in through modal
+		- contract-utils used to load from address
+		- check bytecode matches CODE_HEX (should work???) to check if financial smart contract
+	- Check if holder or counter-party match
+		- Also check obs-arbiters?
+	- Monitoring functionality:
+		- Balance
+		- Holder/counter-party
+		- Or choices (view + set)
+		- Obs arbiters and values (view + set)
+		- Anytime acquisition times (view + set)
+		- Evaluation?? (not yet though)
+		- Acquisition
+		- Auto-updating
+		- Events?? (may be a bit pointless since not many interactions and quite a bit of work, could just reload on new transactions since getters are pure)
+
+- Checking if a contract is a financial contract
+	- Seems difficult (impossible??) to do without just calling methods, maybe just call the required getters for the UI and if any fail then report the error
+- Main UI framework for monitoring component implemented
+- Loading contract implemented
+- Getting holder and counter-party implemented, getting other details should work the same way
+
+NB: Also added check for funds before withdrawal in smart contract.
 
 
 

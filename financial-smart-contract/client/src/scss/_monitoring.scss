@@ -1,0 +1,105 @@
+.monitoring__main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    margin: 0 auto;
+}
+
+.monitoring__load-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+
+    width: 100%;
+}
+
+.monitoring__load-input-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.monitoring__load-contract-label {
+    margin-right: 0.4em;
+}
+
+.monitoring__load-contract-input {
+    flex: 1 1 auto;
+    font-size: 1.2em;
+}
+
+.monitoring__load-contract-error {
+    margin-bottom: 1em;
+}
+
+.monitoring__load-contract-button {
+    flex: 0 0 auto;
+}
+
+.monitoring__size-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    min-width: 60%;
+}
+.monitoring__contract-address {
+    margin-bottom: 1em;
+}
+
+.monitoring__no-contract-error {
+    margin-bottom: 1em;
+}
+
+.monitoring__contract-interactables {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+
+    width: 100%;
+    margin-top: 1.5em;
+}
+
+.monitoring__contract-details {
+    display: flex;
+    flex-direction: row;
+
+    font-size: 1.2em;
+}
+
+.monitoring__detail-labels {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+
+    margin-right: 0.5em;
+}
+
+.monitoring__detail-label,
+.monitoring__detail {
+    margin-bottom: 0.5em;
+    &:last-child{
+        margin-bottom: 0;
+    }
+}
+
+.monitoring__detail {
+    font-style: italic;
+}
+
+.monitoring__details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.monitoring__contract-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+}

@@ -26,6 +26,7 @@ export default class Composition extends React.Component {
      * Initialises a new instance of this class.
      * @param props.web3 The web3 instance.
      * @param props.address The unlocked account address.
+     * @param props.setContract Function to set the current contract instance.
      */
     constructor(props) {
         super(props);
@@ -73,7 +74,8 @@ export default class Composition extends React.Component {
                                 onChange={e => this.handleCompositionInputChange(e)}
                                 onKeyPress={e => this.handleCompositionInputKeyPress(e)}
                                 rows={15}
-                                cols={70}/>
+                                cols={70}
+                                readOnly={this.state.helpOpen || this.state.deployOpen || this.state.timePickerOpen}/>
                         </div>
                         <div className={Composition.blockName + "__controls-container"}>
                             <button
