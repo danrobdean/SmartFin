@@ -1,5 +1,6 @@
 import Web3 from "web3";
-import fs from "fs";
+
+import { ABI, CODE_HEX } from "./../../resources/resources.mjs";
 
 var web3;
 
@@ -16,9 +17,6 @@ const combinatorDict = {
     "get": 8,
     "anytime": 9
 };
-
-const ABI_PATH = "./resources/abi.json";
-const CODE_PATH = "./resources/contract.wasm";
 
 // The Option class
 export class Option {
@@ -104,16 +102,19 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender = "0
         setupWeb3();
     }
 
-    var abi = JSON.parse(fs.readFileSync(ABI_PATH));
+    // var abi = JSON.parse(fs.readFileSync(ABI_PATH));
 
-    // Format the contract correctly
-    var codeHex = '0x' + fs.readFileSync(CODE_PATH).toString('hex');
+    // // Format the contract correctly
+    // var codeHex = '0x' + fs.readFileSync(CODE_PATH).toString('hex');
+
+    console.log(ABI);
+    console.log(CODE_HEX);
     
     // Construct a contract object
-    var TestContract = new web3.eth.Contract(abi);
+    var TestContract = new web3.eth.Contract(ABI);
     
     // Construct a deployment transaction
-    var TestDeployTransaction = TestContract.deploy({ data: codeHex, from: sender, arguments: [contractBytes, contractHolder] });
+    var TestDeployTransaction = TestContract.deploy({ data: web3.utils.toHex(CODE_HEX), from: sender, arguments: [contractBytes, contractHolder] });
     
     return new Promise(function(resolve, reject) {
         // Attempt to estimate the cost of the deployment transaction
@@ -124,7 +125,9 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender = "0
                 TestDeployTransaction.send({ gas: web3.utils.toHex(gas), from: sender }).then(contract => {
                     resolve(contract);
                 },
-                err => reject(err))
+                err => {
+                    reject(err);
+                })
             } else {
                 reject(err)
             }

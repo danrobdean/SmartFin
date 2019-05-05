@@ -644,3 +644,12 @@ Need to do next:
 
 
 
+========== 5 May ==========
+
+- client/resources/resources.mjs now exports the abi object and contract hex code
+- Deploy works (generally), and tests still work
+
+NB: The issue with the first deployment failing is worse than thought. It turns out that the first deployment by the specific user fails due to gas issues, and on the webpack client the first deployment always fails silently if it's not by the specific user (with password "user"). The silent failure doesn't seem to happen in the mocha tests, only on the webpack dev server. Once the specific user makes their failed deployment, every user can deploy contracts successfully. I don't know what's causing this issue, going to ignore for now as it's almost 100% blockchain-dependent (and so the issue will never affect anyone else). May ask on parity github? Should at least stop cleaning the chain when testing the client.
+
+
+
