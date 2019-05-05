@@ -1,6 +1,7 @@
 import React from "react";
 
 import Message from "./message.jsx";
+import Spinner from "./spinner.jsx";
 
 import { isValidAddress, serializeCombinatorContract, loadAndDeployContract } from "./../js/contract-utils.mjs";
 
@@ -14,9 +15,19 @@ export default class DeployControls extends React.Component {
     static blockName = "deploy-controls";
 
     /**
+     * The deploy timeout duration.
+     */
+    static DEPLOY_TIMEOUT = 10000;
+
+    /**
      * The holder input.
      */
     holderInput;
+
+    /**
+     * The contract deployment timeout.
+     */
+    deployTimeout;
 
     /**
      * Initialises a new instance of this class.
@@ -28,7 +39,10 @@ export default class DeployControls extends React.Component {
 
         this.state = {
             holder: "",
-            holderError: ""
+            holderError: "",
+            contractError: "",
+            contractErrorDetails: "",
+            deploying: false
         };
     }
 
@@ -71,6 +85,8 @@ export default class DeployControls extends React.Component {
                         Deploy
                     </button>
                 </div>
+                {Spinner.renderNotice((this.state.deploying) ? "Deploying..." : null)}
+                {Message.renderError(this.state.contractError, this.state.contractErrorDetails, DeployControls.blockName + "__contract-error")}
             </div>
         );
     }
@@ -90,8 +106,45 @@ export default class DeployControls extends React.Component {
             });
         }
 
+        // Set timeout in case of silent failure
+        this.setState({
+            contractError: "",
+            contractErrorDetails: "",
+            deploying: true
+        });
+
+        if (this.deployTimeout) {
+            clearTimeout(this.deployTimeout);
+        }
+
+        this.deployTimeout = setTimeout(() => {
+            this.setState({
+                contractError: "Contract deployment timed out! Please check your account details, or retry.",
+                contractErrorDetails: "",
+                deploying: false
+            });
+        }, DeployControls.DEPLOY_TIMEOUT);
+
         var serializedContract = serializeCombinatorContract(this.props.contract);
-        loadAndDeployContract(serializedContract, this.state.holder, this.props.address);
+        loadAndDeployContract(serializedContract, this.state.holder, this.props.address).then(contract => {
+            clearTimeout(this.deployTimeout);
+
+            this.setState({
+                contractError: "",
+                contractErrorDetails: "",
+                deploying: false
+            });
+
+            this.props.deployed(contract);
+        }, error => {
+            clearTimeout(this.deployTimeout);
+
+            this.setState({
+                contractError: "Contract deployment failed!",
+                contractErrorDetails: error.toString(),
+                deploying: false
+            });
+        });
     }
 
     /**

@@ -37,7 +37,8 @@ export default class Composition extends React.Component {
             deployOpen: false,
             contractWarning: "",
             contractError: "",
-            contractErrorStack: ""
+            contractErrorStack: "",
+            contractSuccess: ""
         }
     }
 
@@ -56,7 +57,11 @@ export default class Composition extends React.Component {
                 </Modal>
 
                 <Modal title="Deploy Contract" closeModal={() => this.closeModals()} visible={this.state.deployOpen}>
-                    <DeployControls address={this.props.address} contract={this.state.contract} warning={this.state.contractWarning}/>
+                    <DeployControls
+                        address={this.props.address}
+                        contract={this.state.contract}
+                        warning={this.state.contractWarning}
+                        deployed={contract => this.contractDeployed(contract)}/>
                 </Modal>
                 <div className={Composition.blockName + "__size-container"}>
                     <div className={Composition.blockName + "__wrapping-container"}>
@@ -89,6 +94,7 @@ export default class Composition extends React.Component {
                         </div>
                     </div>
                     {Message.renderError(this.state.contractError, this.state.contractErrorStack)}
+                    {Message.renderSuccess(this.state.contractSuccess)}
                 </div>
             </div>
         );
@@ -154,6 +160,20 @@ export default class Composition extends React.Component {
                 deployOpen: true
             });
         }
+    }
+    
+    /**
+     * Called when a contract is deployed.
+     * @param contract The contract object.
+     */
+    contractDeployed(contract) {
+        this.closeModals();
+
+        this.setState({
+            contractSuccess: "Contract deployed at " + contract.address
+        });
+
+        this.props.setContract(contract);
     }
 
     /**

@@ -86,6 +86,7 @@ export function unlockDefaultAccount() {
 
     web3.eth.defaultAccount = "0x004ec07d2329997267ec62b4166639513386f32e";
     unlockAccount(web3.eth.defaultAccount, "user").then(_ => console.log("Account unlocked"), err => console.log(err));
+    return web3.eth.defaultAccount;
 }
 
 export async function unlockAccount(address, password) {
@@ -97,18 +98,14 @@ export async function unlockAccount(address, password) {
 }
 
 // Loads and deploys the contract (from a fixed contract for this test), returns the contract object
-export function loadAndDeployContract(contractBytes, contractHolder, sender = "0x004ec07d2329997267ec62b4166639513386f32e") {
+export function loadAndDeployContract(contractBytes, contractHolder, sender) {
+    if (!contractBytes || !contractHolder || !sender) {
+        return Promise.reject("Expected arguments are contractBytes, contractHolder, and sender. At least one argument was not supplied!");
+    }
+
     if (!web3) {
         setupWeb3();
     }
-
-    // var abi = JSON.parse(fs.readFileSync(ABI_PATH));
-
-    // // Format the contract correctly
-    // var codeHex = '0x' + fs.readFileSync(CODE_PATH).toString('hex');
-
-    console.log(ABI);
-    console.log(CODE_HEX);
     
     // Construct a contract object
     var TestContract = new web3.eth.Contract(ABI);

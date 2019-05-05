@@ -26,30 +26,43 @@ export default class Message extends React.Component {
      * Renders an error message.
      * @param error The error message.
      * @param details The error details (optional).
+     * @param className Extra class name (optional).
      */
-    static renderError(error, details=null) {
-        return Message.renderMessage("error", error, details);
+    static renderError(error, details=null, className="") {
+        return Message.renderMessage("error", error, details, className);
+    }
+
+    /**
+     * Renders a success message.
+     * @param success The success message.
+     * @param details The success details (optional).
+     * @param className Extra class name (optional).
+     */
+    static renderSuccess(success, details=null, className="") {
+        return Message.renderMessage("success", success, details, className);
     }
 
     /**
      * Renders an info message.
      * @param info The info message.
      * @param details The info details (optional).
+     * @param className Extra class name (optional).
      */
-    static renderInfo(info, details=null) {
-        return Message.renderMessage("info", info, details);
+    static renderInfo(info, details=null, className="") {
+        return Message.renderMessage("info", info, details, className);
     }
 
     /**
      * Renders a warning message.
      * @param warning The warning message.
      * @param details The warning details (optional).
+     * @param className Extra class name (optional).
      */
-    static renderWarning(warning, details=null) {
-        return Message.renderMessage("warning", (warning) ? "Warning: " + warning : warning, details);
+    static renderWarning(warning, details=null, className="") {
+        return Message.renderMessage("warning", (warning) ? "Warning: " + warning : warning, details, className);
     }
 
-    static renderMessage(type, title, details) {
+    static renderMessage(type, title, details, className) {
         if (!title) {
             return;
         }
@@ -65,7 +78,7 @@ export default class Message extends React.Component {
             details = details.reduce(addBreaks, []);
         }
 
-        return <Message title={title} type={type}>{details}</Message>;
+        return <Message className={className} title={title} type={type}>{details}</Message>;
     }
 
     /**
@@ -76,7 +89,8 @@ export default class Message extends React.Component {
         var containerClassNames = [
             containerClassName,
             containerClassName + "--" + this.props.type,
-            containerClassName + ((this.props.children) ? "--dropdown" : "")
+            containerClassName + ((this.props.children) ? "--dropdown" : ""),
+            this.props.className
         ].join(" ");
 
         var arrowClassName = Message.blockName + "__arrow";

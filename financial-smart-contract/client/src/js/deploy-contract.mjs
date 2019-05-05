@@ -27,13 +27,13 @@ r1.question("Please input a combinator contract, or press ENTER to exit: ", (ans
         }
 
         // Set default account for transactions (this is pre-defined on our testing blockchain) and unlock
-        unlockDefaultAccount();
+        var sender = unlockDefaultAccount();
     
         // Serialize contract
         var serializedCombinatorContract = serializeCombinatorContract(combinatorContract);
     
         // Deploy contract
-        loadAndDeployContract(serializedCombinatorContract, holder).then((_) => {}, err => console.error(err));
+        loadAndDeployContract(serializedCombinatorContract, holder, sender).then((_) => {}, err => console.error(err));
         r1.close();
     })
 });

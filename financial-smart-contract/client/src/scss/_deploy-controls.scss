@@ -1,6 +1,7 @@
 .deploy-controls__container {
     display: flex;
     flex-direction: column;
+    align-items: center;
 
     width: 100%;
 }
@@ -9,6 +10,8 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+
+    width: 100%;
 }
 
 .deploy-controls__contract {
@@ -35,4 +38,8 @@
 
 .deploy-controls__deploy-button {
     flex: 0 0 auto;
+}
+
+.deploy-controls__contract-error {
+    margin-top: 1em;
 }

@@ -24,7 +24,8 @@ export default class Main extends React.Component {
         this.state = {
             web3: null,
             address: "",
-            appState: "connect" //Todo: set to "connect"
+            appState: "connect",
+            contract: null
         }
     }
 
@@ -34,16 +35,34 @@ export default class Main extends React.Component {
     render() {
         switch (this.state.appState) {
             case "connect": {
-                return <ConnectAccount setWeb3={(web3) => this.setWeb3Instance(web3)}/>;
+                return (
+                    <ConnectAccount
+                        setWeb3={(web3, address) => this.setWeb3Instance(web3, address)}/>
+                );
             }
             case "main-menu": {
-                return <MainMenu goToComposition={() => this.goToComposition()} goToMonitoring={() => this.goToMonitoring()}/>;
+                return (
+                    <MainMenu
+                        goToComposition={() => this.goToComposition()}
+                        goToMonitoring={() => this.goToMonitoring()}/>
+                );
             }
             case "composition": {
-                return this.renderWithBackButton(<Composition web3={this.state.web3} address={this.state.address} />);
+                return this.renderWithBackButton(
+                    <Composition
+                        web3={this.state.web3}
+                        address={this.state.address}
+                        setContract={contract => this.setContract(contract)}/>
+                );
             }
             case "monitoring": {
-                return this.renderWithBackButton(<Monitoring web3={this.state.web3} address={this.state.address} />);
+                return this.renderWithBackButton(
+                    <Monitoring
+                        web3={this.state.web3}
+                        address={this.state.address}
+                        setContract={contract => this.setContract(contract)}
+                        contract={this.state.contract}/>
+                    );
             }
             default: return <div />;
         }
@@ -84,6 +103,16 @@ export default class Main extends React.Component {
         });
 
         this.goToMainMenu();
+    }
+
+    /**
+     * Set the contract instance.
+     * @param contract The contract instance.
+     */
+    setContract(contract) {
+        this.setState({
+            contract: contract
+        });
     }
 
     /**

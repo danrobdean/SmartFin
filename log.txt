@@ -651,5 +651,12 @@ Need to do next:
 
 NB: The issue with the first deployment failing is worse than thought. It turns out that the first deployment by the specific user fails due to gas issues, and on the webpack client the first deployment always fails silently if it's not by the specific user (with password "user"). The silent failure doesn't seem to happen in the mocha tests, only on the webpack dev server. Once the specific user makes their failed deployment, every user can deploy contracts successfully. I don't know what's causing this issue, going to ignore for now as it's almost 100% blockchain-dependent (and so the issue will never affect anyone else). May ask on parity github? Should at least stop cleaning the chain when testing the client.
 
+NB ABOVE REDACTED: I'm just dumb, the anon function passed to ConnectAccount only took the web3 instance and not the address, so the address was never set throughout the web-app. This meant that the loadAndDeployContract function was being called with no sender address, and was using the specific user account as the default, failing silently unless the account had been unlocked. All accounts can deploy a transaction, but they may fail the first time due to the gas problem. This is so minor (fixed by retrying once, forever) that I'll ignore it, but I may remove the default argument (I don't think it's used anywhere) for loadAndDeployContract.
+
+- Success messages
+- Error/success messages for contract deployment
+	- Timeout to detect silent failure
+
+
 
 
