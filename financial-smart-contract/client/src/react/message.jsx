@@ -1,5 +1,7 @@
 import React from "react";
 
+import DropDown from "./drop-down.jsx";
+
 /**
  * The component representing an Message.
  */
@@ -8,19 +10,6 @@ export default class Message extends React.Component {
      * The CSS block name for this component.
      */
     static blockName = "message";
-
-    /**
-     * Initialises a new instance of this class.
-     * @param props.title The title.
-     * @param props.children The long description (optional, if provided a dropdown arrow is displayed).
-     */
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            open: false
-        };
-    }
 
     /**
      * Renders an error message.
@@ -89,62 +78,16 @@ export default class Message extends React.Component {
         var containerClassNames = [
             containerClassName,
             containerClassName + "--" + this.props.type,
-            containerClassName + ((this.props.children) ? "--dropdown" : ""),
             this.props.className
-        ].join(" ");
-
-        var arrowClassName = Message.blockName + "__arrow";
-        var arrowClassNames = [
-            arrowClassName,
-            arrowClassName + ((this.props.children) ? "" : "--hidden"),
-            arrowClassName + ((this.state.open) ? "--down" : "--left"),
-            arrowClassName + "--" + this.props.type
         ].join(" ");
 
         return (
             <div
-                className={containerClassNames}
-                onClick={() => this.toggleOpen()}>
-                <div className={Message.blockName + "__short-container"}>
-                    <span className={Message.blockName + "__title"}>
-                        {this.props.title}
-                    </span>
-                    <i
-                        className={arrowClassNames}
-                        onClick={() => this.toggleOpen()}/>
-                </div>
-                {this.renderDropDown()}
+                className={containerClassNames}>
+                <DropDown title={this.props.title}>
+                    {this.props.children}
+                </DropDown>
             </div>
         );
-    }
-
-    /**
-     * Returns the element representing the dropdown description.
-     */
-    renderDropDown() {
-        if (!this.props.children || !this.state.open) {
-            return;
-        }
-
-        var dropdownClassName = Message.blockName + "__dropdown-container";
-        var dropdownClassNames = [
-            dropdownClassName,
-            dropdownClassName + "--" + this.props.type
-        ].join(" ");
-
-        return (
-            <div className={dropdownClassNames}>
-                {this.props.children}
-            </div>
-        );
-    }
-
-    /**
-     * Toggles whether or not the drop-down description is open or closed.
-     */
-    toggleOpen() {
-        this.setState({
-            open: !this.state.open
-        });
     }
 }

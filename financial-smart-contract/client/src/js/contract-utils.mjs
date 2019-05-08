@@ -33,7 +33,7 @@ export class Option {
 
     // Returns the value of this option
     getValue() {
-        return this.value;
+        return this.defined ? this.value : "None";
     }
 }
 
@@ -433,18 +433,98 @@ export async function isSmartContract(address) {
         setupWeb3();
     }
 
-    return web3.eth.getCode(address).then((code) => {
+    return web3.eth.getCode(address).then(code => {
         if (code == "0x") {
             return Promise.reject("Given address: '" + address + "' corresponds to an externally owned account, not a contract account.");
         } else {
             return Promise.resolve();
         }
+    }, _ => {
+        return Promise.reject("Given address: '" + address + "' is not a contract account.");
     });
 }
 
 // Gets the contract at the given address.
 export function getContractAtAddress(address) {
     return new web3.eth.Contract(ABI, address);
+}
+
+// Gets the holder of the contract.
+export async function getHolder(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_holder().call({ from: caller }).then(res => {
+        return res.returnValue0;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Gets the counter-party of the contract.
+export async function getCounterParty(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_counter_party().call({ from: caller }).then(res => {
+        return res.returnValue0;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Gets whether or not the contract is concluded.
+export async function getConcluded(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_concluded().call({ from: caller }).then(res => {
+        return res.returnValue0;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Gets the or-choices of the contract.
+export async function getOrChoices(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_or_choices().call({ from: caller }).then(res => {
+        return deserializeOrChoices(res.returnValue0);
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Gets the observable entries of the contract.
+export async function getObsEntries(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_obs_entries().call({ from: caller }).then(res => {
+        return deserializeObsEntries(res.returnValue0);
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Gets the acquisition times of the given contract.
+export async function getAcquisitionTimes(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_acquisition_times().call({ from: caller }).then(res => {
+        return deserializeAcquisitionTimes(res.returnValue0);
+    }, err => {
+        return Promise.reject(err);
+    });
 }
 
 // Converts an array of bytes to an address

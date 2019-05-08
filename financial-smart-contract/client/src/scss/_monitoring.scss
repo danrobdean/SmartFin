@@ -66,15 +66,22 @@
 
 .monitoring__contract-details {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
 
+    flex: 1 1 auto;
     font-size: 1.2em;
+    margin-right: 2em;
+}
+
+.monitoring__basic-details {
+    display: flex;
+    flex-direction: row;
 }
 
 .monitoring__detail-labels {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
 
     margin-right: 0.5em;
 }
@@ -101,5 +108,23 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    justify-content: flex-end;
+    justify-content: flex-start;
+}
+
+.monitoring__details-drop-down {
+    border-top: 1px ridge $colour-border;
+    margin-top: 2em;
+    padding-top: 0.5em;
+    box-sizing: border-box;
+}
+
+.monitoring__obs-entries {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.monitoring__obs-entries-spacer {
+    width: 0.5em;
+    height: 100%;
 }

@@ -1,5 +1,3 @@
-@import "assets/variables";
-
 // Page container should fill window
 html, body, #root {
     width: 100%;
@@ -30,6 +28,7 @@ button:hover {
 
 button:active {
     background-color: $colour-primary-darker;
+    box-shadow: none;
 }
 
 button:disabled {

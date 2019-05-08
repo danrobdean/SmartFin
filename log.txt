@@ -686,4 +686,23 @@ NB: Also added check for funds before withdrawal in smart contract.
 
 
 
+========== 8 May ==========
+
+Working on the monitoring page
+
+- Made getHolder/getCounterParty functions in contract-utils, instead of just calling from monitoring.jsx
+	- contract-utils should probably have all the API-related functionality in one place
+	- Error handling is now a try catch, where any error is handled by stopping and treating the contract as an unrelated contract
+- Extracted dropdown from message, can now make "plain" dropdown containers
+	- Styling of message applies to children as well, to affect the arrow/text colour of the dropdowns
+- Display concluded, or-choices, obs-values, and acquisition times in contract monitoring
+
+To do next:
+	- Allow setting of or-choices and obs-values via monitoring (easy)
+	- Allow acquisition of contract/sub-contract via monitoring (easy ish)
+	- Deserialization of contract definition in contract-utils, to display contract definition via monitoring (a bit harder)
+	- Evaluation (many days)
+
+
+
 

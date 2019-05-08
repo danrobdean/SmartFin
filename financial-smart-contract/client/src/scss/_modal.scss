@@ -1,6 +1,4 @@
 // The styling for the Modal component.
-@import "assets/variables";
-
 .modal__overlay {
     display: block;
     position: fixed;
@@ -56,7 +54,7 @@
 }
 
 .modal__close-button:active {
-    text-shadow: 0 0 0.2em $colour-text-primary-dark;
+    text-shadow: none;
     color: $colour-text-primary-dark;
 }
 

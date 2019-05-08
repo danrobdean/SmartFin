@@ -1,9 +1,10 @@
 import React from "react";
 
+import DropDown from "./drop-down.jsx";
 import Message from "./message.jsx";
 import Modal from "./modal.jsx";
 
-import { web3, isSmartContract, getContractAtAddress } from "./../js/contract-utils.mjs";
+import { isSmartContract, getContractAtAddress, getHolder, getCounterParty, getConcluded, getOrChoices, getObsEntries, getAcquisitionTimes } from "./../js/contract-utils.mjs";
 
 /**
  * The contract monitoring component.
@@ -37,7 +38,11 @@ export default class Monitoring extends React.Component {
             contractInteractionError: "",
             contractInteractionErrorDetails: "",
             holder: "N/A",
-            counterParty: "N/A"
+            counterParty: "N/A",
+            concluded: "N/A",
+            orChoices: [],
+            obsEntries: [],
+            acquisitionTimes: []
         };
     }
 
@@ -82,22 +87,48 @@ export default class Monitoring extends React.Component {
 
                     <div className={Monitoring.blockName + "__contract-interactables"}>
                         <div className={Monitoring.blockName + "__contract-details"}>
-                            <div className={Monitoring.blockName + "__detail-labels"}>
-                                <span className={Monitoring.blockName + "__detail-label"}>
-                                Holder:
-                                </span>
-                                <span className={Monitoring.blockName + "__detail-label"}>
-                                Counter-party:
-                                </span>
+                            <div className={Monitoring.blockName + "__basic-details"}>
+                                <div className={Monitoring.blockName + "__detail-labels"}>
+                                    <span className={Monitoring.blockName + "__detail-label"}>
+                                        Holder:
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail-label"}>
+                                        Counter-party:
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail-label"}>
+                                        Concluded:
+                                    </span>
+                                </div>
+
+                                <div className={Monitoring.blockName + "__details"}>
+                                    <span className={Monitoring.blockName + "__detail"}>
+                                        {this.state.holder}
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail"}>
+                                        {this.state.counterParty}
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail"}>
+                                        {this.state.concluded.toString()}
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className={Monitoring.blockName + "__details"}>
-                                <span className={Monitoring.blockName + "__detail"}>
-                                {this.state.holder}
-                                </span>
-                                <span className={Monitoring.blockName + "__detail"}>
-                                {this.state.counterParty}
-                                </span>
+                            <div className={Monitoring.blockName + "__details-drop-down"}>
+                                <DropDown title={"Or choices"}>
+                                    {this.renderOrChoices()}
+                                </DropDown>
+                            </div>
+
+                            <div className={Monitoring.blockName + "__details-drop-down"}>
+                                <DropDown title={"Observable values"}>
+                                    {this.renderObsValues()}
+                                </DropDown>
+                            </div>
+
+                            <div className={Monitoring.blockName + "__details-drop-down"}>
+                                <DropDown title={"Acquisition Times"}>
+                                    {this.renderAcquisitionTimes()}
+                                </DropDown>
                             </div>
                         </div>
 
@@ -126,13 +157,28 @@ export default class Monitoring extends React.Component {
     /**
      * Close the contract load modal if a contract is supplied.
      * @param prevProps The previous component props.
+     * @param prevState The previous component state.
      */
-    componentDidUpdate(prevProps) {
+    componentDidUpdate(prevProps, prevState) {
         if (this.props.contract && this.props.contract != prevProps.contract) {
             this.initStateFromContract();
         }
+
+        // Check the relation of the logged-in user to the contract when the holder/counter-party are loaded.
+        if (this.state.holder != prevState.holder && this.state.holder == this.props.address) {
+            this.setState({
+                contractRelation: "You are the holder of this contract."
+            });
+        } else if (this.state.counterParty != prevState.counterParty && this.state.counterParty == this.props.address) {
+            this.setState({
+                contractRelation: "You are the counter-party of this contract."
+            });
+        }
     }
 
+    /**
+     * Returns the element representing the contract header.
+     */
     renderContractHeader() {
         if (this.props.contract) {
             return (
@@ -150,6 +196,169 @@ export default class Monitoring extends React.Component {
     }
 
     /**
+     * Returns the element representing the list of or choices.
+     */
+    renderOrChoices() {
+        var orChoiceLabels = [];
+        var orChoiceElements = [];
+        for (var i = 0; i < this.state.orChoices.length; i++) {
+            var orChoice = this.state.orChoices[i];
+
+            orChoiceLabels.push(
+                <span key={i} className={Monitoring.blockName + "__detail-label"}>
+                    <em>or</em> combinator {i}:
+                </span>
+            );
+
+            orChoiceElements.push(
+                <span key={i} className={Monitoring.blockName + "__detail"}>
+                    {(orChoice.isDefined() ? (orChoice.getValue() ? "First child" : "Second child") : "None")}
+                </span>
+            );
+        }
+
+        if (orChoiceLabels.length == 0) {
+            orChoiceLabels.push(
+                <span key={0} className={Monitoring.blockName + "__detail-label"}>
+                    This contract contains no <em>or</em> combinators.
+                </span>
+            )
+        }
+
+        return (
+            <div className={Monitoring.blockName + "__basic-details"}>
+                <div className={Monitoring.blockName + "__detail-labels"}>
+                    {orChoiceLabels}
+                </div>
+                <div className={Monitoring.blockName + "__details"}>
+                    {orChoiceElements}
+                </div>
+            </div>
+        );
+    }
+
+    /**
+     * Returns the element representing the set of observable values.
+     */
+    renderObsValues() {
+        var obsValueLabels = [];
+        var obsValueElements = [];
+        var obsArbiterLabels = [];
+        var obsArbiterElements = [];
+
+        for (var i = 0; i < this.state.obsEntries.length; i++) {
+            var obsEntry = this.state.obsEntries[i];
+
+            obsValueLabels.push(
+                <span key={i} className={Monitoring.blockName + "__detail-label"}>
+                    Observable value {i}:
+                </span>
+            );
+
+            obsValueElements.push(
+                <span key={i} className={Monitoring.blockName + "__detail"}>
+                    {obsEntry.getValue().getValue()}
+                </span>
+            );
+
+            obsArbiterLabels.push(
+                <span key={i} className={Monitoring.blockName + "__detail-label"}>
+                    Arbiter:
+                </span>
+            );
+
+            obsArbiterElements.push(
+                <span key={i} className={Monitoring.blockName + "__detail"}>
+                    {obsEntry.getAddress()}
+                </span>
+            );
+        }
+
+        if (obsValueLabels.length == 0) {
+            obsValueLabels.push(
+                <span key={i} className={Monitoring.blockName + "__detail-label"}>
+                    This contract contains no observable values.
+                </span>
+            );
+        }
+
+        return (
+            <div className={Monitoring.blockName + "__obs-entries"}>
+                <div className={Monitoring.blockName + "__basic-details"}>
+                    <div className={Monitoring.blockName + "__detail-labels"}>
+                        {obsValueLabels}
+                    </div>
+                    <div className={Monitoring.blockName + "__details"}>
+                        {obsValueElements}
+                    </div>
+                </div>
+
+                <div className={Monitoring.blockName + "__obs-entries-spacer"}/>
+
+                <div className={Monitoring.blockName + "__basic-details"}>
+                    <div className={Monitoring.blockName + "__detail-labels"}>
+                        {obsArbiterLabels}
+                    </div>
+                    <div className={Monitoring.blockName + "__details"}>
+                        {obsArbiterElements}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    /**
+     * Returns the element representing the list of acquisition times.
+     */
+    renderAcquisitionTimes() {
+        if (this.state.acquisitionTimes.length == 0) {
+            return (
+                <span className={Monitoring.blockName + "__detail-label"}>
+                    N/A
+                </span>
+            );
+        }
+
+        var acquisitionTimeLabels = [
+            <span key={0} className={Monitoring.blockName + "__detail-label"}>
+                Contract acquisition time:
+            </span>
+        ];
+        var acquisitionTimeElements = [
+            <span key={0} className={Monitoring.blockName + "__detail"}>
+                {this.state.acquisitionTimes[0].getValue()}
+            </span>
+        ];
+
+        for (var i = 1; i < this.state.acquisitionTimes.length; i++) {
+            var acquisitionTime = this.state.acquisitionTimes[i];
+
+            acquisitionTimeLabels.push(
+                <span key={i} className={Monitoring.blockName + "__detail-label"}>
+                    <em>anytime</em> combinator {i - 1}:
+                </span>
+            );
+
+            acquisitionTimeElements.push(
+                <span key={i} className={Monitoring.blockName + "__detail"}>
+                    {acquisitionTime.getValue()}
+                </span>
+            );
+        }
+
+        return (
+            <div className={Monitoring.blockName + "__basic-details"}>
+                <div className={Monitoring.blockName + "__detail-labels"}>
+                    {acquisitionTimeLabels}
+                </div>
+                <div className={Monitoring.blockName + "__details"}>
+                    {acquisitionTimeElements}
+                </div>
+            </div>
+        );
+    }
+
+    /**
      * Initialises the state based on the contract.
      */
     async initStateFromContract() {
@@ -157,30 +366,28 @@ export default class Monitoring extends React.Component {
             contractLoadOpen: false
         });
 
-        const handleError = (details) => {
+        try {
+            var holder = await getHolder(this.props.contract, this.props.address);
+            var counterParty = await getCounterParty(this.props.contract, this.props.address);
+            var concluded = await getConcluded(this.props.contract, this.props.address);
+            var orChoices = await getOrChoices(this.props.contract, this.props.address);
+            var obsEntries = await getObsEntries(this.props.contract, this.props.address);
+            var acquisitionTimes = await getAcquisitionTimes(this.props.contract, this.props.address);
+
+            this.setState({
+                holder: holder,
+                counterParty: counterParty,
+                concluded: concluded,
+                orChoices: orChoices,
+                obsEntries: obsEntries,
+                acquisitionTimes: acquisitionTimes
+            });
+        } catch(err) {
             this.setState({
                 contractInteractionError: "Contract functions not found. Please check that the contract address is correct.",
-                contractInteractionErrorDetails: details
+                contractInteractionErrorDetails: err
             });
-        };
-        const contractMethods = this.props.contract.methods;
-        const callData = { from: this.props.address };
-        var contractRelation = this.state.contractRelation;
-
-        var holder = (await contractMethods.get_holder().call(callData).catch(handleError)).returnValue0;
-        var counterParty = (await contractMethods.get_counter_party().call(callData).catch(handleError)).returnValue0;
-
-        if (holder == this.props.address) {
-            contractRelation = "You are the holder of this contract.";
-        } else if (counterParty == this.props.address) {
-            contractRelation = "You are the counter-party of this contract.";
         }
-
-        this.setState({
-            contractRelation: contractRelation,
-            holder: holder,
-            counterParty: counterParty
-        });
     }
 
     /**

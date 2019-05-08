@@ -1,113 +1,35 @@
-@import "assets/variables";
-
 .message__container {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-
     border-radius: 5px;
     border: 2px solid transparent;
     width: 100%;
     padding: 0.5em;
-    word-break: break-all;
     box-sizing: border-box;
 }
 
-.message__container--error {
-    border-color: $colour-err;
+.message__container--error,
+.message__container--error * {
+    border-color: $colour-err-dark;
     background-color: $colour-err-light;
     color: $colour-text-err;
 }
 
-.message__container--info {
+.message__container--info,
+.message__container--info * {
     border-color: $colour-info-dark;
     background-color: $colour-info-light;
     color: $colour-text-info;
 }
 
-.message__container--warning {
+.message__container--warning,
+.message__container--warning * {
     border-color: $colour-warning-dark;
     background-color: $colour-warning-light;
     color: $colour-text-warning;
 }
 
-.message__container--success {
+.message__container--success,
+.message__container--success * {
     border-color: $colour-success-dark;
     background-color: $colour-success-light;
     color: $colour-text-success;
-}
-
-.message__container--dropdown {
-    cursor: pointer;
-    word-break: break-all;
-}
-
-.message__short-container {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-
-    width: 100%;
-}
-
-.message__arrow {
-    border: solid black;
-    border-width: 0 3px 3px 0;
-    display: inline-block;
-    padding: 3px;
-}
-
-.message__arrow--hidden {
-    display: none;
-}
-
-.message__arrow--left {
-    transform: rotate(135deg);
-    -webkit-transform: rotate(135deg);
-}
-
-.message__arrow--down {
-    transform: rotate(45deg);
-    -webkit-transform: rotate(45deg);
-}
-
-.message__arrow--error {
-    border-color: $colour-err-dark;
-}
-
-.message__arrow--info {
-    border-color: $colour-info-dark;
-}
-
-.message__arrow--warning {
-    border-color: $colour-warning-dark;
-}
-
-.message__arrow--success {
-    border-color: $colour-success-dark;
-}
-
-.message__dropdown-container {
-    margin-top: 0.5em;
-    border-top: 1px ridge;
-    width: 100%;
-    padding-top: 1em;
-    box-sizing: border-box;
-}
-
-.message__dropdown-container--error {
-    border-color: $colour-err-dark;
-}
-
-.message__dropdown-container--info {
-    border-color: $colour-info-dark;
-}
-
-.message__dropdown-container--warning {
-    border-color: $colour-warning-dark;
-}
-
-.message__dropdown-container--success {
-    border-color: $colour-info-dark;
 }
