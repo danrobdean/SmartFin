@@ -1,0 +1,33 @@
+.load-contract-controls__load-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+
+    width: 100%;
+}
+
+.load-contract-controls__load-input-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.load-contract-controls__load-contract-label {
+    margin-right: 0.4em;
+}
+
+.load-contract-controls__load-contract-input {
+    flex: 1 1 auto;
+    font-size: 1.2em;
+}
+
+.load-contract-controls__load-contract-error {
+    margin-bottom: 1em;
+}
+
+.load-contract-controls__load-contract-button {
+    flex: 0 0 auto;
+}

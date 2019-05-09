@@ -22,7 +22,7 @@ const combinatorDict = {
 export class Option {
     // Initialises a new object of this class
     constructor(value) {
-        this.defined = !!value;
+        this.defined = value !== undefined;
         this.value = value;
     }
 
@@ -373,8 +373,10 @@ export function deserializeAddress(address) {
 export function deserializeAcquisitionTimes(acquisitionTimes) {
     var res = [];
 
-    for (let elem of acquisitionTimes) {
-        res.push(new Option(elem == -1 ? undefined : elem));
+    if (acquisitionTimes) {
+        for (let elem of acquisitionTimes) {
+            res.push(new Option(elem == -1 ? undefined : elem));
+        }
     }
 
     return res;
@@ -386,11 +388,13 @@ export function deserializeOrChoices(orChoices) {
         setupWeb3();
     }
 
-    orChoices = web3.utils.hexToBytes(orChoices);
     var res = [];
+    if (orChoices) {
+        orChoices = web3.utils.hexToBytes(orChoices);
 
-    for (let elem of orChoices) {
-        res.push(new Option(elem == 2 ? undefined : elem == 1));
+        for (let elem of orChoices) {
+            res.push(new Option(elem == 2 ? undefined : elem == 1));
+        }
     }
 
     return res;
@@ -400,14 +404,16 @@ export function deserializeOrChoices(orChoices) {
 export function deserializeObsEntries(obsEntries) {
     var res = [];
 
-    for (var i = 0; i < obsEntries.length; i += 5) {
-        var address = deserializeAddress(obsEntries.slice(i, i + 4));
-        var value = undefined;
-        if (obsEntries[i + 4] != -1) {
-            value = obsEntries[i + 5];
-            i++;
-        } 
-        res.push(new ObservableEntry(address, value));
+    if (obsEntries) {
+        for (var i = 0; i < obsEntries.length; i += 5) {
+            var address = deserializeAddress(obsEntries.slice(i, i + 4));
+            var value = undefined;
+            if (obsEntries[i + 4] != -1) {
+                value = obsEntries[i + 5];
+                i++;
+            } 
+            res.push(new ObservableEntry(address, value));
+        }
     }
 
     return res;
@@ -525,6 +531,43 @@ export async function getAcquisitionTimes(contract, caller) {
     }, err => {
         return Promise.reject(err);
     });
+}
+
+// Sets the or choice of an or combinator on the given contract.
+export async function setOrChoice(contract, caller, index, choice) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.set_or_choice(index, choice).send({ from: caller }).then(() => {
+        return;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Sets the value of an observable.
+export async function setObsValue(contract, caller, index, value) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    if (!isValidScaleValue(value)) {
+        return Promise.reject("The given value is not a valid 64-bit signed integer.")
+    }
+
+    return contract.methods.set_obs_value(index, value).send({ from: caller }).then(() => {
+        return;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Returns true if the given value can be used as a scale value, false otherwise
+export function isValidScaleValue(value) {
+    var maxValue = BigInt(2) ** BigInt(63);
+    // Check is number and in bounds
+    return !isNaN(value) && !(BigInt(value) > maxValue - BigInt(1) || BigInt(value) < -maxValue);
 }
 
 // Converts an array of bytes to an address

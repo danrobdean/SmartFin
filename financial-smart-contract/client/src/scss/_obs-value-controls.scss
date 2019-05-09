@@ -1,0 +1,31 @@
+.obs-value-controls__set-obs-value-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.obs-value-controls__set-obs-value-input-container {
+    display: flex;
+    flex-direction: row;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.obs-value-controls__input-container {
+    display: flex;
+    flex-direction: row;
+
+    margin-right: 2em;
+    &:last-child {
+        margin-right: 0;
+    }
+}
+
+.obs-value-controls__label {
+    margin-right: 0.5em;
+}
+
+.obs-value-controls__error {
+    margin-bottom: 1em;
+}

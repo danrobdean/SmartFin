@@ -1,0 +1,37 @@
+.or-choice-controls__set-or-choice-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.or-choice-controls__set-or-choice-input-container {
+    display: flex;
+    flex-direction: row;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.or-choice-controls__input-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+
+    margin-right: 2em;
+    &:last-child {
+        margin-right: 0;
+    }
+}
+
+.or-choice-controls__label {
+    margin-right: 0.5em;
+}
+
+.or-choice-controls__or-value-input {
+    display: flex;
+    flex-direction: column;
+}
+
+.or-choice-controls__error {
+    margin-bottom: 1em;
+}

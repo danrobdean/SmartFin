@@ -1,10 +1,13 @@
 import React from "react";
 
 import DropDown from "./drop-down.jsx";
+import LoadContractControls from "./load-contract-controls.jsx";
 import Message from "./message.jsx";
 import Modal from "./modal.jsx";
+import ObsValueControls from "./obs-value-controls.jsx";
+import OrChoiceControls from "./or-choice-controls.jsx";
 
-import { isSmartContract, getContractAtAddress, getHolder, getCounterParty, getConcluded, getOrChoices, getObsEntries, getAcquisitionTimes } from "./../js/contract-utils.mjs";
+import { getHolder, getCounterParty, getConcluded, getOrChoices, getObsEntries, getAcquisitionTimes } from "./../js/contract-utils.mjs";
 
 /**
  * The contract monitoring component.
@@ -14,11 +17,6 @@ export default class Monitoring extends React.Component {
      * The CSS block name.
      */
     static blockName = "monitoring";
-
-    /**
-     * The contract address input.
-     */
-    contractAddressInput;
 
     /**
      * Initialises a new instance of this class.
@@ -33,8 +31,9 @@ export default class Monitoring extends React.Component {
         this.state = {
             contractRelation: "",
             contractAddress: (this.props.contract) ? this.props.contract.address : "",
-            contractAddressError: "",
             contractLoadOpen: !Boolean(this.props.contract),
+            orChoiceOpen: false,
+            obsValueOpen: false,
             contractInteractionError: "",
             contractInteractionErrorDetails: "",
             holder: "N/A",
@@ -42,7 +41,7 @@ export default class Monitoring extends React.Component {
             concluded: "N/A",
             orChoices: [],
             obsEntries: [],
-            acquisitionTimes: []
+            acquisitionTimes: [],
         };
     }
 
@@ -50,30 +49,40 @@ export default class Monitoring extends React.Component {
      * Returns the element representing this component.
      */
     render() {
+        var orChoicesDisabled = this.state.holder !== this.props.address
+            || this.state.concluded
+            || !(this.state.orChoices && this.state.orChoices.length > 0);
+        var setObsValueDisabled = true;
+        if (!this.state.concluded) {
+            for (var entry of this.state.obsEntries) {
+                if (this.props.address === entry.getAddress()) {
+                    setObsValueDisabled = false;
+                    break;
+                }
+            }
+        }
+
         return (
             <div className={Monitoring.blockName + "__main-container"}>
-                <Modal title={"Load Contract"} visible={this.state.contractLoadOpen} closeModal={() => this.closeModals()} forceOpen={true}>
-                    <div className={Monitoring.blockName + "__load-container"}>
-                        <div className={Monitoring.blockName + "__load-input-container"}>
-                            <span className={Monitoring.blockName + "__load-contract-label"}>
-                                Address of contract to monitor:
-                            </span>
-                            <input
-                                className={Monitoring.blockName + "__load-contract-input"}
-                                ref={r => this.contractAddressInput = r}
-                                onKeyPress={e => this.handleContractAddressKeyPress(e)}
-                                onChange={e => this.handleContractAddressChange(e)}
-                                placeholder="0x..."/>
-                        </div>
+                <Modal title="Load Contract" visible={this.state.contractLoadOpen} closeModal={() => this.closeModals()} forceOpen={true}>
+                    <LoadContractControls setContract={c => this.props.setContract(c)}/>
+                </Modal>
 
-                        {Message.renderError(this.state.contractAddressError, null, Monitoring.blockName + "__load-contract-error")}
+                <Modal title={"Set Or Choice"} visible={this.state.orChoiceOpen} closeModal={() => this.closeModals()}>
+                    <OrChoiceControls
+                        contract={this.props.contract}
+                        holder={this.state.holder}
+                        address={this.props.address}
+                        orChoices={this.state.orChoices}
+                        callback={() => this.closeModals()}/>
+                </Modal>
 
-                        <button
-                            className={Monitoring.blockName + "__load-contract-button"}
-                            onClick={() => this.setContractAddress()}>
-                            Load Contract
-                        </button>
-                    </div>
+                <Modal title="Set Observable Value" visible={this.state.obsValueOpen} closeModal={() => this.closeModals()}>
+                    <ObsValueControls
+                        contract={this.props.contract}
+                        address={this.props.address}
+                        obsEntries={this.state.obsEntries}
+                        callback={() => this.closeModals()}/>
                 </Modal>
 
                 <div className={Monitoring.blockName + "__size-container"}>
@@ -138,6 +147,20 @@ export default class Monitoring extends React.Component {
                                 onClick={() => this.openLoadContractModal()}>
                                 Load Contract
                             </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.openOrChoiceModal()}
+                                disabled={orChoicesDisabled}>
+                                Set Or Choices
+                            </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.openObsValueModal()}
+                                disabled={setObsValueDisabled}>
+                                    Set Observable Value
+                                </button>
                         </div>
                     </div>
                 </div>
@@ -385,22 +408,9 @@ export default class Monitoring extends React.Component {
         } catch(err) {
             this.setState({
                 contractInteractionError: "Contract functions not found. Please check that the contract address is correct.",
-                contractInteractionErrorDetails: err
+                contractInteractionErrorDetails: err.toString()
             });
         }
-    }
-
-    /**
-     * Sets the contract instance address.
-     */
-    setContractAddress() {
-        isSmartContract(this.state.contractAddress).then(() => {
-            this.props.setContract(getContractAtAddress(this.state.contractAddress));
-        }, err => {
-            this.setState({
-                contractAddressError: err
-            });
-        });
     }
 
     /**
@@ -413,24 +423,20 @@ export default class Monitoring extends React.Component {
     }
 
     /**
-     * Handles the contract address input key press event.
+     * Opens the or-choice modal.
      */
-    handleContractAddressKeyPress(event) {
-        // If the key code is ENTER (13), display deploy modal
-        if ((event.keyCode ? event.keyCode : event.which) == 13) {
-            event.preventDefault();
-            this.setContractAddress();
-        }
+    openOrChoiceModal() {
+        this.setState({
+            orChoiceOpen: true
+        });
     }
 
-     /**
-      * Handles the contract address input change event.
-      */
-     handleContractAddressChange(event) {
-        event.preventDefault();
-
+    /**
+     * Opens the obs-value modal.
+     */
+    openObsValueModal() {
         this.setState({
-            contractAddress: this.contractAddressInput.value
+            obsValueOpen: true
         });
     }
 
@@ -439,7 +445,9 @@ export default class Monitoring extends React.Component {
      */
     closeModals() {
         this.setState({
-            contractLoadOpen: false
+            contractLoadOpen: false,
+            orChoiceOpen: false,
+            obsValueOpen: false
         });
     }
 }
