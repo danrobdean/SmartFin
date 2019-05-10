@@ -1,0 +1,28 @@
+.stake-withdraw-controls__container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.stake-withdraw-controls__input-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.stake-withdraw-controls__label {
+    margin-right: 0.5em;
+    flex: 0 0 auto;
+}
+
+.stake-withdraw-controls__input {
+    font-size: 1.2em;
+    flex: 1 1 auto;
+}
+
+.stake-withdraw-controls__error {
+    margin-bottom: 1em;
+}

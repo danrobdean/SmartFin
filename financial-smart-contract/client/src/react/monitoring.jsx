@@ -8,7 +8,8 @@ import Modal from "./modal.jsx";
 import ObsValueControls from "./obs-value-controls.jsx";
 import OrChoiceControls from "./or-choice-controls.jsx";
 
-import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getOrChoices, getObsEntries, getAcquisitionTimes, unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import StakeWithdrawControls from "./stake-withdraw-controls.jsx";
 
 /**
  * The contract monitoring component.
@@ -46,6 +47,8 @@ export default class Monitoring extends React.Component {
             orChoiceOpen: false,
             obsValueOpen: false,
             acquireOpen: false,
+            stakeOpen: false,
+            withdrawOpen: false,
             contractInteractionError: "",
             contractInteractionErrorDetails: "",
             holder: "N/A",
@@ -53,7 +56,9 @@ export default class Monitoring extends React.Component {
             concluded: "N/A",
             orChoices: [],
             obsEntries: [],
-            acquisitionTimes: []
+            acquisitionTimes: [],
+            holderBalance: "N/A",
+            counterPartyBalance: "N/A"
         };
     }
 
@@ -81,6 +86,10 @@ export default class Monitoring extends React.Component {
             || !this.state.acquisitionTimes
             || this.state.acquisitionTimes.length == 0
             || this.state.acquisitionTimes[0].isDefined();
+
+        var stakeWithdrawDisabled = !this.props.contract
+            || !this.props.address
+            || !([this.state.holder, this.state.counterParty].includes(this.props.address));
 
         var acquireSubContractsDisabled = this.state.holder !== this.props.address
             || !this.state.acquisitionTimes
@@ -126,6 +135,22 @@ export default class Monitoring extends React.Component {
                         callback={() => this.setValueModalCallback()}/>
                 </Modal>
 
+                <Modal title="Stake Funds" visible={this.state.stakeOpen} closeModal={() => this.closeModals()}>
+                    <StakeWithdrawControls
+                        stake={true}
+                        contract={this.props.contract}
+                        address={this.props.address}
+                        callback={() => this.setValueModalCallback()} />
+                </Modal>
+
+                <Modal title="Withdraw Funds" visible={this.state.withdrawOpen} closeModal={() => this.closeModals()}>
+                    <StakeWithdrawControls
+                        stake={false}
+                        contract={this.props.contract}
+                        address={this.props.address}
+                        callback={() => this.setValueModalCallback()} />
+                </Modal>
+
                 <div className={Monitoring.blockName + "__size-container"}>
                     <h2 className={Monitoring.blockName + "__contract-address"}>
                         {this.renderContractHeader()}
@@ -151,6 +176,12 @@ export default class Monitoring extends React.Component {
                                     <span className={Monitoring.blockName + "__detail-label"}>
                                         Acquisition Time:
                                     </span>
+                                    <span className={Monitoring.blockName + "__detail-label"}>
+                                        Holder Balance:
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail-label"}>
+                                        Counter-party Balance:
+                                    </span>
                                 </div>
 
                                 <div className={Monitoring.blockName + "__details"}>
@@ -165,6 +196,12 @@ export default class Monitoring extends React.Component {
                                     </span>
                                     <span className={Monitoring.blockName + "__detail"}>
                                         {acquisitionTime}
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail"}>
+                                        {this.state.holderBalance}
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail"}>
+                                        {this.state.counterPartyBalance}
                                     </span>
                                 </div>
                             </div>
@@ -200,6 +237,20 @@ export default class Monitoring extends React.Component {
                                 onClick={() => this.acquireContract()}
                                 disabled={acquireDisabled}>
                                 Acquire Contract
+                            </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.openStakeModal()}
+                                disabled={stakeWithdrawDisabled}>
+                                Stake Funds
+                            </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.openWithdrawModal()}
+                                disabled={stakeWithdrawDisabled}>
+                                Withdraw Funds
                             </button>
 
                             <button
@@ -470,6 +521,8 @@ export default class Monitoring extends React.Component {
             var orChoices = await getOrChoices(this.props.contract, this.props.address);
             var obsEntries = await getObsEntries(this.props.contract, this.props.address);
             var acquisitionTimes = await getAcquisitionTimes(this.props.contract, this.props.address);
+            var holderBalance = await getBalance(this.props.contract, this.props.address, true);
+            var counterPartyBalance = await getBalance(this.props.contract, this.props.address, false);
 
             this.setState({
                 holder: holder,
@@ -477,7 +530,9 @@ export default class Monitoring extends React.Component {
                 concluded: concluded,
                 orChoices: orChoices,
                 obsEntries: obsEntries,
-                acquisitionTimes: acquisitionTimes
+                acquisitionTimes: acquisitionTimes,
+                holderBalance: holderBalance,
+                counterPartyBalance: counterPartyBalance
             }, () => {
                 this.reloadStateTimeout = setTimeout(() => this.initStateFromContract(), Monitoring.RELOAD_PERIOD);
             });
@@ -554,6 +609,24 @@ export default class Monitoring extends React.Component {
     }
 
     /**
+     * Opens the stake modal.
+     */
+    openStakeModal() {
+        this.setState({
+            stakeOpen: true
+        });
+    }
+
+    /**
+     * Opens the withdraw modal.
+     */
+    openWithdrawModal() {
+        this.setState({
+            withdrawOpen: true
+        });
+    }
+
+    /**
      * Closes all modals.
      */
     closeModals() {
@@ -561,7 +634,9 @@ export default class Monitoring extends React.Component {
             contractLoadOpen: false,
             orChoiceOpen: false,
             obsValueOpen: false,
-            acquireOpen: false
+            acquireOpen: false,
+            stakeOpen: false,
+            withdrawOpen: false
         });
     }
 

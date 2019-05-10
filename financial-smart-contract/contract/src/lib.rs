@@ -447,9 +447,9 @@ pub trait FinancialScInterface {
     #[constant]
     fn get_value(&mut self) -> i64;
 
-    // Gets the current balance of the caller (if called by the holder or counter-party)
+    // Gets the current balance of the given party (true is holder, false counter-party)
     #[constant]
-    fn get_balance(&mut self) -> i64;
+    fn get_balance(&mut self, holderBalance: bool) -> i64;
 
     // Gets whether or not the contract has concluded all operation (i.e. updating will never change the balance).
     #[constant]
@@ -487,7 +487,7 @@ pub trait FinancialScInterface {
     fn stake(&mut self) -> i64;
 
     // Withdraws positive Eth balance up to the given amount from the contract (can be called by the holder or counter-party)
-    fn withdraw(&mut self, amount: u64) -> bool ;
+    fn withdraw(&mut self, amount: u64) ;
 }
 
 // The financial smart contract
@@ -542,17 +542,11 @@ impl FinancialScInterface for FinancialScContract {
     }
 
     // Gets the total balance of the caller
-    fn get_balance(&mut self) -> i64 {
-        let sender = pwasm_ethereum::sender();
-        let holder: Address = self.storage.read(&holder_address_key()).0;
-        let counter_party: Address = self.storage.read(&counter_party_address_key()).0;
-
-        if sender == holder {
+    fn get_balance(&mut self, holderBalance: bool) -> i64 {
+        if holderBalance {
             self.storage.read(&holder_balance_key()).0
-        } else if sender == counter_party {
-            self.storage.read(&counter_party_balance_key()).0
         } else {
-            panic!("Only the contract holder or the counter-party may have stake in the contract.");
+            self.storage.read(&counter_party_balance_key()).0
         }
     }
 
@@ -765,7 +759,7 @@ impl FinancialScInterface for FinancialScContract {
     }
 
     // Withdraws positive Eth balance up to the given amount from the contract (can be called by the holder or counter-party)
-    fn withdraw(&mut self, amount: u64) -> bool {
+    fn withdraw(&mut self, amount: u64) {
         let sender = pwasm_ethereum::sender();
         let final_amount;
         let original_balance;
@@ -788,19 +782,19 @@ impl FinancialScInterface for FinancialScContract {
 
         let funds = holder_balance + counter_party_balance;
         final_amount = FinancialScContract::get_withdrawal_amount(amount, original_balance, funds);
-        self.storage.write(&key, original_balance - final_amount);
 
         if final_amount < CALL_GAS {
-            return false;
+            panic!("Not enough funds to pay the gas price while withdrawing.");
         }
 
+        self.storage.write(&key, original_balance - final_amount);
         let mut result = Vec::<u8>::new();
         match pwasm_ethereum::call(CALL_GAS as u64, &sender, U256::from(final_amount - CALL_GAS), &[], &mut result) {
-            Ok(_v) => true,
+            Ok(_v) => return,
             Err(_e) => {
                 // Payment failed, roll-back balance
                 self.storage.write(&key, original_balance);
-                false
+                panic!("Payment failed");
             }
         }
     }
@@ -1261,12 +1255,10 @@ mod tests {
             vec![1]
         );
 
-        ext_update(|e| e.sender(holder));
         contract.update();
-        assert_eq!(contract.get_balance(), 0);
+        assert_eq!(contract.get_balance(true), 0);
 
-        ext_update(|e| e.sender(counter_party));
-        assert_eq!(contract.get_balance(), 0);
+        assert_eq!(contract.get_balance(false), 0);
     }
 
     // Updating after acquiring the contract sets the balance correctly
@@ -1283,10 +1275,9 @@ mod tests {
 
         ext_update(|e| e.sender(holder));
         contract.acquire();
-        assert_eq!(contract.get_balance(), 1);
+        assert_eq!(contract.get_balance(true), 1);
 
-        ext_update(|e| e.sender(counter_party));
-        assert_eq!(contract.get_balance(), -1);
+        assert_eq!(contract.get_balance(false), -1);
     }
 
     // Staking Eth as the holder stakes the correct amount
@@ -1301,8 +1292,7 @@ mod tests {
         );
 
         // Check that the initial stake is 0
-        ext_update(|e| e.sender(holder));
-        assert_eq!(contract.get_balance(), 0);
+        assert_eq!(contract.get_balance(true), 0);
 
         // Check that the stake increases when added to
         let new_stake = 10;
@@ -1312,9 +1302,9 @@ mod tests {
         );
 
         contract.stake();
-        assert_eq!(new_stake, contract.get_balance());
+        assert_eq!(new_stake, contract.get_balance(true));
         contract.stake();
-        assert_eq!(contract.get_balance(), new_stake * 2);
+        assert_eq!(contract.get_balance(true), new_stake * 2);
     }
 
     // Staking Eth as the counter-party stakes the correct amount
@@ -1329,8 +1319,7 @@ mod tests {
         );
 
         // Check that the initial stake is 0
-        ext_update(|e| e.sender(sender));
-        assert_eq!(contract.get_balance(), 0);
+        assert_eq!(contract.get_balance(false), 0);
 
         // Check that the stake increases when added to
         let new_stake = 10;
@@ -1340,9 +1329,9 @@ mod tests {
         );
 
         contract.stake();
-        assert_eq!(contract.get_balance(), new_stake);
+        assert_eq!(contract.get_balance(false), new_stake);
         contract.stake();
-        assert_eq!(contract.get_balance(), new_stake * 2);
+        assert_eq!(contract.get_balance(false), new_stake * 2);
     }
 
     // Acquisition times returned correctly
@@ -1780,22 +1769,6 @@ mod tests {
             .value(U256::from(2_u64.pow(63)))
         );
         contract.stake();
-    }
-
-    // An uninvolved user attempting to get their stake is not allowed
-    #[test]
-    #[should_panic(expected = "Only the contract holder or the counter-party may have stake in the contract.")]
-    fn should_panic_if_uninvolved_user_checks_stake() {
-        let mut contract = setup_contract(
-            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
-            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
-            0,
-            vec![0]
-        );
-
-        // Check state as an uninvolved user
-        ext_update(|e| e.sender(Address::zero()));
-        contract.get_balance();
     }
 
     // An uninvolved user attempting to stake Eth is not allowed

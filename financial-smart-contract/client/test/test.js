@@ -90,7 +90,7 @@ describe('Contract interaction tests', function() {
             var stake = 100;
     
             return contract.methods.stake().send({ from: holder.address, value: stake }).then(function() {
-                return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                     assert.equal(stake, res.returnValue0);
                 });
             });
@@ -100,7 +100,7 @@ describe('Contract interaction tests', function() {
             var stake = 100;
     
             return contract.methods.stake().send({ from: counterParty.address, value: stake }).then(function() {
-                return contract.methods.get_balance().call({ from: counterParty.address }).then(function(res) {
+                return contract.methods.get_balance(false).call({ from: counterParty.address }).then(function(res) {
                     assert.equal(stake, res.returnValue0);
                 });
             });
@@ -148,19 +148,19 @@ describe('Contract interaction tests', function() {
     
         it('Updates balances correctly after acquiring', function() {
             // Initial balance is 0
-            return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+            return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                 assert.equal(res.returnValue0, 0);
-                return contract.methods.get_balance().call({ from: counterParty.address }).then(function(res) {
+                return contract.methods.get_balance(false).call({ from: counterParty.address }).then(function(res) {
                     assert.equal(res.returnValue0, 0);
     
                     // Acquire the contract
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
                         // New balance for holder is 1
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                             assert.equal(res.returnValue0, 1);
                             
                             // New balance for counter-party is -1
-                            return contract.methods.get_balance().call({ from: counterParty.address }).then(function(res) {
+                            return contract.methods.get_balance(false).call({ from: counterParty.address }).then(function(res) {
                                 assert.equal(res.returnValue0, -1);
                             });
                         });
@@ -188,7 +188,7 @@ describe('Contract interaction tests', function() {
             return deploy("or one zero").then(function() {
                 return contract.methods.set_or_choice(0, true).send({ from: holder.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                             assert.equal(res.returnValue0, 1);
                         });
                     });
@@ -200,7 +200,7 @@ describe('Contract interaction tests', function() {
             return deploy("or zero one").then(function() {
                 return contract.methods.set_or_choice(0, false).send({ from: holder.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                             assert.equal(res.returnValue0, 1);
                         });
                     });
@@ -243,7 +243,7 @@ describe('Contract interaction tests', function() {
         it('Has the correct value when a scale value is provided', function() {
             return deploy("scale 5 one").then(function() {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                    return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                         assert.equal(res.returnValue0, 5);
                     });
                 });
@@ -254,7 +254,7 @@ describe('Contract interaction tests', function() {
             return deploy("scale obs " + uninvolved.address + " one").then(function() {
                 return contract.methods.set_obs_value(0, 5).send({ from: uninvolved.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                             assert.equal(res.returnValue0, 5);
                         });
                     });
@@ -268,7 +268,7 @@ describe('Contract interaction tests', function() {
         it('Has the correct value before the anytime sub-combinator is acquired', function() {
             return deploy("anytime one").then(function() {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
-                    return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                    return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                         assert.equal(res.returnValue0, 0);
                     });
                 });
@@ -279,7 +279,7 @@ describe('Contract interaction tests', function() {
             return deploy("anytime one").then(function() {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
                     return contract.methods.acquire_anytime_sub_contract(0).send({ from: holder.address }).then(function() {
-                        return contract.methods.get_balance().call({ from: holder.address }).then(function(res) {
+                        return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                             assert.equal(res.returnValue0, 1);
                         });
                     });

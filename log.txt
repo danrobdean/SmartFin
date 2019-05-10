@@ -726,6 +726,7 @@ To do:
 	- Balance (and allow both users to see each others' balance)
 	- Tests
 	- Evaluation
+	- MetaMask
 
 
 
@@ -735,9 +736,13 @@ More work on monitoring
 	- Set auto-reload of contract state on monitoring view (calls are pure so free)
 	- Moved main acquisition time to basic details, from acquisition times dropdown (now only shows sub-contract acquisition times)
 	- Acquire/update buttons/functions
-	- Acquire sub-contract view (detects if potentially acquirable anytime sub-contracts exist, based on acquisitionTimes)
+	- Acquire sub-contract view (detects if potentially acquirable anytime sub-contracts exist, based on acquisitionTimes
+	- Added stake and withdraw functionality to monitoring
 
 Should the contract have a time last updated function? The update function requires gas, so should be manually invoked only. No way to know if the contract is up to date right now.
+
+Also should have a parameter in constructor to prevent paying gas when withdrawing (often won't be needed unless one party is a contract on a non-trusted blockchain).
+Still need deserialization of contract definition/displaying, tests, evaluation, metamask. Could use some tests for withdraw in lib.rs.
 
 
 

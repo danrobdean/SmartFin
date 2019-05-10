@@ -253,12 +253,12 @@ fn get_has_correct_value() {
     let mut contract = contract_details.contract;
     contract.acquire();
     contract.update();
-    assert_eq!(contract.get_balance(), 0);
+    assert_eq!(contract.get_balance(true), 0);
 
     // Check value is 1 after expiry
     ext_update(|e| e.timestamp(1));
     contract.update();
-    assert_eq!(contract.get_balance(), 1);
+    assert_eq!(contract.get_balance(true), 1);
 }
 
 // The value of an anytime contract is correct with no additional acquisition
@@ -277,12 +277,12 @@ fn anytime_has_correct_value_no_additional_acquisition() {
     let mut contract = contract_details.contract;
     contract.acquire();
     contract.update();
-    assert_eq!(contract.get_balance(), 0);
+    assert_eq!(contract.get_balance(true), 0);
 
     // Check value is 1 after expiry
     ext_update(|e| e.timestamp(1));
     contract.update();
-    assert_eq!(contract.get_balance(), 1);
+    assert_eq!(contract.get_balance(true), 1);
 }
 
 // The value of an anytime contract is correct after additional acquisition
@@ -301,13 +301,13 @@ fn anytime_has_correct_value_after_additional_acquisition() {
     let mut contract = contract_details.contract;
     contract.acquire();
     contract.update();
-    assert_eq!(contract.get_balance(), 0);
+    assert_eq!(contract.get_balance(true), 0);
 
     // Acquire anytime contract
     contract.acquire_anytime_sub_contract(0);
 
     // Check value is 1
-    assert_eq!(contract.get_balance(), 1);
+    assert_eq!(contract.get_balance(true), 1);
 }
 
 // An expired contract should be concluded.

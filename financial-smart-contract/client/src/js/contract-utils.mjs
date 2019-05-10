@@ -607,6 +607,41 @@ export async function updateContract(contract, caller) {
     });
 }
 
+// Gets the balance of the given party (true is holder, false counter-party)
+export async function getBalance(contract, caller, holderBalance) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_balance(holderBalance).call({ from: caller }).then(res => {
+        return res.returnValue0;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Stakes the given amount of wei to the given contract.
+export async function stake(contract, caller, amount) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.stake().send({ from: caller, value: amount }).catch(err => {
+        return Promise.reject(err);
+    });
+}
+
+// Withdraws the given amount of wei from the given contract.
+export async function withdraw(contract, caller, amount) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.withdraw(amount).send({ from: caller }).catch(err => {
+        return Promise.reject(err);
+    });
+}
+
 // Returns true if the given value can be used as a scale value, false otherwise
 export function isValidScaleValue(value) {
     var maxValue = BigInt(2) ** BigInt(63);
