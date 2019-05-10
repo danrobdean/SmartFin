@@ -1,5 +1,6 @@
 import React from "react";
 
+import AcquireSubContractControls from "./acquire-sub-contract-controls.jsx";
 import DropDown from "./drop-down.jsx";
 import LoadContractControls from "./load-contract-controls.jsx";
 import Message from "./message.jsx";
@@ -7,7 +8,7 @@ import Modal from "./modal.jsx";
 import ObsValueControls from "./obs-value-controls.jsx";
 import OrChoiceControls from "./or-choice-controls.jsx";
 
-import { getHolder, getCounterParty, getConcluded, getOrChoices, getObsEntries, getAcquisitionTimes } from "./../js/contract-utils.mjs";
+import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getOrChoices, getObsEntries, getAcquisitionTimes, unixTimestampToDateString } from "./../js/contract-utils.mjs";
 
 /**
  * The contract monitoring component.
@@ -17,6 +18,16 @@ export default class Monitoring extends React.Component {
      * The CSS block name.
      */
     static blockName = "monitoring";
+
+    /**
+     * The duration between reloading the contract state (ms).
+     */
+    static RELOAD_PERIOD = 10000;
+
+    /**
+     * The timeout ID for reloading the contract state.
+     */
+    reloadStateTimeout;
 
     /**
      * Initialises a new instance of this class.
@@ -34,6 +45,7 @@ export default class Monitoring extends React.Component {
             contractLoadOpen: !Boolean(this.props.contract),
             orChoiceOpen: false,
             obsValueOpen: false,
+            acquireOpen: false,
             contractInteractionError: "",
             contractInteractionErrorDetails: "",
             holder: "N/A",
@@ -41,7 +53,7 @@ export default class Monitoring extends React.Component {
             concluded: "N/A",
             orChoices: [],
             obsEntries: [],
-            acquisitionTimes: [],
+            acquisitionTimes: []
         };
     }
 
@@ -52,6 +64,7 @@ export default class Monitoring extends React.Component {
         var orChoicesDisabled = this.state.holder !== this.props.address
             || this.state.concluded
             || !(this.state.orChoices && this.state.orChoices.length > 0);
+
         var setObsValueDisabled = true;
         if (!this.state.concluded) {
             for (var entry of this.state.obsEntries) {
@@ -60,6 +73,26 @@ export default class Monitoring extends React.Component {
                     break;
                 }
             }
+        }
+
+        var updateDisabled = !this.props.contract || !this.props.address || this.state.concluded;
+
+        var acquireDisabled = this.state.holder !== this.props.address
+            || !this.state.acquisitionTimes
+            || this.state.acquisitionTimes.length == 0
+            || this.state.acquisitionTimes[0].isDefined();
+
+        var acquireSubContractsDisabled = this.state.holder !== this.props.address
+            || !this.state.acquisitionTimes
+            || this.state.acquisitionTimes.length < 2
+            || !this.state.acquisitionTimes[0].isDefined()
+            || this.state.acquisitionTimes.every(time => time.isDefined() && new Date(time.getValue() * 1000) < Date.now());
+
+        var acquisitionTime = (this.state.acquisitionTimes && this.state.acquisitionTimes.length > 0)
+            ? this.state.acquisitionTimes[0].getValue()
+            : "N/A";
+        if (!isNaN(acquisitionTime)) {
+            acquisitionTime = unixTimestampToDateString(acquisitionTime);
         }
 
         return (
@@ -74,7 +107,7 @@ export default class Monitoring extends React.Component {
                         holder={this.state.holder}
                         address={this.props.address}
                         orChoices={this.state.orChoices}
-                        callback={() => this.closeModals()}/>
+                        callback={() => this.setValueModalCallback()}/>
                 </Modal>
 
                 <Modal title="Set Observable Value" visible={this.state.obsValueOpen} closeModal={() => this.closeModals()}>
@@ -82,7 +115,15 @@ export default class Monitoring extends React.Component {
                         contract={this.props.contract}
                         address={this.props.address}
                         obsEntries={this.state.obsEntries}
-                        callback={() => this.closeModals()}/>
+                        callback={() => this.setValueModalCallback()}/>
+                </Modal>
+
+                <Modal title="Acquire Sub-contract" visible={this.state.acquireOpen} closeModal={() => this.closeModals()}>
+                    <AcquireSubContractControls
+                        contract={this.props.contract}
+                        address={this.props.address}
+                        acquisitionTimes={this.state.acquisitionTimes}
+                        callback={() => this.setValueModalCallback()}/>
                 </Modal>
 
                 <div className={Monitoring.blockName + "__size-container"}>
@@ -107,6 +148,9 @@ export default class Monitoring extends React.Component {
                                     <span className={Monitoring.blockName + "__detail-label"}>
                                         Concluded:
                                     </span>
+                                    <span className={Monitoring.blockName + "__detail-label"}>
+                                        Acquisition Time:
+                                    </span>
                                 </div>
 
                                 <div className={Monitoring.blockName + "__details"}>
@@ -118,6 +162,9 @@ export default class Monitoring extends React.Component {
                                     </span>
                                     <span className={Monitoring.blockName + "__detail"}>
                                         {this.state.concluded.toString()}
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail"}>
+                                        {acquisitionTime}
                                     </span>
                                 </div>
                             </div>
@@ -135,7 +182,7 @@ export default class Monitoring extends React.Component {
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Acquisition Times"}>
+                                <DropDown title={"Sub-contract Acquisition Times"}>
                                     {this.renderAcquisitionTimes()}
                                 </DropDown>
                             </div>
@@ -150,6 +197,20 @@ export default class Monitoring extends React.Component {
 
                             <button
                                 className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.acquireContract()}
+                                disabled={acquireDisabled}>
+                                Acquire Contract
+                            </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.updateContract()}
+                                disabled={updateDisabled}>
+                                Update Contract
+                            </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
                                 onClick={() => this.openOrChoiceModal()}
                                 disabled={orChoicesDisabled}>
                                 Set Or Choices
@@ -160,7 +221,14 @@ export default class Monitoring extends React.Component {
                                 onClick={() => this.openObsValueModal()}
                                 disabled={setObsValueDisabled}>
                                     Set Observable Value
-                                </button>
+                            </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.openAcquireModal()}
+                                disabled={acquireSubContractsDisabled}>
+                                Acquire Sub-contract
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -200,6 +268,14 @@ export default class Monitoring extends React.Component {
     }
 
     /**
+     * Called when the component is about to be removed from the DOM.
+     */
+    componentWillUnmount() {
+        // Clear the reload timeout.
+        clearTimeout(this.reloadStateTimeout);
+    }
+
+    /**
      * Returns the element representing the contract header.
      */
     renderContractHeader() {
@@ -222,6 +298,14 @@ export default class Monitoring extends React.Component {
      * Returns the element representing the list of or choices.
      */
     renderOrChoices() {
+        if (!this.state.orChoices || this.state.orChoices.length == 0) {
+            return (
+                <span key={0} className={Monitoring.blockName + "__detail-label"}>
+                    This contract contains no <em>or</em> combinators.
+                </span>
+            );
+        }
+
         var orChoiceLabels = [];
         var orChoiceElements = [];
         for (var i = 0; i < this.state.orChoices.length; i++) {
@@ -240,14 +324,6 @@ export default class Monitoring extends React.Component {
             );
         }
 
-        if (orChoiceLabels.length == 0) {
-            orChoiceLabels.push(
-                <span key={0} className={Monitoring.blockName + "__detail-label"}>
-                    This contract contains no <em>or</em> combinators.
-                </span>
-            )
-        }
-
         return (
             <div className={Monitoring.blockName + "__basic-details"}>
                 <div className={Monitoring.blockName + "__detail-labels"}>
@@ -264,6 +340,14 @@ export default class Monitoring extends React.Component {
      * Returns the element representing the set of observable values.
      */
     renderObsValues() {
+        if (!this.state.obsEntries || this.state.obsEntries.length == 0) {
+            return (
+                <span key={i} className={Monitoring.blockName + "__detail-label"}>
+                    This contract contains no observable values.
+                </span>
+            );
+        }
+
         var obsValueLabels = [];
         var obsValueElements = [];
         var obsArbiterLabels = [];
@@ -297,14 +381,6 @@ export default class Monitoring extends React.Component {
             );
         }
 
-        if (obsValueLabels.length == 0) {
-            obsValueLabels.push(
-                <span key={i} className={Monitoring.blockName + "__detail-label"}>
-                    This contract contains no observable values.
-                </span>
-            );
-        }
-
         return (
             <div className={Monitoring.blockName + "__obs-entries"}>
                 <div className={Monitoring.blockName + "__basic-details"}>
@@ -334,27 +410,22 @@ export default class Monitoring extends React.Component {
      * Returns the element representing the list of acquisition times.
      */
     renderAcquisitionTimes() {
-        if (this.state.acquisitionTimes.length == 0) {
+        if (!this.state.acquisitionTimes || this.state.acquisitionTimes.length == 0) {
             return (
                 <span className={Monitoring.blockName + "__detail-label"}>
-                    N/A
+                    This contract has no <em>anytime</em> combinators.
                 </span>
             );
         }
 
-        var acquisitionTimeLabels = [
-            <span key={0} className={Monitoring.blockName + "__detail-label"}>
-                Contract acquisition time:
-            </span>
-        ];
-        var acquisitionTimeElements = [
-            <span key={0} className={Monitoring.blockName + "__detail"}>
-                {this.state.acquisitionTimes[0].getValue()}
-            </span>
-        ];
+        var acquisitionTimeLabels = [];
+        var acquisitionTimeElements = [];
 
         for (var i = 1; i < this.state.acquisitionTimes.length; i++) {
-            var acquisitionTime = this.state.acquisitionTimes[i];
+            var acquisitionTime = this.state.acquisitionTimes[i].getValue();
+            if (!isNaN(acquisitionTime)) {
+                acquisitionTime = unixTimestampToDateString(acquisitionTime);
+            }
 
             acquisitionTimeLabels.push(
                 <span key={i} className={Monitoring.blockName + "__detail-label"}>
@@ -364,7 +435,7 @@ export default class Monitoring extends React.Component {
 
             acquisitionTimeElements.push(
                 <span key={i} className={Monitoring.blockName + "__detail"}>
-                    {acquisitionTime.getValue()}
+                    {acquisitionTime}
                 </span>
             );
         }
@@ -385,6 +456,9 @@ export default class Monitoring extends React.Component {
      * Initialises the state based on the contract.
      */
     async initStateFromContract() {
+        // Clear the reload timeout if it's still set.
+        clearTimeout(this.reloadStateTimeout);
+
         this.setState({
             contractLoadOpen: false
         });
@@ -404,6 +478,8 @@ export default class Monitoring extends React.Component {
                 orChoices: orChoices,
                 obsEntries: obsEntries,
                 acquisitionTimes: acquisitionTimes
+            }, () => {
+                this.reloadStateTimeout = setTimeout(() => this.initStateFromContract(), Monitoring.RELOAD_PERIOD);
             });
         } catch(err) {
             this.setState({
@@ -411,6 +487,34 @@ export default class Monitoring extends React.Component {
                 contractInteractionErrorDetails: err.toString()
             });
         }
+    }
+
+    /**
+     * Updates the contract.
+     */
+    updateContract() {
+        updateContract(this.props.contract, this.props.address).then(() => {
+            this.initStateFromContract();
+        }, err => {
+            this.setState({
+                contractInteractionError: "Could not update the contract.",
+                contractInteractionErrorDetails: err.toString()
+            });
+        });
+    }
+
+    /**
+     * Acquires the contract.
+     */
+    acquireContract() {
+        acquireContract(this.props.contract, this.props.address).then(() => {
+            this.initStateFromContract()
+        }, err => {
+            this.setState({
+                contractInteractionError: "Could not acquire contract.",
+                contractInteractionErrorDetails: err.toString()
+            });
+        });
     }
 
     /**
@@ -441,13 +545,32 @@ export default class Monitoring extends React.Component {
     }
 
     /**
+     * Opens the acquire modal.
+     */
+    openAcquireModal() {
+        this.setState({
+            acquireOpen: true
+        });
+    }
+
+    /**
      * Closes all modals.
      */
     closeModals() {
         this.setState({
             contractLoadOpen: false,
             orChoiceOpen: false,
-            obsValueOpen: false
+            obsValueOpen: false,
+            acquireOpen: false
         });
+    }
+
+    /**
+     * Callback after setting a value in a modal.
+     */
+    setValueModalCallback() {
+        this.closeModals();
+
+        this.initStateFromContract();
     }
 }

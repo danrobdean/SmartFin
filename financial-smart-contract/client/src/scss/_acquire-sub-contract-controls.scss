@@ -1,0 +1,18 @@
+.acquire-sub-contract-controls__container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.acquire-sub-contract-controls__input-container {
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.acquire-sub-contract-controls__label {
+    margin-right: 0.5em;
+}
+
+.acquire-sub-contract-controls__error {
+    margin-bottom: 1em;
+}

@@ -424,6 +424,21 @@ export function dateToUnixTimestamp(date) {
     return date.getTime() / 1000 | 0;
 }
 
+// Converts the given unix timestamp to a date string.
+export function unixTimestampToDateString(timestamp) {
+    var date = new Date(timestamp * 1000);
+    var options = {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    }
+    
+    return Intl.DateTimeFormat("en-GB", options).format(date);
+}
+
 // Checks whether or not the given address is valid.
 export function isValidAddress(address) {
     if (!web3) {
@@ -539,9 +554,7 @@ export async function setOrChoice(contract, caller, index, choice) {
         setupWeb3();
     }
 
-    return contract.methods.set_or_choice(index, choice).send({ from: caller }).then(() => {
-        return;
-    }, err => {
+    return contract.methods.set_or_choice(index, choice).send({ from: caller }).catch(err => {
         return Promise.reject(err);
     });
 }
@@ -556,9 +569,40 @@ export async function setObsValue(contract, caller, index, value) {
         return Promise.reject("The given value is not a valid 64-bit signed integer.")
     }
 
-    return contract.methods.set_obs_value(index, value).send({ from: caller }).then(() => {
-        return;
-    }, err => {
+    return contract.methods.set_obs_value(index, value).send({ from: caller }).catch(err => {
+        return Promise.reject(err);
+    });
+}
+
+// Acquires the contract.
+export async function acquireContract(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.acquire().send({ from: caller }).catch(err => {
+        return Promise.reject(err);
+    });
+}
+
+// Acquires a sub-contract.
+export async function acquireSubContract(contract, caller, index) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.acquire_anytime_sub_contract(index).send({ from: caller }).catch(err => {
+        return Promise.reject(err);
+    });
+}
+
+// Updates the contract (costs gas).
+export async function updateContract(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.update().send({ from: caller }).catch(err => {
         return Promise.reject(err);
     });
 }

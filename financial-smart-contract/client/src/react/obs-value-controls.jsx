@@ -4,6 +4,9 @@ import Message from "./message.jsx";
 
 import { setObsValue } from "./../js/contract-utils.mjs";
 
+/**
+ * Component representing the controls for setting an observable value.
+ */
 export default class ObsValueControls extends React.Component {
     /**
      * The CSS block name.
