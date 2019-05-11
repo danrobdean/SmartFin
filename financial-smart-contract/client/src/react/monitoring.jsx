@@ -8,7 +8,7 @@ import Modal from "./modal.jsx";
 import ObsValueControls from "./obs-value-controls.jsx";
 import OrChoiceControls from "./or-choice-controls.jsx";
 
-import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, unixTimestampToDateString } from "./../js/contract-utils.mjs";
 import StakeWithdrawControls from "./stake-withdraw-controls.jsx";
 
 /**
@@ -58,7 +58,8 @@ export default class Monitoring extends React.Component {
             obsEntries: [],
             acquisitionTimes: [],
             holderBalance: "N/A",
-            counterPartyBalance: "N/A"
+            counterPartyBalance: "N/A",
+            combinatorContract: "N/A"
         };
     }
 
@@ -207,13 +208,21 @@ export default class Monitoring extends React.Component {
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Or choices"}>
+                                <DropDown title={"Combinator Contract"} disableChildClick={true}>
+                                    <div className={Monitoring.blockName + "__combinator-contract-container"}>
+                                        <em>{this.state.combinatorContract}</em>
+                                    </div>
+                                </DropDown>
+                            </div>
+
+                            <div className={Monitoring.blockName + "__details-drop-down"}>
+                                <DropDown title={"Or Choices"}>
                                     {this.renderOrChoices()}
                                 </DropDown>
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Observable values"}>
+                                <DropDown title={"Observable Values"}>
                                     {this.renderObsValues()}
                                 </DropDown>
                             </div>
@@ -461,7 +470,7 @@ export default class Monitoring extends React.Component {
      * Returns the element representing the list of acquisition times.
      */
     renderAcquisitionTimes() {
-        if (!this.state.acquisitionTimes || this.state.acquisitionTimes.length == 0) {
+        if (!this.state.acquisitionTimes || this.state.acquisitionTimes.length < 2) {
             return (
                 <span className={Monitoring.blockName + "__detail-label"}>
                     This contract has no <em>anytime</em> combinators.
@@ -523,6 +532,7 @@ export default class Monitoring extends React.Component {
             var acquisitionTimes = await getAcquisitionTimes(this.props.contract, this.props.address);
             var holderBalance = await getBalance(this.props.contract, this.props.address, true);
             var counterPartyBalance = await getBalance(this.props.contract, this.props.address, false);
+            var combinatorContract = await getCombinatorContract(this.props.contract, this.props.address);
 
             this.setState({
                 holder: holder,
@@ -532,7 +542,8 @@ export default class Monitoring extends React.Component {
                 obsEntries: obsEntries,
                 acquisitionTimes: acquisitionTimes,
                 holderBalance: holderBalance,
-                counterPartyBalance: counterPartyBalance
+                counterPartyBalance: counterPartyBalance,
+                combinatorContract: combinatorContract
             }, () => {
                 this.reloadStateTimeout = setTimeout(() => this.initStateFromContract(), Monitoring.RELOAD_PERIOD);
             });

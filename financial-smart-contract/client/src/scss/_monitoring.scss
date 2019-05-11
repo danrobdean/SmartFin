@@ -93,6 +93,13 @@
     box-sizing: border-box;
 }
 
+.monitoring__combinator-contract-container {
+    width: 40em;
+    word-break: break-word;
+    overflow: hidden;
+    pointer-events: none;
+}
+
 .monitoring__obs-entries {
     display: flex;
     flex-direction: row;

@@ -746,4 +746,25 @@ Still need deserialization of contract definition/displaying, tests, evaluation,
 
 
 
+========== 11 May ==========
+
+Finished monitoring (basically):
+	- Implemented contract deserialization on JS side
+	- Deserialized contract now displayed on the monitoring page
+
+Metamask secret phrase:
+essence enter security afford another moment castle network enhance acquire protect cruise
+
+Have also "implemented" metamask support - it "works", but still seems that it won't work with parity as it never matches the expected and actual states (JSON-RPC error 32603). Still, should work on a real blockchain or more standard test blockchain.
+
+Still need:
+	- JS tests
+	- Some extra rust tests for withdrawing (esp as it now panics)
+	- Evaluation algorithm
+	- Time-last-updated kept track of on contract? (should be easy)
+	- Constructor param for no gas on contract (should be easy)
+	- Report
+
+
+
 

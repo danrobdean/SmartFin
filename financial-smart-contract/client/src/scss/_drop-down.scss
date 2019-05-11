@@ -11,12 +11,20 @@
     cursor: pointer;
 }
 
+.drop-down__container--no-click {
+    cursor: default;
+}
+
 .drop-down__short-container {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     width: 100%;
+}
+
+.drop-down__short-container--drop-down {
+    cursor: pointer;
 }
 
 .drop-down__arrow {

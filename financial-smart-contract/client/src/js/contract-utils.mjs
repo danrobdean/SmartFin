@@ -2,6 +2,20 @@ import Web3 from "web3";
 
 import { ABI, CODE_HEX } from "./../../resources/resources.mjs";
 
+// Returns an object with the given object's keys and values inverted
+function invert(obj) {
+    var inverted = {};
+
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            inverted[obj[key]] = key;
+        }
+    }
+
+    return inverted;
+}
+
+// Initialise the web3 instance
 var web3;
 
 // Setup combinator -> byte dictionary
@@ -17,6 +31,8 @@ const combinatorDict = {
     "get": 8,
     "anytime": 9
 };
+
+const serializedCombinatorDict = invert(combinatorDict);
 
 // The Option class
 export class Option {
@@ -69,8 +85,37 @@ export class VerificationError {
     }
 }
 
-export function setupWeb3(url = "http://localhost:8545") {
-    var provider = new Web3.providers.HttpProvider(url);
+// Class for representing the result of contract deserialization.
+export class DeserializeResult {
+    /**
+     * Initialises a new instance of this class.
+     * @param contract The contract string.
+     * @param endIndex The index in the serialized combinator array that this contract reaches up to.
+     */
+    constructor(contract, endIndex) {
+        this.contract = contract;
+        this.endIndex = endIndex;
+    }
+
+    // Gets the contract string.
+    getContract() {
+        return this.contract;
+    }
+
+    // Gets the end index.
+    getEndIndex() {
+        return this.endIndex;
+    }
+}
+
+export function setupWeb3(metamask = false, url = "http://localhost:8545") {
+    var provider;
+    if (metamask && typeof window.web3 !== undefined) {
+        provider = window.web3.currentProvider;
+    } else {
+        provider = new Web3.providers.HttpProvider(url);
+    }
+
     if (!web3) {
         web3 = new Web3(provider);
     } else {
@@ -638,6 +683,92 @@ export async function withdraw(contract, caller, amount) {
     }
 
     return contract.methods.withdraw(amount).send({ from: caller }).catch(err => {
+        return Promise.reject(err);
+    });
+}
+
+// Deserializes the serialized combinator contract definition.
+export function deserializeCombinatorContract(i, serializedCombinatorContract) {
+    if (!serializedCombinatorContract || serializedCombinatorContract.length == 0) {
+        throw "Attempted to deserialize invalid combinator contract.";
+    }
+
+    var combinator = serializedCombinatorDict[serializedCombinatorContract[i]];
+
+    switch (combinator) {
+        case "zero":
+        case "one": {
+            return new DeserializeResult(combinator, i);
+        }
+
+        case "and":
+        case "or":
+        case "then": {
+            let contract = combinator + " ";
+
+            let subRes0 = deserializeCombinatorContract(i + 1, serializedCombinatorContract);
+            let subRes1 = deserializeCombinatorContract(subRes0.getEndIndex() + 1, serializedCombinatorContract);
+
+            contract += subRes0.getContract() + " " + subRes1.getContract();
+            return new DeserializeResult(contract, subRes1.getEndIndex());
+        }
+
+        case "give":
+        case "get":
+        case "anytime": {
+            let contract = combinator + " ";
+
+            let subRes = deserializeCombinatorContract(i + 1, serializedCombinatorContract);
+
+            contract += subRes.getContract();
+            return new DeserializeResult(contract, subRes.getEndIndex());
+        }
+
+        case "truncate": {
+            let contract = combinator + " <";
+            contract += unixTimestampToDateString(serializedCombinatorContract[i + 1]) + "> ";
+
+            let subRes = deserializeCombinatorContract(i + 2, serializedCombinatorContract);
+
+            contract += subRes.getContract();
+            return new DeserializeResult(contract, subRes.getEndIndex());
+        }
+
+        case "scale": {
+            let contract = combinator + " ";
+            let nextIndex = i + 3;
+
+            if (serializedCombinatorContract[i + 1] == 0) {
+                contract += "obs <" + deserializeAddress(serializedCombinatorContract.slice(i + 2, i + 6)) + "> ";
+                nextIndex += 3;
+            } else if (serializedCombinatorContract[i + 1] == 1) {
+                contract += "<" + serializedCombinatorContract[i + 2] + "> ";
+            }
+
+            let subRes = deserializeCombinatorContract(nextIndex, serializedCombinatorContract);
+
+            contract += subRes.getContract() ;
+            return new DeserializeResult(contract, subRes.getEndIndex());
+        }
+            
+        default:
+            throw "Unknown combinator found in contract definition."
+    }
+}
+
+// Gets the combinator contract definition from the given contract.
+export async function getCombinatorContract(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_contract_definition().call({ from: caller}).then(res => {
+        try {
+            return deserializeCombinatorContract(0, res.returnValue0).getContract();
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    }, err => {
         return Promise.reject(err);
     });
 }

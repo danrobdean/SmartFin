@@ -146,8 +146,9 @@ export default class ConnectAccount extends React.Component {
     /**
      * Attempts to connect to the MetaMask instance.
      */
-    async connectMetaMask() {
-        alert("Not implemented.");
+    connectMetaMask() {
+        var web3 = setupWeb3(true);
+        this.checkConnection(web3, true);
     }
 
     /**
@@ -155,8 +156,11 @@ export default class ConnectAccount extends React.Component {
      */
     connectManual() {
         // Setup web3 connection
-        var web3 = setupWeb3(this.state.url);
+        var web3 = setupWeb3(false, this.state.url);
+        this.checkConnection(web3, false);
+    }
 
+    checkConnection(web3, metamask) {
         var successfulState = {
             web3: web3,
             manualConnectError: "",
@@ -185,7 +189,17 @@ export default class ConnectAccount extends React.Component {
             web3.eth.net.isListening().then(() => {
                 if (this.state.connecting) {
                     // Connection succeeded, set successful.
-                    this.setState(successfulState);
+                    if (!metamask) {
+                        this.setState(successfulState);
+                    } else {
+                        web3.eth.getAccounts((err, accounts) => {
+                            if (err || accounts.length == 0) {
+                                this.setState(failedState("Could not get account details from MetaMask. Please check MetaMask setup."))
+                            } else {
+                                this.props.setWeb3(web3, accounts[0]);
+                            }
+                        });
+                    }
                 }
             }).catch(() => {
                 if (this.state.connecting) {
@@ -200,12 +214,6 @@ export default class ConnectAccount extends React.Component {
      * Tries to unlock the blockchain account, reverts state and shows error if fails.
      */
     async unlockAccountManual() {
-        var successfulState = {
-            unlocking: false,
-            manualConnectError: "",
-            manualAccountUnlockError: ""
-        }
-
         var failedState = (unlockErr, connectErr) => {
             return {
                 web3: (connectErr) ? null : this.state.web3,

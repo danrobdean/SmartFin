@@ -12,6 +12,7 @@ export default class DropDown extends React.Component {
     /**
      * Initialises a new instance of this class.
      * @param props.title The title.
+     * @param props.disableChildClick Whether or not to disable the on-click event for the child.
      * @param props.children The child elements displayed in a drop-down box (optional, if provided a drop-down arrow is displayed).
      */
     constructor(props) {
@@ -29,6 +30,7 @@ export default class DropDown extends React.Component {
         var containerClassName = DropDown.blockName + "__container";
         var containerClassNames = [
             containerClassName,
+            containerClassName + ((this.props.disableChildClick) ? "--no-click" : ""),
             containerClassName + ((this.props.children) ? "--drop-down" : ""),
             this.props.className
         ].join(" ");
@@ -40,17 +42,24 @@ export default class DropDown extends React.Component {
             arrowClassName + ((this.state.open) ? "--down" : "--left")
         ].join(" ");
 
+        var shortContainerClassName = DropDown.blockName + "__short-container";
+        var shortContainerClassNames = [
+            shortContainerClassName,
+            shortContainerClassName + ((this.props.disableChildClick) ? "--drop-down" : "")
+        ].join(" ");
+
         return (
             <div
                 className={containerClassNames}
-                onClick={() => this.toggleOpen()}>
-                <div className={DropDown.blockName + "__short-container"}>
+                onClick={((this.props.disableChildClick) ? () => { } : () => this.toggleOpen())}>
+                <div
+                    className={shortContainerClassNames}
+                    onClick={() => this.toggleOpen()}>
                     <span className={DropDown.blockName + "__title"}>
                         {this.props.title}
                     </span>
                     <i
-                        className={arrowClassNames}
-                        onClick={() => this.toggleOpen()}/>
+                        className={arrowClassNames}/>
                 </div>
                 {this.renderDropDown()}
             </div>
