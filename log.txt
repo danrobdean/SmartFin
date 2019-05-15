@@ -767,4 +767,37 @@ Still need:
 
 
 
+========== 13 May ==========
+
+Report work!!
+	- Gone through report fixing bracketing and semicolon usage
+	- Removed first-person references (except mayybe some in plan and evaluation, as it actually makes sense there)
+	- Added todo notes about missing background research (mainly pwasm and analysis tool stuff)
+	- Todo notes about stuff that should be cut or moved from background research
+	- Todo notes about stuff that isn't relevant or true anymore
+	- Todo notes about potential places for examples
+	- Minor grammar/wording improvements
+
+
+
+========== 15 May ==========
+
+Done today
+	- Helped Noah-Vincenz (a lot) with his blockchain/deployment woes, implemented a minimal version of the wasm contract with build/deploy functionality
+	- added margin to bottom of monitoring page
+	- Re-read the contracts.pdf paper:
+		- Probably don't need lattice/numerical modelling, bc will leave exchange rate/interest rate/etc evaluation up to the user (these are SUPER hard problems which SPJ barely goes-into)
+		- Likely can use some recursive evaluation function
+		- Evaluation of an expired contract may not be able to return 0, but instead something like undefined (unless you're at the top level, in which case undefined should be interpreted as 0)
+		- Memoisation/some kind of dynamic-programming to prevent re-evaluating sub-contracts would be nice, and very good for the report, but may be difficult (hopefully not too hard in our simpler evaluation compared to SPJ, even just using a hash-map would probably be ok)
+		- Some function for contract -> horizon would be good, maybe also memo-ised (can go bottom-up in that case)
+		- Probably good to calculate all "relevant" time slices, and allow the user to choose between them for acquisition times (i.e. if 1-2 and 2-3 have the same value, then 1-3 is the time-slice we care about)
+		- OR combinators should evaluate to their maximum sub-combinator value (or the non-expired child if one has expired)
+		- GET combinators can just evaluate to the value at the horizon, since we don't care about value process modelling
+		- ANYTIME will be a bit more complicated, worth thinking about - should display time slice selection for ANYTIME acquisition as well, but how to UI this? etc
+		- All other combinators are straightforward
+		- Represent as string or array during evaluation? Both have array, but the strings differ slightly, but in detectable ways so can transform? String may be more readable and hash-map-able?
+
+
+
 
