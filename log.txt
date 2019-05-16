@@ -800,4 +800,14 @@ Done today
 
 
 
+========== 16 May ==========
+
+Starting evaluation algorithm:
+	- Implemented getHorizon/_getHorizon for all combinators, and written tests
+		- Thought about memoisation, but with memoisation we need to find the "functional" part of the sub-contract (removing any trailing combinators) and then look this up. This is barely better than just calculating it from scratch if it hits (same order of magnitude), but goes from linear to quadratic in the worst case (missing every element). May be interesting to talk about in report though.
+
+	- Reorganized test suite - tests for different files now in different test files
+
+
+
 
