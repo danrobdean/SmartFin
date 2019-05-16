@@ -742,7 +742,7 @@ export function deserializeCombinatorContract(i, serializedCombinatorContract) {
                 contract += "obs <" + deserializeAddress(serializedCombinatorContract.slice(i + 2, i + 6)) + "> ";
                 nextIndex += 3;
             } else if (serializedCombinatorContract[i + 1] == 1) {
-                contract += "<" + serializedCombinatorContract[i + 2] + "> ";
+                contract += serializedCombinatorContract[i + 2] + " ";
             }
 
             let subRes = deserializeCombinatorContract(nextIndex, serializedCombinatorContract);

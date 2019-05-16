@@ -1,77 +1,23 @@
 import assert from "assert";
-import { setupWeb3, unlockAccount, loadAndDeployContract, serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, serializeAddress, deserializeAddress, dateToUnixTimestamp } from "../src/js/contract-utils.mjs";
 
-// The deployed smart contract instance
-var contract;
-var web3 = setupWeb3();
+import { serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, deserializeAddress } from "../src/js/contract-utils.mjs";
+import { unlockAccounts, uninvolved, holder, counterParty, web3, getUnixTime, deploy } from "./common";
 
-// Address/password pairs
-const uninvolved = {
-    address: web3.utils.toChecksumAddress("0x37aC31b396F68051e2a5D148CaF2198Af45ac918"),
-    password: "test"
-}
-
-const holder = {
-    address: web3.utils.toChecksumAddress("0x057E231DaB35A789F5999056c8Ec775512609CBb"),
-    password: "test"
-};
-
-const counterParty = {
-    address: web3.utils.toChecksumAddress("0x1e00c1c4f7c9C878e863E9B2acC374F0C2a0F742"),
-    password: "test"
-}
-
-// Deploy the given combinator contract string
-function deploy(contractDefinition) {
-    // Get serialized test contract
-    var combinatorContract = serializeCombinatorContract(contractDefinition);
-
-    // First deployment may fail
-    return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
-        // First deployment succeeded
-        contract = res;
-    }, function(_) {
-        // Should deploy successfully
-        return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
-            contract = res;
-        });
-    });
-}
-
-// Get the current UNIX time
-function getUnixTime() {
-    return dateToUnixTimestamp(new Date());
-}
-
-describe('Contract utility tests', function() {
-    it('Unlocks accounts without error', function() {
-        return unlockAccount(holder.address, holder.password);
-    });
-
-    it('Correctly serializates/deserializes address', function() {
-        var address = uninvolved.address;
-        var serialized = serializeAddress(address);
-        var deserialized = deserializeAddress(serialized);
-        assert.equal(deserialized, address);
-    });
-});
-
-describe('Contract interaction tests', function() {
+describe('Contract integration tests', function() {
     // Unlock accounts before all tests
     before(function() {
-        // Unlock accounts
-        return unlockAccount(holder.address, holder.password).then(function() {
-            unlockAccount(counterParty.address, counterParty.password).then(function() {
-                unlockAccount(uninvolved.address, uninvolved.password);
-            });
-        });
+        return unlockAccounts();
     });
-    
+
     // Tests for a simple "one" contract
     describe('Simple contract tests', function() {
+        var contract;
+
         // Redeploy the smart contract before each test (each deployment has fresh state)
         beforeEach(function() {
-            return deploy("one");
+            return deploy("one").then(res => {
+                contract = res;
+            });
         });
     
         it('Returns the correct holder address', function() {
@@ -185,7 +131,7 @@ describe('Contract interaction tests', function() {
     // Tests for an OR contract
     describe('OR contract tests', function() {
         it('Has the value of the left sub-combinator when the or choice is set to true', function() {
-            return deploy("or one zero").then(function() {
+            return deploy("or one zero").then(function(contract) {
                 return contract.methods.set_or_choice(0, true).send({ from: holder.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
                         return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
@@ -197,7 +143,7 @@ describe('Contract interaction tests', function() {
         });
     
         it('Has the value of the right sub-combinator when the or choice is set to false', function() {
-            return deploy("or zero one").then(function() {
+            return deploy("or zero one").then(function(contract) {
                 return contract.methods.set_or_choice(0, false).send({ from: holder.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
                         return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
@@ -212,7 +158,7 @@ describe('Contract interaction tests', function() {
     // Tests for a TRUNCATE contract
     describe('TRUNCATE contract tests', function() {
         it('Is not concluded when the given time is in the past', function() {
-            return deploy("truncate " + (getUnixTime() - 100) + " one").then(function() {
+            return deploy("truncate " + (getUnixTime() - 100) + " one").then(function(contract) {
                 return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
                     assert.ok(res.returnValue0);
                 });
@@ -220,7 +166,7 @@ describe('Contract interaction tests', function() {
         });
     
         it('Is concluded when the given time is in the future', function() {
-            return deploy("truncate " + (getUnixTime() + 100) + " one").then(function() {
+            return deploy("truncate " + (getUnixTime() + 100) + " one").then(function(contract) {
                 return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
                     assert.ok(!res.returnValue0);
                 });
@@ -231,7 +177,7 @@ describe('Contract interaction tests', function() {
     // Tests for a SCALE contract
     describe('SCALE contract tests', function() {
         it('Check serialization/deserialization of address for observable arbiter', function() {
-            return deploy("scale obs " + uninvolved.address + " one").then(function() {
+            return deploy("scale obs " + uninvolved.address + " one").then(function(contract) {
                 return contract.methods.get_obs_entries().call({ from: holder.address }).then(function(res) {
                     let address_serialized = res.returnValue0.slice(0, 4);
                     assert.equal(deserializeAddress(address_serialized), uninvolved.address);
@@ -241,7 +187,7 @@ describe('Contract interaction tests', function() {
         });
 
         it('Has the correct value when a scale value is provided', function() {
-            return deploy("scale 5 one").then(function() {
+            return deploy("scale 5 one").then(function(contract) {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
                     return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                         assert.equal(res.returnValue0, 5);
@@ -251,7 +197,7 @@ describe('Contract interaction tests', function() {
         });
     
         it('Has the correct value when an observable value is provided', function() {
-            return deploy("scale obs " + uninvolved.address + " one").then(function() {
+            return deploy("scale obs " + uninvolved.address + " one").then(function(contract) {
                 return contract.methods.set_obs_value(0, 5).send({ from: uninvolved.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
                         return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
@@ -266,7 +212,7 @@ describe('Contract interaction tests', function() {
     // Tests for an ANYTIME contract
     describe('ANYTIME contract tests', function() {
         it('Has the correct value before the anytime sub-combinator is acquired', function() {
-            return deploy("anytime one").then(function() {
+            return deploy("anytime one").then(function(contract) {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
                     return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
                         assert.equal(res.returnValue0, 0);
@@ -276,7 +222,7 @@ describe('Contract interaction tests', function() {
         });
     
         it('Has the correct value after the anytime sub-combinator is acquired', function() {
-            return deploy("anytime one").then(function() {
+            return deploy("anytime one").then(function(contract) {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
                     return contract.methods.acquire_anytime_sub_contract(0).send({ from: holder.address }).then(function() {
                         return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
@@ -293,7 +239,7 @@ describe('Contract interaction tests', function() {
         it('Returns the correct serialized contract', function() {
             let contractDefinition = "and or one zero truncate 100 get give anytime then scale 500 one zero";
             let serializedContract = serializeCombinatorContract(contractDefinition);
-            return deploy(contractDefinition).then(function() {
+            return deploy(contractDefinition).then(function(contract) {
                 return contract.methods.get_contract_definition().call({ from: holder.address }).then(function(res) {
                     assert.deepEqual(res.returnValue0, serializedContract);
                 });
@@ -303,7 +249,7 @@ describe('Contract interaction tests', function() {
         it('Returns the correct acquisition times', function() {
             let now = getUnixTime();
     
-            return deploy("anytime anytime anytime anytime one").then(function() {
+            return deploy("anytime anytime anytime anytime one").then(function(contract) {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
                     return contract.methods.acquire_anytime_sub_contract(0).send({ from: holder.address }).then(function() {
                         return contract.methods.acquire_anytime_sub_contract(1).send({ from: holder.address }).then(function() {
@@ -327,7 +273,7 @@ describe('Contract interaction tests', function() {
         });
     
         it('Returns the correct or choices', function() {
-            return deploy("or or or one zero one zero").then(function() {
+            return deploy("or or or one zero one zero").then(function(contract) {
                 return contract.methods.set_or_choice(0, true).send({ from: holder.address }).then(function() {
                     return contract.methods.set_or_choice(1, false).send({ from: holder.address }).then(function() {
                         return contract.methods.get_or_choices().call({ from: holder.address }).then(function(res) {
@@ -339,7 +285,7 @@ describe('Contract interaction tests', function() {
         });
 
         it('Returns the correct observable values', function() {
-            return deploy("scale obs " + uninvolved.address + " scale obs " + holder.address + " scale obs " + counterParty.address + " one").then(function() {
+            return deploy("scale obs " + uninvolved.address + " scale obs " + holder.address + " scale obs " + counterParty.address + " one").then(function(contract) {
                 return contract.methods.set_obs_value(0, 1).send({ from: uninvolved.address }).then(function() {
                     return contract.methods.set_obs_value(2, -1).send({ from: counterParty.address }).then(function() {
                         return contract.methods.get_obs_entries().call({ from: holder.address }).then(function(res) {
