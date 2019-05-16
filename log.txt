@@ -805,8 +805,22 @@ Done today
 Starting evaluation algorithm:
 	- Implemented getHorizon/_getHorizon for all combinators, and written tests
 		- Thought about memoisation, but with memoisation we need to find the "functional" part of the sub-contract (removing any trailing combinators) and then look this up. This is barely better than just calculating it from scratch if it hits (same order of magnitude), but goes from linear to quadratic in the worst case (missing every element). May be interesting to talk about in report though.
+		- If we don't trim trailing combinators, we don't get any benefits from evaluating one contract (except that the top level horizon is saved, which we could do i guess) since no sub-combinator will have the same trailing set of combinators as any other sub-combinator, as at least their lengths will differ
+		- This system would be helpful though if analysing lots of different contracts while keeping evaluator in memory. This is javascript in the browser though, so it's unlikely to be kept in memory no matter what, and it's also not really the intended use case.
+		- Could benefit (O(n) -> O(1)) from just storing the top-level horizon, so will do that.
 
 	- Reorganized test suite - tests for different files now in different test files
+	- Time slices and tests
+		- Good stuff for the report
+		- New time slices are only introduced by truncate, and time slice sets are merged by or, and, and then (then is more special though)
+		- Each time slice represents a period of time in which acquiring the contract will have a defined value
+		- In other words, acquiring a contract during a time slice will result in the same (FINAL) value as acquiring it anywhere else in the same time slice
+		- Other time slices may or may not have the same value
+		- If two time slices are adjacent, and have the same value, it should be possible (I think) to merge them (since that's the whole point of time slices, differentiating values over time)
+		- To view the (FINAL) value of a contract, you must set the time slice within which you plan to acquire it, or view them all
+		- Anytime combinators throw a bit of a spanner in the works, as they must also have a set of time-slices and a time-slice given
+		- Currently, only the top level set of time slices is kept track of. May make sense to keep track of anytime time slice sets, requiring us to map them by index, so the _processCombinators method will need to recurse by incrementing an index instead of slicing the array. This is obviously possible as it's how we do it elsewhere, so it should be fine
+		- May want to calculate values of all time slices at the start. This would enable fancy stuff like graphs, although with anytime combinators this gets difficult. Also allows us to merge time-slices before displaying them, which is nice for the user.
 
 
 
