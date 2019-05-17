@@ -20,9 +20,14 @@ export default class Evaluator {
     horizon;
 
     /**
-     * The relevant time slices of the contract.
+     * The relevant time slices of the top-level contract.
      */
     timeSlices;
+
+    /**
+     * The relevant time slices of the anytime combinators in the contract.
+     */
+    anytimeTimeSlices;
 
     /**
      * Sets the financial contract which is to be evaluated.
@@ -35,9 +40,10 @@ export default class Evaluator {
             // Set the array of combinator atoms.
             this.combinators = this.contract.split(/[ \(\),]/).filter(elem => elem !== "");
 
-            var result = this._processCombinators(this.combinators);
+            var result = this._processCombinators(0);
             this.horizon = result.horizon;
             this.timeSlices = result.timeSlices;
+            this.anytimeTimeSlices = result.anytimeTimeSlices;
         }
     }
 
@@ -59,74 +65,100 @@ export default class Evaluator {
      * Gets the set of relevant time slices for the contract.
      */
     getTimeSlices() {
-        return this.timeSlices;
+        return this.timeSlices.clone();
+    }
+
+    /**
+     * Gets the array of anytime time slice sets for the contract, in order of occurrence.
+     */
+    getAnytimeTimeSlices() {
+        return this.anytimeTimeSlices;
     }
 
     /**
      * Gets the horizon of the given financial contract, or undefined if none exists.
-     * @param combinators Array of the financial contract atoms to get the horizon of.
+     * @param i The index to start processing the associated combinator contract at.
      */
-    _processCombinators(combinators) {
-        switch (combinators[0]) {
+    _processCombinators(i) {
+        switch (this.combinators[i]) {
             case "zero":
             case "one":
-                return new ProcessResult(undefined, combinators.slice(1), new TimeSlices());
+                return new ProcessResult(undefined, i + 1, new TimeSlices(), []);
 
             case "truncate":
                 var horizon;
                 var subHorizonRes;
 
-                if (combinators[1].indexOf("<") != -1) {
+                if (this.combinators[i + 1].indexOf("<") != -1) {
                     // Time is pretty date string, will be split up into 2 elements
-                    horizon = this._dateOrUnixToHorizon(combinators.slice(1, 3).join(", "));
-                    subHorizonRes = this._processCombinators(combinators.slice(3));
+                    horizon = this._dateOrUnixToHorizon(this.combinators.slice(i + 1, i + 3).join(", "));
+                    subHorizonRes = this._processCombinators(i + 3);
                 } else {
                     // Time is unix
-                    horizon = this._dateOrUnixToHorizon(combinators[1]);
-                    subHorizonRes = this._processCombinators(combinators.slice(2));
+                    horizon = this._dateOrUnixToHorizon(this.combinators[i + 1]);
+                    subHorizonRes = this._processCombinators(i + 2);
                 }
 
                 // Adjust TimeSlices
                 var timeSlices = subHorizonRes.timeSlices;
                 var finalHorizon = this._getMinHorizon(horizon, subHorizonRes.horizon);
-                timeSlices.cut(finalHorizon);
+                timeSlices.cutTail(finalHorizon);
 
-                return new ProcessResult(finalHorizon, subHorizonRes.tail, timeSlices);
+                return new ProcessResult(finalHorizon, subHorizonRes.tailIndex, timeSlices, subHorizonRes.anytimeTimeSlices);
 
             case "give":
+                return this._processCombinators(i + 1);
+
             case "get":
+                var subHorizonRes = this._processCombinators(i + 1);
+
+                // Cut off time slice before horizon, as acquiring get c before H(c)
+                // will acquire c at H(c), so the time c is acquired makes no difference.
+                subHorizonRes.timeSlices.cutHead(subHorizonRes.horizon);
+
+                return subHorizonRes;
+
             case "anytime":
-                return this._processCombinators(combinators.slice(1));
+                var subHorizonRes = this._processCombinators(i + 1);
+
+                // Add current contract's time slices to front of anytime time slices array.
+                subHorizonRes.anytimeTimeSlices.unshift(subHorizonRes.timeSlices.clone());
+
+                return subHorizonRes;
 
             case "scale":
-                if (combinators[1] == "obs") {
-                    return this._processCombinators(combinators.slice(3));
+                if (this.combinators[i + 1] == "obs") {
+                    return this._processCombinators(i + 3);
                 } else {
-                    return this._processCombinators(combinators.slice(2));
+                    return this._processCombinators(i + 2);
                 }
 
             case "and":
             case "or":
-                var subHorizonRes0 = this._processCombinators(combinators.slice(1));
-                var subHorizonRes1 = this._processCombinators(subHorizonRes0.tail);
+                var subHorizonRes0 = this._processCombinators(i + 1);
+                var subHorizonRes1 = this._processCombinators(subHorizonRes0.tailIndex);
                 var finalHorizon = this._getMaxHorizon(subHorizonRes0.horizon, subHorizonRes1.horizon);
 
                 // Merge time slices
                 var timeSlices = subHorizonRes0.timeSlices;
                 timeSlices.merge(subHorizonRes1.timeSlices);
+
+                var anytimeTimeSlices = subHorizonRes0.anytimeTimeSlices.concat(subHorizonRes1.anytimeTimeSlices);
                 
-                return new ProcessResult(finalHorizon, subHorizonRes1.tail, timeSlices);
+                return new ProcessResult(finalHorizon, subHorizonRes1.tailIndex, timeSlices, anytimeTimeSlices);
 
             case "then":
-                var subHorizonRes0 = this._processCombinators(combinators.slice(1));
-                var subHorizonRes1 = this._processCombinators(subHorizonRes0.tail);
+                var subHorizonRes0 = this._processCombinators(i + 1);
+                var subHorizonRes1 = this._processCombinators(subHorizonRes0.tailIndex);
                 var finalHorizon = this._getMaxHorizon(subHorizonRes0.horizon, subHorizonRes1.horizon);
 
                 // Merge time slices, only adding sub-combinator 2's slices after sub-combinator 1's horizon
                 var timeSlices = subHorizonRes0.timeSlices;
                 timeSlices.mergeAfter(subHorizonRes1.timeSlices);
+
+                var anytimeTimeSlices = subHorizonRes0.anytimeTimeSlices.concat(subHorizonRes1.anytimeTimeSlices);
                 
-                return new ProcessResult(finalHorizon, subHorizonRes1.tail, timeSlices);
+                return new ProcessResult(finalHorizon, subHorizonRes1.tailIndex, timeSlices, anytimeTimeSlices);
         }
     }
 
@@ -191,9 +223,9 @@ class ProcessResult {
     horizon;
 
     /**
-     * The tail array of combinators.
+     * The index of the tail of combinators following the last processed combinator.
      */
-    tail;
+    tailIndex;
 
     /**
      * The TimeSlices of the contract.
@@ -201,15 +233,22 @@ class ProcessResult {
     timeSlices;
 
     /**
+     * The array of TimeSlices of the anytime combinators in the contract.
+     */
+    anytimeTimeSlices;
+
+    /**
      * Initialises a new instance of this class.
      * @param horizon The horizon of the getHorizon call.
-     * @param tail The tail of the set of combinators after the last combinator of the getHorizon call.
+     * @param tailIndex The index of the tail of the set of combinators after the last combinator of the getHorizon call.
      * @param timeSlices The TimeSlices of the contract.
+     * @param anytimeTimeSlices The array of TimeSlices of the anytime combinators in the contract.
      */
-    constructor(horizon, tail, timeSlices) {
+    constructor(horizon, tailIndex, timeSlices, anytimeTimeSlices) {
         this.horizon = horizon;
-        this.tail = tail;
+        this.tailIndex = tailIndex;
         this.timeSlices = timeSlices;
+        this.anytimeTimeSlices = anytimeTimeSlices;
     }
 }
 
@@ -218,7 +257,7 @@ class ProcessResult {
  */
 export class TimeSlices {
     /**
-     * The set of time slices. Must remain sorted.
+     * The set of time slices. Must remain sorted. Each time slice lasts up to and including the slice's value.
      */
     _slices = [];
 
@@ -226,21 +265,48 @@ export class TimeSlices {
      * Gets the set of time slices.
      */
     getSlices() {
-        return this._slices;
+        return this._slices.slice();
     }
 
     /**
-     * Cuts off the time slice set at the given time, removing all following slices. If no slice follows the given time, then do nothing.
-     * @param time The time to cut off the time slice at.
+     * Cuts off the time slice set at the given time, removing all following slices, and splitting at the given time.
+     * @param time The time to cut off the time slices after.
      */
-    cut(time) {
-        var index = this._slices.findIndex(elem => elem >= time);
-        if (index == -1) {
+    cutTail(time) {
+        // Undefined time is equivalent to an "infinity" horizon, so nothing can be cut off.
+        // For example, truncate infinity c can be acquired at any time, so it is equal to just c, so no change should be made.
+        if (time === undefined) {
             return;
         }
 
-        this._slices = this._slices.slice(0, index);
-        this._slices.push(time);
+        var index = this._slices.findIndex(elem => elem >= time);
+        if (index != -1) {
+            this._slices = this._slices.slice(0, index);
+        }
+
+        this.split(time);
+    }
+
+    /**
+     * Cuts off the time slice set at the given time, removing all preceding slices, and splitting at the given time.
+     * @param time 
+     */
+    cutHead(time) {
+        // Undefined time is equivalent to an "infinite" horizon, so everything should be removed.
+        // For example, get truncate infinity c can only be acquired at infinity, so it should only have one time slice.
+        if (time === undefined) {
+            this._slices = [];
+            return;
+        }
+
+        var index = this._slices.findIndex(elem => elem >= time);
+        if (index != -1) {
+            this._slices.splice(0, index);
+        } else {
+            this._slices = [];
+        }
+
+        this.split(time);
     }
 
     /**
@@ -285,5 +351,14 @@ export class TimeSlices {
         for (var i = startIndex; i < otherSlices.length; i++) {
             this._slices.push(otherSlices[i]);
         }
+    }
+
+    /**
+     * Clones this object.
+     */
+    clone() {
+        var result = new TimeSlices();
+        result._slices = this.getSlices();
+        return result;
     }
 }

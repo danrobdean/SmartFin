@@ -824,4 +824,43 @@ Starting evaluation algorithm:
 
 
 
+========== 17 May ==========
+
+Continuing Evaluator class:
+	- _processCombinators now uses index instead of slicing combinator array for recursion
+	- _processCombinators now uses this.combinators[i + x] instead of passing in combinators, which should always be correct
+	- TimeSlices are now cloned when given away by evaluator, or used in anytimeTimeSlices
+	- GET now cuts off head of time slices (as acquiring before get truncate x c is the same as acquiring at x)
+	- ANYTIME time slices may be cut-able by GET as well
+		- acquiring GET TRUNCATE X ANYTIME TRUNCATE Y C with Y > X has no difference between 0 and X (although the anytime contract doesn't know this in its scope..)
+		- Maybe just keep track of higher level time slice during traversal, and only choose anytime time slices which are also in that list
+
+Note: currently NOT done by time-slice algorithm:
+	- OR combinators where the later-expiring branch is always optimal should only take the time slices of the better choice, since the other branch will never be chosen (requires value calculation)
+
+Thoughts on evaluation:
+	- Only unique values are those at the time of each time slice
+		- e.g. for [1, 2, 3], need to evaluate at times 1, 2, and 3 (as well as after 3), all other times will give one of those 3 values
+	- When evaluating, always assume most valuable branch is picked by the owner
+		- Most valuable or-choice
+		- Most valuable ANYTIME acquisition time-slice
+	- For scale values, we can't estimate their value (will leave that to the user)
+		- instead show the maximal concrete value (if one exists) and all options based on scaling
+		- Could show just maximal options based on scaling (e.g. "2 * obs_1 * one" over "obs_1 * one") - don't know if scale will be negative though
+		- Could allow user to estimate obs values, but if they change significantly with time then this will be hard as we don't know what time we'll be evaluating for
+		- If we can get an observable value at each viable time slice in the contract, then we can find the maximal value. This may be complicated though as lots of obs values to input.
+		- Maybe allow one option for evaluating a path that the user selects, one option for evaluating optimal path based on estimated obs values.
+		- In the second case, maybe want to save time-slices at each obs-value too? So we know what times are needed, instead of having to look up the tree for the nearest anytime/top-level
+	- When evaluating anytime, only allow selecting time-slices at or after the time slice being used 1 level up
+		- e.g. for get truncate x anytime truncate y c, can use any time slice between x and y, but not before x (none will exist after y at that level)
+
+
+Idea for evaluation:
+	- One option is to walk down the tree allowing the user to select options, a "choose-your-financial-adventure" style, with UI showing new options after each choice
+	- Another option is to allow the user to input observable value estimates at each time slice (relevant to the scale combinators), and then calculate the optimal value
+		- Would be ideal if could allow users to input time-based value equations or something, but this is suuuper complicated and hard to do safely so not gonna be possible (future work??)
+
+The first one is relatively simple, only requiring choices for acquisition/anytime-acquisition, or-choices, and scale-values (although this could be optional even), so will work on that first.
+
+
 

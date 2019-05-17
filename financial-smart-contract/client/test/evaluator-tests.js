@@ -160,6 +160,63 @@ describe.only('Evaluator tests', function() {
         evaluator.setContract("then one truncate " + dateStringMin + " one");
         assert.equal(evaluator.getHorizon(), undefined);
     });
+
+    it("Modifying time slices doesn't modify base object", function() {
+        evaluator.setContract("one");
+        var timeSlices = evaluator.getTimeSlices();
+        timeSlices.split(1);
+
+        assert.notEqual(timeSlices, evaluator.getTimeSlices());
+    });
+
+    it("No time slices for a contract not involving truncate", function() {
+        evaluator.setContract("anytime give get or one and scale 10 one then zero one");
+
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), []);
+    });
+
+    it("Time slices for truncate are split in the correct place", function() {
+        evaluator.setContract("truncate 123 one");
+
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), [123]);
+    });
+
+    it("Time slices for truncate cut off time slices for further-down truncates with later horizons", function() {
+        evaluator.setContract("truncate 123 truncate 456 one");
+
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), [123]);
+    });
+
+    it("Time slices for or combine time slices for further-down combinators", function() {
+        evaluator.setContract("or truncate 1 one truncate 2 one");
+
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), [1, 2]);
+    });
+
+    it("Time slices for and combine time slices for further-down combinators", function() {
+        evaluator.setContract("and truncate 1 one truncate 2 one");
+
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), [1, 2]);
+    });
+
+    it("Time slices for then combine time slices for further-down combinators by merging the second sub-combinator's time slices after the first's", function() {
+        evaluator.setContract("then or truncate 1 one truncate 2 one or truncate 0 one truncate 4 one");
+
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), [1, 2, 4]);
+    });
+
+    it("Time slices for get cut off time slices for truncates with earlier horizons", function() {
+        evaluator.setContract("get truncate 127 or truncate 45 one truncate 67 one");
+
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), [67]);
+    });
+
+    it("Anytime time slices are stored in the right order", function() {
+        evaluator.setContract("or anytime truncate 1 one anytime truncate 2 one");
+
+        assert.deepEqual(evaluator.getAnytimeTimeSlices()[0].getSlices(), [1]);
+        assert.deepEqual(evaluator.getAnytimeTimeSlices()[1].getSlices(), [2]);
+    });
 });
 
 describe("TimeSlices tests", function() {
