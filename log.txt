@@ -862,5 +862,30 @@ Idea for evaluation:
 
 The first one is relatively simple, only requiring choices for acquisition/anytime-acquisition, or-choices, and scale-values (although this could be optional even), so will work on that first.
 
+implementing step-through eval:
+	- index to keep track of current location in combinator evaluation
+	- stepping-through is just done to make choices
+	- evaluation is done after all choices are made, recursively
+	- use queue to keep track of values which are set during stepping (unshift while choosing, pop while evaluating)
+	- check if more steps exist after setting value of current step (e.g. check horizon of next sub-contract)
+	- Could also prevent choosing expired sub-contracts (of or), this would require either keeping track of horizons or working it out though, keeping track could be possible though?
+	- Think I need to keep track of horizons anyway for evaluating GET, as won't know what time to pass down without calculating it or storing it
+	- Now storing horizons in map that gets value of next stored key
+		- i.e. scale x truncate y one, looking up horizon of scale will find horizon of truncate y and return that
+		- Requires less storage work, not so important for horizons buuuuuut...
+	- Also (will be) storing map of each combinator's index to the tail index following the end of their contract
+		- Using the same data structure as the one for horizons, only requires storing things at one/zero and and/or/then (with a lookup)
+		- Completely removes the need to re-walk the tree to find contract tails
+		- Any operation where you need to know the end of the contract goes from O(n-1) at worst to O(list lookup) (arguably there's a call to keys.sort() so not constant but still good)
+
+NB: When working on the evaluation-controls.jsx component, setContract etc will need to be called on componentDidMount(), NOT on constructor(), since the component will only be mounted/unmounted, not re-initialised.
+
+TODO:
+	- Implement contract tail map
+	- Use contract tail map instead of _getEndOfContract
+	- Probably shouldn't return tailIndex in ProcessResult anymore either
+	- Finish implementing getStepThroughEvaluation
+	- Tests and UI for all of this
+
 
 

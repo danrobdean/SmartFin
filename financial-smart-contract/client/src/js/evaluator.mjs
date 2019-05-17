@@ -1,9 +1,16 @@
 import { dateToUnixTimestamp } from "./contract-utils.mjs";
+import StepThroughOptions from "./step-through-options.mjs";
+import TimeSlices from "./time-slices.mjs";
 
 /**
  * Class which handles memoised evaluation of financial contracts.
  */
 export default class Evaluator {
+    /**
+     * The set of combinators which rely upon user input.
+     */
+    static INPUT_RELIANT_COMBINATORS = ["anytime", "or"];
+
     /**
      * The financial contract string.
      */
@@ -20,6 +27,21 @@ export default class Evaluator {
     horizon;
 
     /**
+     * The map of combinator indexes to their horizons.
+     */
+    combinatorHorizonMap;
+
+    /**
+     * The map of the combinator indexes to their contracts' tail indexes.
+     */
+    combinatorTailIndexMap;
+
+    /**
+     * The map of combinator indexes to their observable index (if applicable).
+     */
+    combinatorObsIndexMap;
+
+    /**
      * The relevant time slices of the top-level contract.
      */
     timeSlices;
@@ -30,11 +52,42 @@ export default class Evaluator {
     anytimeTimeSlices;
 
     /**
+     * The current index of stepping through input-reliant combinators in the contract.
+     */
+    stepThroughIndex;
+
+    /**
+     * The current combinator index of stepping through combinators in the contract.
+     */
+    stepThroughCombinatorIndex;
+
+    /**
+     * The current anytime index from stepping through the combinators in the contract.
+     */
+    stepThroughAcquisitionTimeIndex;
+
+    /**
+     * The current set of options from stepping through the combinator contract.
+     */
+    stepThroughOptions;
+
+    /**
+     * Whether or not the step-through contract evaluation can continue.
+     */
+    hasNextStep;
+
+    /**
+     * The evaluation of the contract with the stepped-through options.
+     */
+    stepThroughValue;
+
+    /**
      * Sets the financial contract which is to be evaluated.
      * @param contract The financial contract string.
      */
     setContract(contract) {
         if (this.contract !== contract) {
+            this._resetState();
             this.contract = contract.toLowerCase();
 
             // Set the array of combinator atoms.
@@ -44,6 +97,162 @@ export default class Evaluator {
             this.horizon = result.horizon;
             this.timeSlices = result.timeSlices;
             this.anytimeTimeSlices = result.anytimeTimeSlices;
+        }
+    }
+
+    /**
+     * Starts step-through evaluation of the financial contract.
+     */
+    startStepThroughEvaluation() {
+        this._resetState();
+
+        return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, this.timeSlices.getSlices(), -1);
+    }
+
+    /**
+     * If the step-through of the contract is concluded, evaluate the value based on the options provided.
+     */
+    getStepThroughEvaluationValue() {
+        if (this.stepThroughValue !== undefined) {
+            return this.stepThroughValue;
+        }
+
+        var options = this.stepThroughOptions.slice();
+        var time = options.shift().value;
+        var res = this._stepThroughEvaluate(0, time, options);
+
+        var value = "";
+
+        if (res.obsIndexes.length > 0) {
+            value += "obs_" + res.obsIndexes[0].toString() + " * ";
+            for (var i = 1; i < res.obsIndexes.length; i++) {
+                value += "obs_" + res.obsIndexes[i].toString() + " * "; 
+            }
+            value 
+        }
+
+        value += res.concreteValue.toString() + " Wei";
+    }
+
+    /**
+     * Returns true if more step-through options can be set, false if otherwise.
+     */
+    hasNextStep() {
+        return this.hasNextStep;
+    }
+
+    /**
+     * Sets the current step-through evaluation option.
+     * @param option The input option for the current input-reliant combinator.
+     */
+    setStepThroughOption(option) {
+        // Set the step through option and increment the combinator-index to the start of the next contract
+        if (this.stepThroughIndex == 0) {
+            // Set the top-level acquisition time
+            this.stepThroughOptions.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex));
+
+            this.stepThroughAcquisitionTimeIndex += 1;
+        } else {
+            switch (this.combinators[this.stepThroughCombinatorIndex]) {
+                case "or":
+                    this.stepThroughOptions.push(new StepThroughValue(StepThroughValue.TYPE_OR_CHOICE, option, this.stepThroughCombinatorIndex));
+
+                    this.stepThroughCombinatorIndex += 1;
+
+                    // Skip first sub-combinator if option is false, i.e. second child is chosen
+                    if (!option) {
+                        this.stepThroughCombinatorIndex = this._getEndOfContract(this.stepThroughCombinatorIndex) + 1;
+                    }
+                    break;
+
+                case "anytime":
+                    this.stepThroughOptions.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex));
+
+                    // Move on to sub-combinator.
+                    this.stepThroughCombinatorIndex += 1;
+                    this.stepThroughAcquisitionTimeIndex += 1;
+                    break;
+
+                default:
+                    throw "Tried to set a non-existent step-through option."
+            }
+        }
+
+        // Increment step-through index, and step-through combinator-index to next input-reliant combinator
+        this.stepThroughIndex += 1;
+
+        while (!Evaluator.INPUT_RELIANT_COMBINATORS.includes(this.combinators[this.stepThroughCombinatorIndex])) {
+            stepThroughCombinatorIndex += 1;
+
+            if (stepThroughCombinatorIndex >= this.combinators.length) {
+                this.hasNextStep = false;
+                return !this.hasNextStep;
+            }
+        }
+
+        // If the next input-reliant combinator is an anytime combinator, check whether the horizon has passed
+        if (this.combinators[stepThroughCombinatorIndex] == "anytime") {
+            var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getSlices();
+
+            var lastAcquireTimeOption = this.stepThroughOptions.slice().reverse().findIndex(option => {
+                return option.type == StepThroughValue.TYPE_ACQUISITION_TIME;
+            });
+
+            if (timeSlices.length != 0 && timeSlices[timeSlices.length - 1] < lastAcquireTimeOption.value) {
+                this.hasNextStep = false;
+                this.stepThroughValue = 0;
+            }
+        }
+
+        return !this.hasNextStep;
+    }
+
+    /**
+     * Resets the step-through option at the given index, deleting following options.
+     * @param option The new step-through option.
+     * @param index The index of the step-through option to reset.
+     */
+    resetStepThroughOption(option, index) {
+        if (this.stepThroughIndex <= index) {
+            throw "Tried to reset a step-through option which has not yet been set."
+        }
+
+        this.stepThroughIndex = index;
+        this.stepThroughCombinatorIndex = this.stepThroughOptions[index].combinatorIndex;
+        this.stepThroughOptions = this.stepThroughOptions.slice(0, index);
+        this.stepThroughAcquisitionTimeIndex = this.stepThroughOptions.reduce((prev, cur) => {
+            return (cur.type == StepThroughValue.TYPE_ACQUISITION_TIME) ? prev + 1 : prev;
+        }, 0);
+        this.hasNextStep = true;
+
+        this.setStepThroughOption(option);
+    }
+
+    /**
+     * Gets the options for the next step of evaluating the financial contract.
+     */
+    getNextStepThroughOptions() {
+        if (this.stepThroughIndex == 0) {
+            return StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, this.timeSlices.getSlices(), this.stepThroughCombinatorIndex);
+        }
+
+        switch (this.combinators[this.stepThroughCombinatorIndex]) {
+            case "or":
+                return StepThroughOptions(StepThroughOptions.TYPE_OR_CHOICE, [true, false], this.stepThroughCombinatorIndex);
+
+            case "anytime":
+                // Cut off the time-slice options by the current sub-contract's acquisition time
+                var lastAcquireTimeOption = this.stepThroughOptions.slice().reverse().findIndex(option => {
+                    return option.type == StepThroughValue.TYPE_ACQUISITION_TIME;
+                });
+                var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getSlices();
+                var index = timeSlices.findIndex(elem => elem >= lastAcquireTimeOption.value);
+                timeSlices = timeSlices.slice(index);
+
+                return StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, timeSlices, this.stepThroughCombinatorIndex);
+
+            default:
+                throw "Unknown input-reliant combinator found.";
         }
     }
 
@@ -103,11 +312,14 @@ export default class Evaluator {
                 var timeSlices = subHorizonRes.timeSlices;
                 var finalHorizon = this._getMinHorizon(horizon, subHorizonRes.horizon);
                 timeSlices.cutTail(finalHorizon);
+                this.combinatorHorizonMap.add(i, finalHorizon);
 
                 return new ProcessResult(finalHorizon, subHorizonRes.tailIndex, timeSlices, subHorizonRes.anytimeTimeSlices);
 
             case "give":
-                return this._processCombinators(i + 1);
+                var subCombinatorRes = this._processCombinators(i + 1);
+
+                return subCombinatorRes;
 
             case "get":
                 var subHorizonRes = this._processCombinators(i + 1);
@@ -127,11 +339,18 @@ export default class Evaluator {
                 return subHorizonRes;
 
             case "scale":
+                var subCombinatorRes;
+
                 if (this.combinators[i + 1] == "obs") {
-                    return this._processCombinators(i + 3);
+                    // Keep track of observable index
+                    this.combinatorObsIndexMap[i.toString()] = Object.keys(this.combinatorObsIndexMap).length;
+
+                    subCombinatorRes = this._processCombinators(i + 3);
                 } else {
-                    return this._processCombinators(i + 2);
+                    subCombinatorRes = this._processCombinators(i + 2);
                 }
+
+                return subCombinatorRes;
 
             case "and":
             case "or":
@@ -144,7 +363,9 @@ export default class Evaluator {
                 timeSlices.merge(subHorizonRes1.timeSlices);
 
                 var anytimeTimeSlices = subHorizonRes0.anytimeTimeSlices.concat(subHorizonRes1.anytimeTimeSlices);
-                
+
+                this.combinatorHorizonMap.add(i.toString(), finalHorizon);
+
                 return new ProcessResult(finalHorizon, subHorizonRes1.tailIndex, timeSlices, anytimeTimeSlices);
 
             case "then":
@@ -157,8 +378,83 @@ export default class Evaluator {
                 timeSlices.mergeAfter(subHorizonRes1.timeSlices);
 
                 var anytimeTimeSlices = subHorizonRes0.anytimeTimeSlices.concat(subHorizonRes1.anytimeTimeSlices);
-                
+
+                this.combinatorHorizonMap.add(i.toString(), finalHorizon);
+
                 return new ProcessResult(finalHorizon, subHorizonRes1.tailIndex, timeSlices, anytimeTimeSlices);
+        }
+    }
+
+    /**
+     * Evaluate the contract using the step-through evaluation options.
+     * @param i The index of the combinator to evaluate.
+     * @param time The time of acquisition of the sub-contract being evaluated.
+     * @param options The list of options for any input-reliant combinators.
+     */
+    _stepThroughEvaluate(i, time, options) {
+        // If this contract has expired, return 0.
+        if (this.combinatorHorizonMap.getNextValue(i.toString) < time) {
+            return new StepThroughEvaluationResult(0);
+        }
+
+        switch (this.combinators[i]) {
+            case "zero":
+                return new StepThroughEvaluationResult(0);
+
+            case "one":
+                return new StepThroughEvaluationResult(1);
+
+            case "give":
+                var subRes = this._stepThroughEvaluate(i + 1, time, options);
+
+                // Invert value
+                subRes.multiplyByScalar(-1);
+
+                return subRes;
+
+            case "truncate":
+                // Already checked for horizon, so can just return sub-result
+                return this._stepThroughEvaluate(i + 2, time, options);
+
+            case "scale":
+                var subRes;
+
+                if (this.combinatorObsIndexMap[i.toString()]) {
+                    // Combinator has observale value
+                    subRes = this._stepThroughEvaluate(i + 3, time, options);
+                    subRes.addObservableIndex(this.combinatorObsIndexMap[i.toString()]);
+                } else {
+                    subRes = this._stepThroughEvaluate(i + 2, time, options);
+
+                    var scalar = parseInt(this.combinators[i + 1]);
+                    subRes.multiplyByScalar(scalar);
+                }
+
+                return subRes;
+
+            case "get":
+                // Return the value of the sub-contract at this contract's horizon
+                var horizon = this.combinatorHorizonMap[i.toString()];
+
+                return this._stepThroughEvaluate(i + 1, horizon, options);
+
+            case "anytime":
+                // Get the anytime acquisition time
+                var acquisitionTime = options.shift();
+
+                if (acquisitionTime.type != StepThroughOptions.TYPE_ACQUISITION_TIME) {
+                    throw "Expected acquisition time, found or-choice during evaluation.";
+                }
+
+                return this._stepThroughEvaluate(i + 1, acquisitionTime, options);
+
+            case "and":
+                var subRes0 = this._stepThroughEvaluate(i + 1, time, options);
+                var contractEnd = this._getEndOfContract(i + 1);
+
+                var subRes1 = this._stepThroughEvaluate(contractEnd + 1, time, options);
+            case "or":
+            case "then":
         }
     }
 
@@ -207,8 +503,48 @@ export default class Evaluator {
         }
 
         // If date is `undefined`, or a number, just return it
-        
+
         return date;
+    }
+
+    /**
+     * Gets the end of the contract starting at i in the array of combinators.
+     */
+    _getEndOfContract(i) {
+        while (i < this.combinators.length) {
+            switch (this.combinators[i]) {
+                case "and":
+                case "or":
+                case "then":
+                    i = this._getEndOfContract(i + 1);
+                    return this._getEndOfContract(i + 1);
+
+                case "zero":
+                case "one":
+                    return i;
+
+                default:
+                    i += 1;
+            }
+        }
+
+        throw "Invalid contract, does not terminate.";
+    }
+
+    /**
+     * Resets the Evaluator's state.
+     */
+    _resetState() {
+        this.stepThroughIndex = 0;
+        this.stepThroughCombinatorIndex = 0;
+        this.stepThroughAcquisitionTimeIndex = 0;
+        this.stepThroughOptions = [];
+        this.hasNextStep = true;
+        this.stepThroughValue = undefined;
+        this.combinatorHorizonMap = new NextMap();
+        this.combinatorTailIndexMap = new NextMap();
+        this.combinatorObsIndexMap = {};
+        this.horizon = undefined;
     }
 }
 
@@ -253,112 +589,128 @@ class ProcessResult {
 }
 
 /**
- * Represents a set of time slices, with several operations.
+ * Class representing an input-reliant combinator's value, which will contain either an acquisition time or an or-choice.
  */
-export class TimeSlices {
+class StepThroughValue {
     /**
-     * The set of time slices. Must remain sorted. Each time slice lasts up to and including the slice's value.
+     * The acquisition time type value.
      */
-    _slices = [];
+    static TYPE_ACQUISITION_TIME = "acquisition-time";
 
     /**
-     * Gets the set of time slices.
+     * The or-choice type value.
      */
-    getSlices() {
-        return this._slices.slice();
+    static TYPE_OR_CHOICE = "or-choice";
+
+    /**
+     * The type of the step-through value.
+     */
+    type;
+
+    /**
+     * The value of the step-through value.
+     */
+    value;
+
+    /**
+     * The combinator index of the step-through value.
+     */
+    combinatorIndex;
+
+    /**
+     * Initialises a new instance of this class.
+     * @param type The type of the step-through value.
+     * @param value The value of the step-through value.
+     * @param combinatorIndex The combinator index of the step-through value.
+     */
+    constructor(type, value, combinatorIndex) {
+        this.type = type;
+        this.value = value;
+        this.combinatorIndex = combinatorIndex;
+    }
+}
+
+/**
+ * Class representing the intermediate result of a step-through evaluation.
+ */
+class StepThroughEvaluationResult {
+    /**
+     * The list of observable indexes for observables which are factors in this result.
+     */
+    obsIndexes = [];
+
+    /**
+     * The concrete value of this result, before multiplication by observable values.
+     */
+    concreteValue;
+
+    /**
+     * Initialises a new instance of this class.
+     * @param concreteValue The concrete value of evaluation before multiplication by observable values.
+     */
+    constructor(concreteValue) {
+        this.concreteValue = concreteValue;
     }
 
     /**
-     * Cuts off the time slice set at the given time, removing all following slices, and splitting at the given time.
-     * @param time The time to cut off the time slices after.
+     * Multiply the concrete value by a scalar.
+     * @param scalar The scalar to multiply the concrete value by.
      */
-    cutTail(time) {
-        // Undefined time is equivalent to an "infinity" horizon, so nothing can be cut off.
-        // For example, truncate infinity c can be acquired at any time, so it is equal to just c, so no change should be made.
-        if (time === undefined) {
-            return;
-        }
-
-        var index = this._slices.findIndex(elem => elem >= time);
-        if (index != -1) {
-            this._slices = this._slices.slice(0, index);
-        }
-
-        this.split(time);
+    multiplyByScalar(scalar) {
+        this.concreteValue = this.concreteValue * scalar;
     }
 
     /**
-     * Cuts off the time slice set at the given time, removing all preceding slices, and splitting at the given time.
-     * @param time 
+     * Add an observable index to the list of observables which are factors in the final result.
+     * @param obsIndex The observable index.
      */
-    cutHead(time) {
-        // Undefined time is equivalent to an "infinite" horizon, so everything should be removed.
-        // For example, get truncate infinity c can only be acquired at infinity, so it should only have one time slice.
-        if (time === undefined) {
-            this._slices = [];
-            return;
-        }
-
-        var index = this._slices.findIndex(elem => elem >= time);
-        if (index != -1) {
-            this._slices.splice(0, index);
-        } else {
-            this._slices = [];
-        }
-
-        this.split(time);
+    addObservableIndex(obsIndex) {
+        this.obsIndexes.push(obsIndex);
     }
 
     /**
-     * Splits a time slice at the given time.
-     * @param time The time to split a slice at.
+     * Adds another step-through evaluation result to this one.
      */
-    split(time) {
-        if (!this._slices.includes(time)) {
-            this._slices.push(time);
-            this._slices.sort();
-        }
+    add(other) {
+        this.concreteValue += other.concreteValue;
+        this.obsIndexes = this.obsIndexes.concat(other.obsIndexes);
+    }
+}
+
+/**
+ * Maps keys to values, where each key maps to the equal or next-highest key in the keyset (if one exists).
+ */
+class NextMap {
+
+    /**
+     * The mapping of keys to values.
+     */
+    keyValueMap = {};
+
+    /**
+     * Add a value with the given key to the map.
+     * @param key The key to store the key under.
+     * @param value The value to add.
+     */
+    add(key, value) {
+        keyValueMap[key.toString()] = value;
     }
 
     /**
-     * Merges another TimeSlices object with this one.
-     * @param other The TimeSlices object to merge.
+     * Get the value stored at the next-highest (or equal) key.
+     * @param key The key.
      */
-    merge(other) {
-        for (var time of other.getSlices()) {
-            this.split(time);
-        }
-    }
-
-    /**
-     * Merges another TimeSlices object with this one, without splitting any existing slices.
-     * @param other The TimeSlices object to merge.
-     */
-    mergeAfter(other) {
-        var otherSlices = other.getSlices();
-
-        var startIndex;
-        if (this._slices.length > 0) {
-            startIndex = otherSlices.findIndex(elem => elem > this._slices[this._slices.length - 1])
-
-            if (startIndex == -1) {
-                return;
-            }
-        } else {
-            startIndex = 0;
+    getNextValue(key) {
+        var keys = Object.keys(keyValueMap).sort();
+        if (keys.length == 0) {
+            return undefined;
         }
 
-        for (var i = startIndex; i < otherSlices.length; i++) {
-            this._slices.push(otherSlices[i]);
+        var index = keys.findIndex(elem => elem <= key);
+        if (index == -1) {
+            return undefined;
         }
-    }
 
-    /**
-     * Clones this object.
-     */
-    clone() {
-        var result = new TimeSlices();
-        result._slices = this.getSlices();
-        return result;
+        return keyValueMap[keys[index].toString()];
     }
 }

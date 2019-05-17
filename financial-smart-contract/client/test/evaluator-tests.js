@@ -1,7 +1,9 @@
 import assert from "assert";
 
 import { dateToUnixTimestamp } from "./../src/js/contract-utils.mjs";
-import Evaluator, { TimeSlices } from "./../src/js/evaluator.mjs";
+import Evaluator from "./../src/js/evaluator.mjs";
+import StepThroughOptions from "./../src/js/step-through-options.mjs";
+import TimeSlices from "./../src/js/time-slices.mjs";
 
 describe.only('Evaluator tests', function() {
     var evaluator;
@@ -216,6 +218,15 @@ describe.only('Evaluator tests', function() {
 
         assert.deepEqual(evaluator.getAnytimeTimeSlices()[0].getSlices(), [1]);
         assert.deepEqual(evaluator.getAnytimeTimeSlices()[1].getSlices(), [2]);
+    });
+
+    it("Starts step through evaluation by returning the right acquisition time options", function() {
+        evaluator.setContract("or anytime truncate 1 one anytime truncate 2 one");
+
+        var options = evaluator.startStepThroughEvaluation();
+
+        assert.equal(options.getType(), StepThroughOptions.TYPE_ACQUISITION_TIME);
+        assert.deepEqual(options.getOptions(), evaluator.getTimeSlices().getSlices());
     });
 });
 
