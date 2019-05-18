@@ -889,3 +889,50 @@ TODO:
 
 
 
+========== 18 May ==========
+
+- Implemented the combinator tail index map, mapping combinator indexes to the indexes just after end of their contract
+- Fixed the NextMap (was finding the first smaller key, not first larger key, i.e. completely wrong)
+
+Currently, the step-through option stuff is pretty wrong:
+	- OR-choices - we just skip 1st child if we choose second, we never prevent going through 1st then second
+	- AND-choices - we just go through the whole thing (kind of not completely wrong?)
+	- THEN - not handled at all
+	- ANYTIME - shouldn't stop evaluation at an expired anytime, what if e.g. AND ANYTIME TRUNCATE X ONE ANYTIME TRUNCATE Y ONE - if x is expired but y isn't, we still need to set anytime 2's time
+
+How to model this: Stack
+	- If reaching AND while iterating over combinators to find options, say there's an AND at index i
+	- When the end of the sub-contract is reached, if popping the AND stack gives an index, go back to that point and move on to AND's second child
+	- For reaching the end of an OR/THEN sub-contract, just checking if we reached the end of the sub-contract should be enough
+	- For ANYTIME we treat expiration as being at the end of the sub-contract, as the value will be 0 no matter what follows
+	- Identity (ONE/ZERO) combinators can be treated as the end of the sub-contract
+	- Unary combinators can be skipped over (although TRUNCATE could also be checked for expiration)
+	- Will also need to store the current time in the AND stack, and probably should store it somewhere explicitly in a variable
+		- GET needs to change time to horizon
+
+Implemented:
+	- Now keeping track of current time, and AND combinators we step past (to go on to their second child) (added to resetState and resetOption)
+	- _goToNextStep implemented
+		- Checks each combinator, if it's AND then add and revisit entry to stack
+		- If THEN, skip first child if applicable
+		- if ONE, ZERO, or horizon has passed, check if the contract is over or if we need to revisit an AND entry
+		- If OR or ANYTIME, check if they need any options
+			- If one of OR's children expired, then choose the other automatically
+			- If ANYTIME has no time-slice options (i.e. it makes no difference), pass the current step-through time or the one slice
+			- If top-level acquisition time has no slices, make the choice for the user as 0, or if one slice then use that
+
+Notes about evaluation (one payment vs many payments at specific times):
+	- Probably easy-ish to note what time each payment will be received
+	- In general, each payment will always be in the time slice the one/zero is acquired in
+	- If the one/zero has a GET parent combinator, the CLOSEST parent will be the one deciding the time (as higher GETs only set the lower GETs' acquisition times, not the ONE/ZERO's times)
+	- This means that we can attach an acquisition time to the ONE/ZEROs, and note if it has been passed through a GET or NOT
+		- If passed through a GET, the acquisition time will be exact
+		- If not passed through a GET, the acquisition time will be in a time slice (of the closest ANYTIME parent, or top-level)
+	- This means that it is possible, albeit a little fiddly, to keep track of what time payments will be received - this could be super useful however, may be worth discussing
+
+TODO:
+	- Actually seems to work in terms of setting options
+	- Need tests for evaluation
+	- UI
+
+

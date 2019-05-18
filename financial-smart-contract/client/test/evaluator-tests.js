@@ -3,9 +3,10 @@ import assert from "assert";
 import { dateToUnixTimestamp } from "./../src/js/contract-utils.mjs";
 import Evaluator from "./../src/js/evaluator.mjs";
 import StepThroughOptions from "./../src/js/step-through-options.mjs";
-import TimeSlices from "./../src/js/time-slices.mjs";
 
 describe.only('Evaluator tests', function() {
+    const OR_CHOICE_OPTIONS = [true, false];
+
     var evaluator;
 
     var dateStringMin;
@@ -66,7 +67,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), dateUnixMin);
     });
 
-    it("Calculates the horizon of give correctly", function() {
+    it('Calculates the horizon of give correctly', function() {
         evaluator.setContract("give one");
         assert.equal(evaluator.getHorizon(), undefined);
 
@@ -74,7 +75,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), dateUnixMin);
     });
 
-    it("Calculates the horizon of get correctly", function() {
+    it('Calculates the horizon of get correctly', function() {
         evaluator.setContract("get one");
         assert.equal(evaluator.getHorizon(), undefined);
 
@@ -82,7 +83,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), dateUnixMin);
     });
 
-    it("Calculates the horizon of anytime correctly", function() {
+    it('Calculates the horizon of anytime correctly', function() {
         evaluator.setContract("anytime one");
         assert.equal(evaluator.getHorizon(), undefined);
 
@@ -90,7 +91,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), dateUnixMin);
     });
 
-    it("Calculates the horizon of scale correctly", function() {
+    it('Calculates the horizon of scale correctly', function() {
         evaluator.setContract("scale 10 one");
         assert.equal(evaluator.getHorizon(), undefined);
 
@@ -112,7 +113,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), dateUnixMin);
     });
 
-    it("Calculates the horizon of and correctly", function() {
+    it('Calculates the horizon of and correctly', function() {
         evaluator.setContract("and one one");
         assert.equal(evaluator.getHorizon(), undefined);
 
@@ -129,7 +130,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), undefined);
     });
 
-    it("Calculates the horizon of or correctly", function() {
+    it('Calculates the horizon of or correctly', function() {
         evaluator.setContract("or one one");
         assert.equal(evaluator.getHorizon(), undefined);
 
@@ -146,7 +147,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), undefined);
     });
 
-    it("Calculates the horizon of then correctly", function() {
+    it('Calculates the horizon of then correctly', function() {
         evaluator.setContract("then one one");
         assert.equal(evaluator.getHorizon(), undefined);
 
@@ -163,7 +164,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), undefined);
     });
 
-    it("Modifying time slices doesn't modify base object", function() {
+    it('Modifying time slices doesn\'t modify base object', function() {
         evaluator.setContract("one");
         var timeSlices = evaluator.getTimeSlices();
         timeSlices.split(1);
@@ -171,122 +172,169 @@ describe.only('Evaluator tests', function() {
         assert.notEqual(timeSlices, evaluator.getTimeSlices());
     });
 
-    it("No time slices for a contract not involving truncate", function() {
+    it('No time slices for a contract not involving truncate', function() {
         evaluator.setContract("anytime give get or one and scale 10 one then zero one");
 
         assert.deepEqual(evaluator.getTimeSlices().getSlices(), []);
     });
 
-    it("Time slices for truncate are split in the correct place", function() {
+    it('Time slices for truncate are split in the correct place', function() {
         evaluator.setContract("truncate 123 one");
 
         assert.deepEqual(evaluator.getTimeSlices().getSlices(), [123]);
     });
 
-    it("Time slices for truncate cut off time slices for further-down truncates with later horizons", function() {
+    it('Time slices for truncate cut off time slices for further-down truncates with later horizons', function() {
         evaluator.setContract("truncate 123 truncate 456 one");
 
         assert.deepEqual(evaluator.getTimeSlices().getSlices(), [123]);
     });
 
-    it("Time slices for or combine time slices for further-down combinators", function() {
+    it('Time slices for or combine time slices for further-down combinators', function() {
         evaluator.setContract("or truncate 1 one truncate 2 one");
 
         assert.deepEqual(evaluator.getTimeSlices().getSlices(), [1, 2]);
     });
 
-    it("Time slices for and combine time slices for further-down combinators", function() {
+    it('Time slices for and combine time slices for further-down combinators', function() {
         evaluator.setContract("and truncate 1 one truncate 2 one");
 
         assert.deepEqual(evaluator.getTimeSlices().getSlices(), [1, 2]);
     });
 
-    it("Time slices for then combine time slices for further-down combinators by merging the second sub-combinator's time slices after the first's", function() {
+    it('Time slices for then combine time slices for further-down combinators by merging the second sub-combinator\'s time slices after the first\'s', function() {
         evaluator.setContract("then or truncate 1 one truncate 2 one or truncate 0 one truncate 4 one");
 
         assert.deepEqual(evaluator.getTimeSlices().getSlices(), [1, 2, 4]);
     });
 
-    it("Time slices for get cut off time slices for truncates with earlier horizons", function() {
+    it('Time slices for get cut off time slices for truncates with earlier horizons', function() {
         evaluator.setContract("get truncate 127 or truncate 45 one truncate 67 one");
 
         assert.deepEqual(evaluator.getTimeSlices().getSlices(), [67]);
     });
 
-    it("Anytime time slices are stored in the right order", function() {
+    it('Anytime time slices are stored in the right order', function() {
         evaluator.setContract("or anytime truncate 1 one anytime truncate 2 one");
 
         assert.deepEqual(evaluator.getAnytimeTimeSlices()[0].getSlices(), [1]);
         assert.deepEqual(evaluator.getAnytimeTimeSlices()[1].getSlices(), [2]);
     });
 
-    it("Starts step through evaluation by returning the right acquisition time options", function() {
+    it('Starts step through evaluation by returning the right acquisition time options', function() {
         evaluator.setContract("or anytime truncate 1 one anytime truncate 2 one");
 
-        var options = evaluator.startStepThroughEvaluation();
+        evaluator.startStepThroughEvaluation();
+        var options = evaluator.getNextStepThroughOptions();
 
         assert.equal(options.getType(), StepThroughOptions.TYPE_ACQUISITION_TIME);
+        assert.equal(options.combinatorIndex, -1);
         assert.deepEqual(options.getOptions(), evaluator.getTimeSlices().getSlices());
     });
-});
 
-describe("TimeSlices tests", function() {
-    var timeSlices;
+    it('Does not have another step for a contract with no acquisition time-slices or or-choices', function() {
+        evaluator.setContract("one");
 
-    beforeEach(function() {
-        timeSlices = new TimeSlices();
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.hasNextStep(), false);
     });
 
-    it("Has no slices initially", function() {
-        assert.deepEqual(timeSlices.getSlices(), []);
+    it('Does not have another step for a contract with one acquisition time-slice and no or-choices', function() {
+        evaluator.setContract("truncate 2 one");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.hasNextStep(), false);
     });
 
-    it("Splits time slices correctly", function() {
-        timeSlices.split(1);
-        timeSlices.split(3);
-        timeSlices.split(2);
+    it('Returns the correct step-through options for an or-combinator', function() {
+        evaluator.setContract("or one zero");
 
-        assert.deepEqual(timeSlices.getSlices(), [1, 2, 3]);
+        evaluator.startStepThroughEvaluation();
+        var options = evaluator.getNextStepThroughOptions();
+
+        assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
+        assert.equal(options.combinatorIndex, 0);
+        assert.deepEqual(options.options, OR_CHOICE_OPTIONS);
     });
 
-    it("Cuts off time slices correctly", function() {
-        timeSlices.split(1);
-        timeSlices.split(3);
-        timeSlices.cut(2);
+    it('Returns the correct acquisition-times for an anytime combinator', function() {
+        evaluator.setContract("anytime then truncate 1 zero truncate 2 one");
 
-        assert.deepEqual(timeSlices.getSlices(), [1, 2]);
+        evaluator.startStepThroughEvaluation();
+
+        var options = evaluator.getNextStepThroughOptions().options;
+        options.sort();
+        evaluator.setStepThroughOption(options[0]);
+
+        options = evaluator.getNextStepThroughOptions();
+
+        assert.equal(options.type, StepThroughOptions.TYPE_ACQUISITION_TIME);
+        assert.equal(options.combinatorIndex, 0);
+        assert.deepEqual(options.options, [1, 2]);
     });
 
-    it("Merges time slices correctly", function() {
-        var otherTimeSlices = new TimeSlices();
+    it('Returns no acquisition-times for an anytime combinator with no time-slices', function() {
+        evaluator.setContract("anytime truncate 2 zero");
 
-        timeSlices.split(1);
-        timeSlices.split(3);
-        timeSlices.split(5);
+        evaluator.startStepThroughEvaluation();
 
-        otherTimeSlices.split(2);
-        otherTimeSlices.split(4);
-        otherTimeSlices.split(6);
-
-        timeSlices.merge(otherTimeSlices);
-
-        assert.deepEqual(timeSlices.getSlices(), [1, 2, 3, 4, 5, 6]);
+        assert.equal(evaluator.hasNextStep(), false);
     });
 
-    it("Merge after merges time slices correctly", function() {
-        var otherTimeSlices = new TimeSlices();
+    it('Returns the correct options for an or-choice within an or-choice\'s first sub-contract', function() {
+        evaluator.setContract("or or one zero zero");
 
-        timeSlices.split(1);
-        timeSlices.split(3);
-        timeSlices.split(5);
+        evaluator.startStepThroughEvaluation();
+        evaluator.setStepThroughOption(true);
 
-        otherTimeSlices.split(2);
-        otherTimeSlices.split(4);
-        otherTimeSlices.split(6);
-        otherTimeSlices.split(7);
+        var options = evaluator.getNextStepThroughOptions();
 
-        timeSlices.mergeAfter(otherTimeSlices);
+        assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
+        assert.equal(options.combinatorIndex, 1);
+        assert.deepEqual(options.options, OR_CHOICE_OPTIONS);
+    });
 
-        assert.deepEqual(timeSlices.getSlices(), [1, 3, 5, 6, 7]);
+    it('Returns the correct options for an or-choice within an or-choice\'s second sub-contract', function() {
+        evaluator.setContract("or one or zero zero");
+
+        evaluator.startStepThroughEvaluation();
+        evaluator.setStepThroughOption(false);
+
+        var options = evaluator.getNextStepThroughOptions();
+
+        assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
+        assert.equal(options.combinatorIndex, 2);
+        assert.deepEqual(options.options, OR_CHOICE_OPTIONS);
+    });
+
+    it('Does not return options for an unused or-choice within an or-choice\'s first sub-contract', function() {
+        evaluator.setContract("or or one zero zero");
+
+        evaluator.startStepThroughEvaluation();
+        evaluator.setStepThroughOption(false);
+
+        assert.equal(evaluator.hasNextStep(), false);
+    });
+
+    it('Does not return options for an unused or-choice within an or-choice\'s second sub-contract', function() {
+        evaluator.setContract("or one or zero zero");
+
+        evaluator.startStepThroughEvaluation();
+        evaluator.setStepThroughOption(true);
+
+        assert.equal(evaluator.hasNextStep(), false);
+    });
+
+    it('Returns correct options for an or-choice as a sub-contrcat of another combinator', function() {
+        evaluator.setContract("scale 5 or zero one");
+
+        evaluator.startStepThroughEvaluation();
+        var options = evaluator.getNextStepThroughOptions();
+
+        assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
+        assert.equal(options.combinatorIndex, 2);
+        assert.deepEqual(options.options, OR_CHOICE_OPTIONS);
     });
 });
