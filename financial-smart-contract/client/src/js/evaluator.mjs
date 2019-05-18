@@ -124,7 +124,7 @@ export default class Evaluator {
     /**
      * If the step-through of the contract is concluded, evaluate the value based on the options provided.
      */
-    getStepThroughEvaluationValue() {
+    evaluate() {
         if (this.stepThroughValue !== undefined) {
             return this.stepThroughValue;
         }
@@ -133,17 +133,7 @@ export default class Evaluator {
         var time = options.shift().value;
         var res = this._stepThroughEvaluate(0, time, options);
 
-        var value = "";
-
-        if (res.obsIndexes.length > 0) {
-            value += "obs_" + res.obsIndexes[0].toString() + " * ";
-            for (var i = 1; i < res.obsIndexes.length; i++) {
-                value += "obs_" + res.obsIndexes[i].toString() + " * "; 
-            }
-            value 
-        }
-
-        value += res.concreteValue.toString() + " Wei";
+        return res.getValue();
     }
 
     /**
@@ -542,7 +532,7 @@ export default class Evaluator {
             case "scale":
                 var subRes;
 
-                if (this.combinatorObsIndexMap[i.toString()]) {
+                if (!isNaN(this.combinatorObsIndexMap[i.toString()])) {
                     // Combinator has observale value
                     subRes = this._stepThroughEvaluate(i + 3, time, values);
                     subRes.addObservableIndex(this.combinatorObsIndexMap[i.toString()]);
@@ -572,7 +562,9 @@ export default class Evaluator {
                 return this._stepThroughEvaluate(i + 1, acquisitionTime.value, values);
 
             case "and":
+                console.log("Hi");
                 var subRes0 = this._stepThroughEvaluate(i + 1, time, values);
+                console.log(subRes0);
                 var tail0 = this.combinatorTailIndexMap.getNextValue(i + 1);
 
                 var subRes1 = this._stepThroughEvaluate(tail0, time, values);
@@ -805,21 +797,48 @@ class StepThroughRevisitAndEntry {
  */
 class StepThroughEvaluationResult {
     /**
-     * The list of observable indexes for observables which are factors in this result.
-     */
-    obsIndexes = [];
-
-    /**
      * The concrete value of this result, before multiplication by observable values.
      */
-    concreteValue;
+    value;
+
+    /**
+     * The prefix for observable values.
+     */
+    obsPrefix = "";
+
+    /**
+     * The current scalar by which the value is multiplied.
+     */
+    scalar = 1;
 
     /**
      * Initialises a new instance of this class.
-     * @param concreteValue The concrete value of evaluation before multiplication by observable values.
+     * @param value The concrete value of evaluation before multiplication by observable values.
      */
-    constructor(concreteValue) {
-        this.concreteValue = concreteValue;
+    constructor(value) {
+        this.value = value;
+    }
+
+    /**
+     * Gets the value of this result.
+     */
+    getValue() {
+        var valueString;
+        if (!isNaN(this.value)) {
+            valueString = (this.value * this.scalar).toString();
+        } else {
+            var prefix;
+
+            if (this.scalar == 1) {
+                prefix = "";
+            } else {
+                prefix = this.scalar.toString() + " * ";
+            }
+
+            valueString = prefix + this.value;
+        }
+
+        return this.obsPrefix + valueString;
     }
 
     /**
@@ -827,7 +846,7 @@ class StepThroughEvaluationResult {
      * @param scalar The scalar to multiply the concrete value by.
      */
     multiplyByScalar(scalar) {
-        this.concreteValue = this.concreteValue * scalar;
+        this.scalar *= scalar;
     }
 
     /**
@@ -835,14 +854,17 @@ class StepThroughEvaluationResult {
      * @param obsIndex The observable index.
      */
     addObservableIndex(obsIndex) {
-        this.obsIndexes.push(obsIndex);
+        this.obsPrefix += "obs_" + obsIndex.toString() + " * ";
     }
 
     /**
      * Adds another step-through evaluation result to this one.
      */
     add(other) {
-        this.concreteValue += other.concreteValue;
-        this.obsIndexes = this.obsIndexes.concat(other.obsIndexes);
+        var value = "(" + this.getValue() + ")";
+        var otherValue = "(" + other.getValue() + ")";
+        this.value = value + " + " + otherValue;
+        this.scalar = 1;
+        this.obsPrefix = "";
     }
 }

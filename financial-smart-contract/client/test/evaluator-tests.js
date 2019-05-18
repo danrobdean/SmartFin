@@ -327,7 +327,7 @@ describe.only('Evaluator tests', function() {
         assert.equal(evaluator.hasNextStep(), false);
     });
 
-    it('Returns correct options for an or-choice as a sub-contrcat of another combinator', function() {
+    it('Returns correct options for an or-choice as a sub-contract of another combinator', function() {
         evaluator.setContract("scale 5 or zero one");
 
         evaluator.startStepThroughEvaluation();
@@ -336,5 +336,72 @@ describe.only('Evaluator tests', function() {
         assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
         assert.equal(options.combinatorIndex, 2);
         assert.deepEqual(options.options, OR_CHOICE_OPTIONS);
+    });
+
+    it('Returns correct options for an and combinator', function() {
+        evaluator.setContract("and or one zero or zero one");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.hasNextStep(), true);
+
+        var options = evaluator.getNextStepThroughOptions();
+
+        assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
+        assert.equal(options.combinatorIndex, 1);
+        assert.deepEqual(options.options, OR_CHOICE_OPTIONS);
+
+        evaluator.setStepThroughOption(true);
+        var options = evaluator.getNextStepThroughOptions();
+
+        assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
+        assert.equal(options.combinatorIndex, 4);
+        assert.deepEqual(options.options, OR_CHOICE_OPTIONS);
+    })
+
+    it('Evaluates a basic contract correctly', function() {
+        evaluator.setContract("one");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.evaluate(), "1");
+
+        evaluator.setContract("zero");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.evaluate(), "0");
+    });
+
+    it('Evaluates a scaled contract correctly', function() {
+        evaluator.setContract("scale 5 one");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.evaluate(), "5");
+    });
+
+    it('Evaluates a contract with observables correctly', function() {
+        evaluator.setContract("scale obs 0x0 one");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.evaluate(), "obs_0 * 1");
+    });
+
+    it('Evaluates a scaled contract with observables correctly', function() {
+        evaluator.setContract("scale obs 0x0 scale 5 scale obs 0x1 scale 10 one");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.evaluate(), "obs_1 * obs_0 * 50");
+    });
+
+    it('Evaluates an and combinator with two scaled/observabled sub-contracts correctly', function() {
+        evaluator.setContract("and scale 0x0 scale 5 one scale 0x1 scale 10 one");
+
+        evaluator.startStepThroughEvaluation();
+
+        assert.equal(evaluator.evaluate(), "");
     });
 });

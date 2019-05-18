@@ -934,5 +934,6 @@ TODO:
 	- Actually seems to work in terms of setting options
 	- Need tests for evaluation
 	- UI
+	- Fix AND bc it's not passing tests.
 
 
