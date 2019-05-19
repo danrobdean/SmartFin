@@ -23,4 +23,12 @@ describe('Next Map tests', function() {
 
         assert.equal(nextMap.getNextValue(1), "2");
     });
+
+    it('Sorts the interior mapping of keys correctly', function() {
+        nextMap.add(1, "1");
+        nextMap.add(10, "10");
+        nextMap.add(9, "9");
+
+        assert.equal(nextMap.getNextValue(2), "9");
+    });
 });

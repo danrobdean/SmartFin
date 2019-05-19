@@ -22,7 +22,7 @@ export default class NextMap {
      * @param key The key.
      */
     getNextValue(key) {
-        var keys = Object.keys(this.keyValueMap).sort();
+        var keys = Object.keys(this.keyValueMap).sort((a, b) => a - b);
         if (keys.length == 0) {
             throw "Could not find key for '" + key.toString() + "'. Keys: '" + keys + "'.";
         }
@@ -40,7 +40,7 @@ export default class NextMap {
      * @param key The key.
      */
     tryGetNextValue(key) {
-        var keys = Object.keys(this.keyValueMap).sort();
+        var keys = Object.keys(this.keyValueMap).sort((a, b) => a - b);
         if (keys.length == 0) {
             return undefined;
         }

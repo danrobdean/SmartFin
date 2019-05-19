@@ -62,7 +62,7 @@ export default class TimeSlices {
     split(time) {
         if (!this._slices.includes(time)) {
             this._slices.push(time);
-            this._slices.sort();
+            this._slices.sort((a, b) => a - b);
         }
     }
 

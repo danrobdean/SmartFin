@@ -1,6 +1,7 @@
 import { dateToUnixTimestamp } from "./contract-utils.mjs";
 import NextMap from "./next-map.mjs";
 import StepThroughOptions from "./step-through-options.mjs";
+import StepThroughValue from "./step-through-value.mjs";
 import TimeSlices from "./time-slices.mjs";
 
 /**
@@ -92,8 +93,9 @@ export default class Evaluator {
      * @param contract The financial contract string.
      */
     setContract(contract) {
-        if (this.contract !== contract) {
+        if (this.contract !== contract && contract !== undefined) {
             this._resetState();
+            this._resetStepThroughState();
             this.contract = contract.toLowerCase();
 
             // Set the array of combinator atoms.
@@ -103,21 +105,14 @@ export default class Evaluator {
             this.horizon = result.horizon;
             this.timeSlices = result.timeSlices;
             this.anytimeTimeSlices = result.anytimeTimeSlices;
-        }
-    }
 
-    /**
-     * Starts step-through evaluation of the financial contract.
-     */
-    startStepThroughEvaluation() {
-        this._resetStepThroughState();
-
-        // Set initial acquisition time to now if it makes no difference
-        var timeSlices = this.timeSlices.getSlices();
-        if (timeSlices.length == 0) {
-            this.setStepThroughOption(dateToUnixTimestamp(new Date()));
-        } else if (timeSlices.length == 1) {
-            this.setStepThroughOption(timeSlices[0]);
+            // Set initial acquisition time to now if it makes no difference
+            var timeSlices = this.timeSlices.getSlices();
+            if (timeSlices.length == 0) {
+                this.setStepThroughOption(dateToUnixTimestamp(new Date()));
+            } else if (timeSlices.length == 1) {
+                this.setStepThroughOption(timeSlices[0]);
+            }
         }
     }
 
@@ -125,8 +120,17 @@ export default class Evaluator {
      * If the step-through of the contract is concluded, evaluate the value based on the options provided.
      */
     evaluate() {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
+        }
+
         if (this.stepThroughValue !== undefined) {
             return this.stepThroughValue;
+        }
+
+        if (this.hasNextStep()) {
+            // Step-through not done
+            return undefined;
         }
 
         var options = this.stepThroughValues.slice();
@@ -140,7 +144,18 @@ export default class Evaluator {
      * Returns true if more step-through options can be set, false if otherwise.
      */
     hasNextStep() {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
+        }
+
         return this.hasMoreSteps;
+    }
+
+    /**
+     * Returns the set of step-through values which have already been set.
+     */
+    getPrevValues() {
+        return this.stepThroughValues;
     }
 
     /**
@@ -148,6 +163,10 @@ export default class Evaluator {
      * @param option The input option for the current input-reliant combinator.
      */
     setStepThroughOption(option) {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
+        }
+
         // Set the step through option and increment the combinator-index to the start of the next contract
         if (this.stepThroughIndex == 0) {
             // Set the top-level acquisition time
@@ -191,17 +210,25 @@ export default class Evaluator {
 
     /**
      * Resets the step-through option at the given index, deleting following options.
-     * @param option The new step-through option.
-     * @param index The index of the step-through option to reset.
+     * @param combinatorIndex The combinator index of the step-through option to reset.
      */
-    resetStepThroughOption(option, index) {
-        if (this.stepThroughIndex <= index) {
-            throw "Tried to reset a step-through option which has not yet been set."
+    deleteStepThroughOption(combinatorIndex) {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
         }
 
-        this.stepThroughIndex = index;
-        this.stepThroughCombinatorIndex = this.stepThroughValues[index].combinatorIndex;
-        this.stepThroughValues = this.stepThroughValues.slice(0, index);
+        if (this.stepThroughCombinatorIndex <= combinatorIndex) {
+            throw "Tried to reset a step-through option which has not yet been set.";
+        }
+
+        var stepThroughIndex = this.stepThroughValues.findIndex(elem => elem.combinatorIndex == combinatorIndex);
+        if (stepThroughIndex == -1) {
+            throw "Tried to reset a step-through option which does not exist.";
+        }
+
+        this.stepThroughIndex = stepThroughIndex;
+        this.stepThroughCombinatorIndex = combinatorIndex;
+        this.stepThroughValues = this.stepThroughValues.slice(0, this.stepThroughIndex);
 
         this.stepThroughAcquisitionTimeIndex = this.stepThroughValues.reduce((prev, cur) => {
             return (cur.type == StepThroughValue.TYPE_ACQUISITION_TIME) ? prev + 1 : prev;
@@ -218,14 +245,16 @@ export default class Evaluator {
         this.stepThroughRevisitAndStack = andStack.slice(0, andSliceIndex);
 
         this.hasMoreSteps = true;
-
-        this.setStepThroughOption(option);
     }
 
     /**
      * Gets the options for the next step of evaluating the financial contract.
      */
     getNextStepThroughOptions() {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
+        }
+
         if (!this.hasMoreSteps) {
             return undefined;
         }
@@ -269,6 +298,10 @@ export default class Evaluator {
      * Gets the horizon of the contract.
      */
     getHorizon() {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
+        }
+
         return this.horizon;
     }
 
@@ -276,6 +309,10 @@ export default class Evaluator {
      * Gets the set of relevant time slices for the contract.
      */
     getTimeSlices() {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
+        }
+
         return this.timeSlices.clone();
     }
 
@@ -283,6 +320,10 @@ export default class Evaluator {
      * Gets the array of anytime time slice sets for the contract, in order of occurrence.
      */
     getAnytimeTimeSlices() {
+        if (!this.contract) {
+            throw "Can't evaluate with no defined contract.";
+        }
+
         return this.anytimeTimeSlices;
     }
 
@@ -461,6 +502,7 @@ export default class Evaluator {
                         this._tryRevisitOrEndStepThrough();
                     } else {
                         this.stepThroughTime = this._getMaxHorizon(this.stepThroughTime, horizon);
+                        this.stepThroughCombinatorIndex += 1;
                     }
 
                     break;
@@ -562,9 +604,7 @@ export default class Evaluator {
                 return this._stepThroughEvaluate(i + 1, acquisitionTime.value, values);
 
             case "and":
-                console.log("Hi");
                 var subRes0 = this._stepThroughEvaluate(i + 1, time, values);
-                console.log(subRes0);
                 var tail0 = this.combinatorTailIndexMap.getNextValue(i + 1);
 
                 var subRes1 = this._stepThroughEvaluate(tail0, time, values);
@@ -721,48 +761,6 @@ class ProcessResult {
         this.horizon = horizon;
         this.timeSlices = timeSlices;
         this.anytimeTimeSlices = anytimeTimeSlices;
-    }
-}
-
-/**
- * Class representing an input-reliant combinator's value, which will contain either an acquisition time or an or-choice.
- */
-class StepThroughValue {
-    /**
-     * The acquisition time type value.
-     */
-    static TYPE_ACQUISITION_TIME = "acquisition-time";
-
-    /**
-     * The or-choice type value.
-     */
-    static TYPE_OR_CHOICE = "or-choice";
-
-    /**
-     * The type of the step-through value.
-     */
-    type;
-
-    /**
-     * The value of the step-through value.
-     */
-    value;
-
-    /**
-     * The combinator index of the step-through value.
-     */
-    combinatorIndex;
-
-    /**
-     * Initialises a new instance of this class.
-     * @param type The type of the step-through value.
-     * @param value The value of the step-through value.
-     * @param combinatorIndex The combinator index of the step-through value.
-     */
-    constructor(type, value, combinatorIndex) {
-        this.type = type;
-        this.value = value;
-        this.combinatorIndex = combinatorIndex;
     }
 }
 

@@ -937,3 +937,24 @@ TODO:
 	- Fix AND bc it's not passing tests.
 
 
+
+========== 19 May ==========
+
+Starting UI for evaluation (yes it's not passing tests fully but need to show off for meeting in two days)
+	- Previous options displayed, with delete buttons
+	- Evaluate button
+	- Message for errors or success
+	- Current option selection + input
+	- Sets contract on mounting/componentDidUpdate
+	- Evaluation function
+
+Todo:
+	- Test
+	- Style
+	- Put in composition/monitoring views
+	- Wire up evaluator with Main (to keep state)
+	- Finish evaluator tests too
+
+
+
+
