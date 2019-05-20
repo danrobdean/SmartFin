@@ -28,14 +28,28 @@ export default class StepThroughValue {
     combinatorIndex;
 
     /**
+     * The index of that combinator's type.
+     */
+    index;
+
+    /**
+     * Whether or not this value was set automatically.
+     */
+    setAutomatically;
+
+    /**
      * Initialises a new instance of this class.
      * @param type The type of the step-through value.
      * @param value The value of the step-through value.
      * @param combinatorIndex The combinator index of the step-through value.
+     * @param index The index of that combinator's type.
+     * @param setAutomatically Whether or not this value was set automatically.
      */
-    constructor(type, value, combinatorIndex) {
+    constructor(type, value, combinatorIndex, index, setAutomatically) {
         this.type = type;
-        this.value = value;
+        this.value = (type === StepThroughValue.TYPE_ACQUISITION_TIME) ? parseInt(value) : value;
         this.combinatorIndex = combinatorIndex;
+        this.index = index;
+        this.setAutomatically = setAutomatically;
     }
 }

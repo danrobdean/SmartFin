@@ -1,0 +1,60 @@
+.evaluate-controls__container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.evaluate-controls__contract-drop-down {
+    width: 100%;
+    margin-bottom: 2em;
+}
+
+.evaluate-controls__options-container {
+    display: flex;
+    flex-direction: column;
+    
+    width: 100%;
+}
+
+.evaluate-controls__option-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.evaluate-controls__options-input {
+    font-size: 1.2em;
+}
+
+.evaluate-controls__prev-value-label,
+.evaluate-controls__option-label {
+    width: 15em;
+}
+
+.evaluate-controls__reset-value-button,
+.evaluate-controls__option-button,
+.evaluate-controls__evaluate-button {
+    width: 10em;
+}
+
+.evaluate-controls__prev-value-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.evaluate-controls__evaluate-button {
+    flex: 0 0 auto;
+}
+
+.evaluate-controls__message {
+    margin-top: 1em;
+}

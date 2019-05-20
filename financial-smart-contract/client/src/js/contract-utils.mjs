@@ -251,6 +251,10 @@ export function verifyContract(contract) {
 
 // Verifies the combinator at the given index in the given list of combinator atoms.
 function verifyCombinator(combinators, i) {
+    if (!web3) {
+        setupWeb3();
+    }
+
     // Function to generate an error description.
     const errDesc = (index) => {
         return "At: '" + combinators[index] + "', atom: " + index + " of the contract."
@@ -338,7 +342,6 @@ function verifyCombinator(combinators, i) {
             if (combinators.length <= i + 1) {
                 return new VerificationError("Expected observable or scale value, found end of contract.", errDesc(i));
             }
-            var maxValue = BigInt(2) ** BigInt(63);
 
 
             if (combinators[i + 1] == "obs") {
@@ -355,7 +358,7 @@ function verifyCombinator(combinators, i) {
                 }
             } else if (isNaN(combinators[i + 1])) {
                 return new VerificationError("Expected scale value or 'obs', found: '" + combinators[i + 1] + "'.", errDesc(i));
-            } else if (BigInt(combinators[i + 1]) > maxValue - BigInt(1) || BigInt(combinators[i + 1] < -maxValue)) {
+            } else if (!isValidScaleValue(combinators[i + 1])) {
                 return new VerificationError("Expected signed 64-bit scale value, found: '" + combinators[i + 1] + "'.", errDesc(i));
             }
 
@@ -775,9 +778,17 @@ export async function getCombinatorContract(contract, caller) {
 
 // Returns true if the given value can be used as a scale value, false otherwise
 export function isValidScaleValue(value) {
-    var maxValue = BigInt(2) ** BigInt(63);
+    if (!web3) {
+        setupWeb3();
+    }
+    if (isNaN(value)) {
+        return false;
+    }
+
+    var maxValue = web3.utils.toBN(2).pow(web3.utils.toBN(63));
+    var valueBN = web3.utils.toBN(value);
     // Check is number and in bounds
-    return !isNaN(value) && !(BigInt(value) > maxValue - BigInt(1) || BigInt(value) < -maxValue);
+    return !(valueBN.gt(maxValue.sub(web3.utils.toBN(1))) || valueBN.lt(maxValue.neg()));
 }
 
 // Converts an array of bytes to an address

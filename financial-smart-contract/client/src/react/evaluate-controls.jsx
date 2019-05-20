@@ -1,6 +1,7 @@
 import React from "react";
 
 import { unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import DropDown from "./drop-down.jsx";
 import Message from "./message.jsx";
 import StepThroughOptions from "./../js/step-through-options.mjs";
 import StepThroughValue from "./../js/step-through-value.mjs";
@@ -15,13 +16,13 @@ export default class EvaluateControls extends React.Component {
     static blockName = "evaluate-controls";
 
     /**
-     * The step's option input.
+     * The step's option select.
      */
-    optionInput;
+    optionSelect;
 
     /**
      * Initialises a new instance of this class.
-     * @param props.contractDefinition The contract definition string.
+     * @param props.contract The contract definition string.
      * @param props.evaluator The evaluator instance.
      */
     constructor(props) {
@@ -29,8 +30,8 @@ export default class EvaluateControls extends React.Component {
 
         this.state = {
             options: undefined,
+            prevValues: undefined,
             value: undefined,
-            chosenOption: undefined,
             contractEvaluationError: "",
             contractEvaluationErrorDetails: ""
         };
@@ -42,23 +43,45 @@ export default class EvaluateControls extends React.Component {
     render() {
         var messageClassName = EvaluateControls.blockName + "__message";
 
+        var prevValues = null;
+        var options = null;
+        var noInputMessage = null;
+        if (this.props.contract) {
+            prevValues = this.renderPrevValues();
+            options = this.renderOptions();
+        }
+
+        if (!prevValues && !options) {
+            noInputMessage = Message.renderInfo("This contract has no value-altering input.");
+        }
+
         return (
             <div className={EvaluateControls.blockName + "__container"}>
+
+                <div className={EvaluateControls.blockName + "__contract-drop-down"}>
+                    <DropDown title={"Combinator Contract"} disableChildClick={true}>
+                        <div className={EvaluateControls.blockName + "__combinator-contract-container"}>
+                            <em>{this.props.contract}</em>
+                        </div>
+                    </DropDown>
+                </div>
+
                 <div className={EvaluateControls.blockName + "__options-container"}>
-                    {this.renderPrevValues()}
-                    {this.renderOptions()}
+                    {prevValues}
+                    {options}
+                    {noInputMessage}
                 </div>
 
                 <button
-                    className={EvaluateControls.blockName + "__evaluate_button"}
+                    className={EvaluateControls.blockName + "__evaluate-button"}
                     onClick={() => this.evaluate()}
-                    disabled={!this.props.evaluator.hasNextStep()}>
+                    disabled={this.props.evaluator.hasNextStep()}>
                     Evaluate Contract
                 </button>
 
                 {Message.renderError(this.state.contractEvaluationError, this.state.contractEvaluationErrorDetails, messageClassName)}
                 {Message.renderSuccess(
-                    (this.state.value) ? "Contract Value: " + value.toString() : "",
+                    (this.state.value) ? "Contract Value: " + this.state.value.toString() + " Wei" : "",
                     undefined,
                     messageClassName
                 )}
@@ -71,30 +94,35 @@ export default class EvaluateControls extends React.Component {
      */
     renderOptions() {
         if (!this.props.evaluator.hasNextStep()) {
-            return null;
+            return;
         }
 
         var optionElements = [];
+        var options = this.state.options.options;
+        var label = this.getLabel(this.state.options.index, this.state.options.type == StepThroughOptions.TYPE_ACQUISITION_TIME);
 
-        for (var i = 0; i < this.state.options; i++) {
+        for (var i = 0; i < options.length; i++) {
             var option = options[i];
-            var text = (option.type == StepThroughOptions.TYPE_ACQUISITION_TYPE)
-                ? unixTimestampToDateString(option.value)
-                : ((option.value) ? "First" : "Second") + " sub-contract";
+            var text = (this.state.options.type == StepThroughOptions.TYPE_ACQUISITION_TIME)
+                ? unixTimestampToDateString(option)
+                : ((option) ? "First" : "Second") + " sub-contract";
 
             optionElements.push(
-                <option key={i} value={options[i]}>{text}</option>
+                <option key={i} value={option}>{text}</option>
             );
         }
 
         return (
-            <div className={EvaluateControls.blockName + "__options-container"}>
-                <input
+            <div className={EvaluateControls.blockName + "__option-container"}>
+                <span className={EvaluateControls.blockName + "__option-label"}>
+                    {label}
+                </span>
+
+                <select
                     className={EvaluateControls.blockName + "__options-input"}
-                    ref={r => this.optionInput = r}
-                    onChange={e => this.handleOptionInputChange()}>
+                    ref={r => this.optionSelect = r}>
                     {optionElements}
-                </input>
+                </select>
 
                 <button
                     className={EvaluateControls.blockName + "__option-button"}
@@ -109,84 +137,79 @@ export default class EvaluateControls extends React.Component {
      * Renders the set of previous steps' values.
      */
     renderPrevValues() {
-        var prevValues = this.props.evaluator.getPrevValues();
+        if (!this.state.prevValues || this.state.prevValues.length == 0) {
+            return;
+        }
+        var prevValueElements = [];
 
-        if (prevValues && prevValues.length > 0) {
-            var prevValueElements = [];
+        for (var i = 0; i < this.state.prevValues.length; i++) {
+            var prevValue = this.state.prevValues[i];
+            var prevValueElement;
+            var label = this.getLabel(prevValue.index, prevValue.type == StepThroughValue.TYPE_ACQUISITION_TIME);
 
-            for (var i = 0; i < prevValues.length; i++) {
-                var prevValue = prevValues[i];
-                var prevValueElement;
+            if (prevValue.type == StepThroughValue.TYPE_ACQUISITION_TIME) {
+                // Acquisition time
+                prevValueElement = (
+                    <div
+                        className={EvaluateControls.blockName + "__prev-value-container"}
+                        key={i}>
+                        <span className={EvaluateControls.blockName + "__prev-value-label"}>
+                            {label}
+                        </span>
 
-                if (prevValue.type == StepThroughValue.TYPE_ACQUISITION_TYPE) {
-                    // Acquisition time
-                    prevValue = (
-                        <div
-                            className={EvaluateControls.blockName + "__prev-value-container"}
-                            key={i}>
-                            <span className={EvaluateControls.blockName + "__prev-value"}>
-                                {unixTimestampToDateString(prevValue.value)}
-                            </span>
-                            <button
-                                className={EvaluateControls.blockName + "__reset-value-button"}
-                                onClick={() => this.deleteValue(prevValue.combinatorIndex)}>
-                                Delete
-                            </button>
-                        </div>
-                    );
-                } else {
-                    // Or-choice
-                    prevValue = (
-                        <div
-                            className={EvaluateControls.blockName + "__prev-value-container"}
-                            key={i}>
-                            <span className={EvaluateControls.blockName + "__prev-value"}>
-                                {((prevValue.value) ? "First" : "Second") + " sub-contract"}
-                            </span>
-                            <button
-                                className={EvaluateControls.blockName + "__reset-value-button"}
-                                onClick={() => this.deleteValue(prevValue.combinatorIndex)}>
-                                Delete
-                            </button>
-                        </div>
-                    );
-                }
+                        <span className={EvaluateControls.blockName + "__prev-value"}>
+                            <em>{unixTimestampToDateString(prevValue.value)}</em>
+                        </span>
 
-                prevValueElements.push(prevValueElement);
+                        <button
+                            className={EvaluateControls.blockName + "__reset-value-button"}
+                            onClick={this.deleteValue.bind(this, prevValue.combinatorIndex)}>
+                            Delete
+                        </button>
+                    </div>
+                );
+            } else {
+                // Or-choice
+                prevValueElement = (
+                    <div
+                        className={EvaluateControls.blockName + "__prev-value-container"}
+                        key={i}>
+                        <span className={EvaluateControls.blockName + "__prev-value-label"}>
+                            {label}
+                        </span>
+
+                        <span className={EvaluateControls.blockName + "__prev-value"}>
+                            <em>{((prevValue.value) ? "First" : "Second") + " sub-contract"}</em>
+                        </span>
+
+                        <button
+                            className={EvaluateControls.blockName + "__reset-value-button"}
+                            onClick={this.deleteValue.bind(this, prevValue.combinatorIndex)}>
+                            Delete
+                        </button>
+                    </div>
+                );
             }
 
-            return prevValueElements;
+            prevValueElements.push(prevValueElement);
         }
-    }
 
-    /**
-     * Called when the component mounts on the DOM.
-     */
-    componentDidMount() {
-        if (this.props.contractDefinition) {
-            this.resetContract();
-        }
-    }
-
-    /**
-     * Called when the component's props or state update.
-     * @param prevProps The previous component properties.
-     */
-    componentDidUpdate(prevProps) {
-        // If contract definition changes, restart evaluation
-        if (prevProps.contractDefinition !== this.props.contractDefinition) {
-            this.resetContract();
-        }
+        return prevValueElements;
     }
 
     /**
      * Sets the value for the option of the current step.
      */
     setOption() {
-        this.props.evaluator.setStepThroughOption(this.state.chosenOption);
+        var option = this.optionSelect.value;
+        if (this.state.options.type === StepThroughOptions.TYPE_OR_CHOICE) {
+            option = option == "true";
+        }
+        this.props.evaluator.setStepThroughOption(option);
 
         this.setState({
-            options: this.props.evaluator.getNextStepThroughOptions()
+            options: this.props.evaluator.getNextStepThroughOptions(),
+            prevValues: this.props.evaluator.getPrevValues()
         });
     }
 
@@ -210,16 +233,41 @@ export default class EvaluateControls extends React.Component {
     }
 
     /**
+     * Gets the label for a step-through option or value.
+     * @param index The option's associated index.
+     * @param isAcquisitionTime Whether or not the option is an acquisition-time option (false is or-choice)
+     */
+    getLabel(index, isAcquisitionTime) {
+        var label;
+
+        if (isAcquisitionTime) {
+            if (index == -1) {
+                label = "Contract Acquisition-Time:";
+            } else {
+                label = "Anytime " + index + " Acquisition Time:";
+            }
+        } else {
+            label = "Or " + index + " Choice:";
+        }
+
+        return label;
+    }
+
+    /**
      * Resets the contract.
      */
     resetContract() {
-        this.props.evaluator.setContract(this.props.contractDefinition);
+        this.props.evaluator.setContract(this.props.contract);
 
         this.resetError();
 
         if (this.props.evaluator.hasNextStep()) {
             this.setState({
-                options: this.props.evaluator.getNextStepThroughOptions()
+                options: this.props.evaluator.getNextStepThroughOptions(),
+                prevValues: this.props.evaluator.getPrevValues(),
+                value: undefined,
+                contractEvaluationError: "",
+                contractEvaluationErrorDetails: ""
             });
         }
     }
@@ -231,6 +279,11 @@ export default class EvaluateControls extends React.Component {
      */
     deleteValue(combinatorIndex) {
         this.props.evaluator.deleteStepThroughOption(combinatorIndex);
+
+        this.setState({
+            options: this.props.evaluator.getNextStepThroughOptions(),
+            prevValues: this.props.evaluator.getPrevValues()
+        });
     }
 
     /**
@@ -240,17 +293,6 @@ export default class EvaluateControls extends React.Component {
         this.setState({
             contractEvaluationError: "",
             contractEvaluationErrorDetails: ""
-        });
-    }
-
-    /**
-     * Handler for the option input's change event.
-     */
-    handleOptionInputChange(event) {
-        event.preventDefault();
-
-        this.setState({
-            chosenOption: this.optionInput.value
         });
     }
 }

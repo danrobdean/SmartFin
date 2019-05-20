@@ -2,6 +2,7 @@ import React from "react";
 
 import Composition from "./composition.jsx";
 import ConnectAccount from "./connect-account.jsx";
+import Evaluator from "./../js/evaluator.mjs";
 import MainMenu from "./main-menu.jsx";
 import Monitoring from "./monitoring.jsx";
 
@@ -25,7 +26,8 @@ export default class Main extends React.Component {
             web3: null,
             address: "",
             appState: "connect",
-            contract: null
+            contract: null,
+            evaluator: new Evaluator()
         }
     }
 
@@ -52,7 +54,8 @@ export default class Main extends React.Component {
                     <Composition
                         web3={this.state.web3}
                         address={this.state.address}
-                        setContract={contract => this.setContract(contract)}/>
+                        setContract={contract => this.setContract(contract)}
+                        evaluator={this.state.evaluator}/>
                 );
             }
             case "monitoring": {
@@ -61,7 +64,8 @@ export default class Main extends React.Component {
                         web3={this.state.web3}
                         address={this.state.address}
                         setContract={contract => this.setContract(contract)}
-                        contract={this.state.contract}/>
+                        contract={this.state.contract}
+                        evaluator={this.state.evaluator}/>
                     );
             }
             default: return <div />;

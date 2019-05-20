@@ -7,6 +7,7 @@ import Modal from "./modal.jsx";
 import TimeSelect from "./time-select.jsx";
 
 import { verifyContract } from "./../js/contract-utils.mjs"
+import EvaluateControls from "./evaluate-controls.jsx";
 
 /**
  * The contract composition component.
@@ -23,10 +24,16 @@ export default class Composition extends React.Component {
     compositionInput;
 
     /**
+     * The evaluation controls component.
+     */
+    evaluateControls;
+
+    /**
      * Initialises a new instance of this class.
      * @param props.web3 The web3 instance.
      * @param props.address The unlocked account address.
      * @param props.setContract Function to set the current contract instance.
+     * @param props.evaluator The evaluator.
      */
     constructor(props) {
         super(props);
@@ -36,6 +43,7 @@ export default class Composition extends React.Component {
             helpOpen: false,
             timePickerOpen: false,
             deployOpen: false,
+            evaluateOpen: false,
             contractWarning: "",
             contractError: "",
             contractErrorStack: "",
@@ -64,6 +72,11 @@ export default class Composition extends React.Component {
                         warning={this.state.contractWarning}
                         deployed={contract => this.contractDeployed(contract)}/>
                 </Modal>
+
+                <Modal title="Evaluate Contract" closeModal={() => this.closeModals()} visible={this.state.evaluateOpen}>
+                    <EvaluateControls evaluator={this.props.evaluator} contract={this.state.contract} ref={r => this.evaluateControls = r}/>
+                </Modal>
+
                 <div className={Composition.blockName + "__size-container"}>
                     <div className={Composition.blockName + "__wrapping-container"}>
                         <div className={Composition.blockName + "__composition-container"}>
@@ -87,6 +100,11 @@ export default class Composition extends React.Component {
                                 className={Composition.blockName + "__control-button"}
                                 onClick={() => this.displayTimePicker()}>
                                 Select Time
+                            </button>
+                            <button
+                                className={Composition.blockName + "__control-button"}
+                                onClick={() => this.displayEvaluate()}>
+                                Evaluate Contract
                             </button>
                             <button
                                 className={Composition.blockName + "__control-button"}
@@ -126,9 +144,10 @@ export default class Composition extends React.Component {
      * Displays the help modal.
      */
     displayHelp() {
+        this.closeModals();
+
         this.setState({
-            helpOpen: true,
-            timePickerOpen: false
+            helpOpen: true
         });
     }
 
@@ -136,9 +155,10 @@ export default class Composition extends React.Component {
      * Displays the time picker modal.
      */
     displayTimePicker() {
+        this.closeModals();
+
         this.setState({
-            timePickerOpen: true,
-            helpOpen: false
+            timePickerOpen: true
         });
     }
 
@@ -155,11 +175,38 @@ export default class Composition extends React.Component {
                 contractErrorStack: res.stack
             });
         } else {
+            this.closeModals();
+    
             this.setState({
                 contractWarning: res.warning,
                 contractError: "",
                 contractErrorStack: "",
                 deployOpen: true
+            });
+        }
+    }
+
+    /**
+     * Displays the evaluate contract modal.
+     */
+    displayEvaluate() {
+        var res = verifyContract(this.state.contract);
+
+        if (res.error) {
+            this.setState({
+                contractWarning: "",
+                contractError: res.error,
+                contractErrorStack: res.stack
+            });
+        } else {
+            this.closeModals();
+            this.evaluateControls.resetContract();
+    
+            this.setState({
+                contractWarning: res.warning,
+                contractError: "",
+                contractErrorStack: "",
+                evaluateOpen: true
             });
         }
     }
@@ -186,7 +233,8 @@ export default class Composition extends React.Component {
         this.setState({
             helpOpen: false,
             timePickerOpen: false,
-            deployOpen: false
+            deployOpen: false,
+            evaluateOpen: false
         }, callback);
     }
 

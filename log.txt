@@ -957,4 +957,27 @@ Todo:
 
 
 
+========== 20 May ==========
+
+Styling/fixing UI for evaluation and evaluator:
+	- Added much better styling for UI
+	- Added info message for no-input contracts
+	- .mjs files now handled by babel loader (seems to be required)
+		- Had to remove calls to BigInt, replaced with web3.utils.toBN() (thankfully this was simple, deserialization/serialization of addresses and i64s still work)
+	- Fixed option setting
+	- Fixed AND evaluation (was returning result of subRes0.add(), which is undefined, instead of calling and then returning)
+	- Added atom indicator to UI
+	- Fixed delete function passing wrong parameter in button (now binds parameter and receiver)
+	- Now save or-index and anytime-index in StepThroughOptions/StepThroughValue so they can be displayed alongside the option in the UI
+	- All seems to work!
+	- Evaluator tests (unit-style, not integration, although tested some stuff manually too)
+
+ToDo:
+	- Tests for contract-utils
+	- Add gas-free param for smart contract
+	- Remove get_value from smart contract
+	- Write report
+
+
+
 

@@ -64,6 +64,11 @@ export default class Evaluator {
     stepThroughAcquisitionTimeIndex;
 
     /**
+     * The current or index from stepping through the combinators in the contract.
+     */
+    stepThroughOrIndex;
+
+    /**
      * The current time for step-through execution.
      */
     stepThroughTime;
@@ -109,9 +114,9 @@ export default class Evaluator {
             // Set initial acquisition time to now if it makes no difference
             var timeSlices = this.timeSlices.getSlices();
             if (timeSlices.length == 0) {
-                this.setStepThroughOption(dateToUnixTimestamp(new Date()));
+                this.setStepThroughOption(dateToUnixTimestamp(new Date()), true);
             } else if (timeSlices.length == 1) {
-                this.setStepThroughOption(timeSlices[0]);
+                this.setStepThroughOption(timeSlices[0], true);
             }
         }
     }
@@ -144,10 +149,6 @@ export default class Evaluator {
      * Returns true if more step-through options can be set, false if otherwise.
      */
     hasNextStep() {
-        if (!this.contract) {
-            throw "Can't evaluate with no defined contract.";
-        }
-
         return this.hasMoreSteps;
     }
 
@@ -155,14 +156,17 @@ export default class Evaluator {
      * Returns the set of step-through values which have already been set.
      */
     getPrevValues() {
-        return this.stepThroughValues;
+        if (this.stepThroughValues) {
+            return this.stepThroughValues.filter(elem => !elem.setAutomatically);
+        }
     }
 
     /**
      * Sets the current step-through evaluation option.
      * @param option The input option for the current input-reliant combinator.
+     * @param automatic Whether or not this value is being set automatically or manually.
      */
-    setStepThroughOption(option) {
+    setStepThroughOption(option, automatic=false) {
         if (!this.contract) {
             throw "Can't evaluate with no defined contract.";
         }
@@ -170,7 +174,7 @@ export default class Evaluator {
         // Set the step through option and increment the combinator-index to the start of the next contract
         if (this.stepThroughIndex == 0) {
             // Set the top-level acquisition time
-            this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex));
+            this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex, -1, automatic));
 
             this.stepThroughCombinatorIndex += 1;
             this.stepThroughAcquisitionTimeIndex += 1;
@@ -178,7 +182,7 @@ export default class Evaluator {
         } else {
             switch (this.combinators[this.stepThroughCombinatorIndex]) {
                 case "or":
-                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_OR_CHOICE, option, this.stepThroughCombinatorIndex));
+                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_OR_CHOICE, option, this.stepThroughCombinatorIndex, this.stepThroughOrIndex, automatic));
 
                     this.stepThroughCombinatorIndex += 1;
 
@@ -186,10 +190,12 @@ export default class Evaluator {
                     if (!option) {
                         this.stepThroughCombinatorIndex = this.combinatorTailIndexMap.getNextValue(this.stepThroughCombinatorIndex);
                     }
+
+                    this.stepThroughOrIndex += 1;
                     break;
 
                 case "anytime":
-                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex));
+                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex, this.stepThroughAcquisitionTimeIndex - 1, automatic));
 
                     // Move on to sub-combinator.
                     this.stepThroughCombinatorIndex += 1;
@@ -262,12 +268,12 @@ export default class Evaluator {
         if (this.stepThroughIndex == 0) {
             var slices = this.timeSlices.getSlices();
 
-            return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, slices, this.stepThroughCombinatorIndex);
+            return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, slices, this.stepThroughCombinatorIndex, -1);
         }
 
         switch (this.combinators[this.stepThroughCombinatorIndex]) {
             case "or":
-                return new StepThroughOptions(StepThroughOptions.TYPE_OR_CHOICE, [true, false], this.stepThroughCombinatorIndex);
+                return new StepThroughOptions(StepThroughOptions.TYPE_OR_CHOICE, [true, false], this.stepThroughCombinatorIndex, this.stepThroughOrIndex);
 
             case "anytime":
                 // Cut off the time-slice options by the current sub-contract's acquisition time
@@ -280,7 +286,7 @@ export default class Evaluator {
                     timeSlices = timeSlices.slice(index);
                 }
 
-                return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, timeSlices, this.stepThroughCombinatorIndex);
+                return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, timeSlices, this.stepThroughCombinatorIndex, this.stepThroughAcquisitionTimeIndex - 1);
 
             default:
                 throw "Unknown input-reliant combinator found.";
@@ -466,10 +472,10 @@ export default class Evaluator {
 
                             if (this._horizonLaterThan(this.stepThroughTime, subHorizon0)) {
                                 // First sub-contract expired, make choice for second sub-combinator
-                                return this.setStepThroughOption(false);
+                                return this.setStepThroughOption(false, true);
                             } else if (this._horizonLaterThan(this.stepThroughTime, subHorizon1)) {
                                 // Second sub-contract expired, make choice for first sub-combinator
-                                return this.setStepThroughOption(true);
+                                return this.setStepThroughOption(true, true);
                             }
                         } else {
                             // ANYTIME combinator, check if only one acquisition time, in which case make choice
@@ -484,9 +490,9 @@ export default class Evaluator {
 
                             if (timeSlices.length == 0) {
                                 // No choices to be made, make choice and move on
-                                return this.setStepThroughOption(this.stepThroughTime);
+                                return this.setStepThroughOption(this.stepThroughTime, true);
                             } else if (timeSlices.length == 1) {
-                                return this.setStepThroughOption(timeSlices[0]);
+                                return this.setStepThroughOption(timeSlices[0], true);
                             }
                         }
                         foundValidInputReliantCombinator = true;
@@ -590,8 +596,11 @@ export default class Evaluator {
             case "get":
                 // Return the value of the sub-contract at this contract's horizon
                 var horizon = this.combinatorHorizonMap.tryGetNextValue(i);
-
-                return this._stepThroughEvaluate(i + 1, horizon, values);
+                if (horizon === undefined) {
+                    return new StepThroughEvaluationResult(0);
+                } else {
+                    return this._stepThroughEvaluate(i + 1, horizon, values);
+                }
 
             case "anytime":
                 // Get the anytime acquisition time
@@ -608,7 +617,10 @@ export default class Evaluator {
                 var tail0 = this.combinatorTailIndexMap.getNextValue(i + 1);
 
                 var subRes1 = this._stepThroughEvaluate(tail0, time, values);
-                return subRes0.add(subRes1);
+
+                subRes0.add(subRes1);
+
+                return subRes0;
 
             case "or":
                 // Get the or-choice
@@ -619,7 +631,7 @@ export default class Evaluator {
                 }
 
                 var nextI = i + 1;
-                if (!orChoice) {
+                if (!orChoice.value) {
                     nextI = this.combinatorTailIndexMap.getNextValue(nextI);
                 }
 
@@ -723,6 +735,7 @@ export default class Evaluator {
         this.stepThroughIndex = 0;
         this.stepThroughCombinatorIndex = -1;
         this.stepThroughAcquisitionTimeIndex = 0;
+        this.stepThroughOrIndex = 0;
         this.stepThroughTime = undefined;
         this.stepThroughRevisitAndStack = [];
         this.stepThroughValues = [];
@@ -802,7 +815,7 @@ class StepThroughEvaluationResult {
     /**
      * The prefix for observable values.
      */
-    obsPrefix = "";
+    obsPrefixes = [];
 
     /**
      * The current scalar by which the value is multiplied.
@@ -823,7 +836,7 @@ class StepThroughEvaluationResult {
     getValue() {
         var valueString;
         if (!isNaN(this.value)) {
-            valueString = (this.value * this.scalar).toString();
+            valueString = this.getNumericValue();
         } else {
             var prefix;
 
@@ -836,7 +849,27 @@ class StepThroughEvaluationResult {
             valueString = prefix + this.value;
         }
 
-        return this.obsPrefix + valueString;
+        return this.obsPrefixes.join("") + valueString;
+    }
+
+    /**
+     * Gets the value of this result with brackets if appropriate.
+     */
+    getBracketedValue() {
+        var value = this.getValue();
+        
+        if (isNaN(value)) {
+            value = "(" + value + ")";
+        }
+
+        return value;
+    }
+
+    /**
+     * Returns the concrete value multiplied by the scalar.
+     */
+    getNumericValue() {
+        return this.value * this.scalar;
     }
 
     /**
@@ -852,17 +885,28 @@ class StepThroughEvaluationResult {
      * @param obsIndex The observable index.
      */
     addObservableIndex(obsIndex) {
-        this.obsPrefix += "obs_" + obsIndex.toString() + " * ";
+        this.obsPrefixes.push("obs_" + obsIndex.toString() + " * ");
     }
 
     /**
      * Adds another step-through evaluation result to this one.
      */
     add(other) {
-        var value = "(" + this.getValue() + ")";
-        var otherValue = "(" + other.getValue() + ")";
-        this.value = value + " + " + otherValue;
-        this.scalar = 1;
-        this.obsPrefix = "";
+        if (!isNaN(this.getValue()) && !isNaN(other.getValue())) {
+            // Can add two numeric values directly
+            var value = this.getNumericValue();
+            var otherValue = other.getNumericValue();
+
+            this.value = value + otherValue;
+            this.scalar = 1;
+        } else {
+            // At least one has observable factors, bracket them
+            var value = this.getBracketedValue();
+            var otherValue = other.getBracketedValue();
+
+            this.value = value + " + " + otherValue;
+            this.scalar = 1;
+            this.obsPrefixes = [];
+        }
     }
 }
