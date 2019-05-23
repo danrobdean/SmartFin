@@ -35,10 +35,6 @@ impl ContractCombinator for OneCombinator {
         Combinator::ONE
     }
 
-    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        1
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -77,22 +73,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = OneCombinator::new();
         assert_eq!(combinator.get_combinator_number(), Combinator::ONE);
-    }
-    
-    // Value is 1
-    #[test]
-    fn correct_value() {
-        // Create combinator one
-        let combinator = OneCombinator::new();
-
-        // Check value = 1
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'one' contract is not equal to 1: {}",
-            value
-        );
     }
 
     // Horizon is None

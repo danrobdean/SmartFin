@@ -987,6 +987,7 @@ Making final smart contract changes:
 	- Store last-updated time
 	- Moving storage to new file
 	- Removing get_value and tests
+	- Double check or-choice setting restrictions
 	- Adding names for observables (and to contract-utils)
 
 
@@ -1009,6 +1010,15 @@ Implemented:
 	- Moving storage to new file
 		- Moved storage and tests to storage.rs
 		- Re-export storage as module from lib.rs
+		- Tested with RS and JS tests, all pass
+
+	- Removed get_value and associated tests
+		- Removed from trait and combinators
+		- Removed get_value tests in combinator modules (they already have tests for acquire/update, so no need for new tests)
+		- Replaced get_value checks in integration tests with acquire() -> get_balance()
+		- Removed extraneous update()s after acquire()s
+
+	- Double-check OR-choice setting restrictions
 
 
 

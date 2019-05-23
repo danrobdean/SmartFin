@@ -52,14 +52,6 @@ impl ContractCombinator for ThenCombinator {
         latest_time(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        if !self.sub_combinator0.past_horizon(time) {
-            self.sub_combinator0.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-        } else {
-            self.sub_combinator1.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-        }
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -125,44 +117,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = ThenCombinator::new(Box::new(OneCombinator::new()), Box::new(OneCombinator::new()));
         assert_eq!(combinator.get_combinator_number(), Combinator::THEN);
-    }
-    
-    // Value with left sub-combinator non-expired is correct
-    #[test]
-    fn correct_value_left_sub_combinator_non_expired() {
-        // Create combinator then zero one
-        let combinator = ThenCombinator::new(Box::from(ZeroCombinator::new()), Box::from(OneCombinator::new()));
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'then zero one' contract is not equal to 0: {}",
-            value
-        );
-    }
-    
-    // Value with left sub-combinator expired is correct
-    #[test]
-    fn correct_value_left_sub_combinator_expired() {
-        // Create combinator then truncate 0 zero one
-        let combinator = ThenCombinator::new(
-            Box::from(TruncateCombinator::new(
-                Box::from(ZeroCombinator::new()),
-                0,
-            )),
-            Box::from(OneCombinator::new())
-        );
-
-        // Check value = 1 at time = 1
-        let value = combinator.get_value(1, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'then truncate 0 zero one' contract at time = 1 is not equal to 1: {}",
-            value
-        );
     }
 
     // Test that contract horizon is correct

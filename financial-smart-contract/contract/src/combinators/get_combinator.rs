@@ -46,14 +46,6 @@ impl ContractCombinator for GetCombinator {
         self.sub_combinator.get_horizon()
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        if self.past_horizon(time) {
-            self.sub_combinator.get_value(self.get_horizon().unwrap(), or_choices, obs_values, anytime_acquisition_times)
-        } else {
-            0
-        }
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -111,66 +103,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = GetCombinator::new(Box::new(OneCombinator::new()));
         assert_eq!(combinator.get_combinator_number(), Combinator::GET);
-    }
-    
-    // Value is sub-combinator's value
-    #[test]
-    fn correct_value_after_horizon() {
-        // Create combinator get truncate 1 one
-        let combinator = GetCombinator::new(
-            Box::from(TruncateCombinator::new(
-                Box::from(OneCombinator::new()),
-                1
-            ))
-        );
-
-        // Check value = 1
-        let value = combinator.get_value(2, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'get truncate 1 one' at time = 2 is not equal to 1: {}",
-            value
-        );
-    }
-    
-    // Value is 0 before horizon
-    #[test]
-    fn correct_value_before_horizon() {
-        // Create combinator get truncate 1 one
-        let combinator = GetCombinator::new(
-            Box::from(TruncateCombinator::new(
-                Box::from(OneCombinator::new()),
-                1
-            ))
-        );
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'get truncate 1 one' at time = 0 is not equal to 0: {}",
-            value
-        );
-    }
-    
-    // Value is 0 if the sub-combinator has no horizon
-    #[test]
-    fn correct_value_no_horizon() {
-        // Create combinator get truncate 1 one
-        let combinator = GetCombinator::new(
-            Box::from(OneCombinator::new())
-        );
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'get one' at time = 0 is not equal to 0: {}",
-            value
-        );
     }
 
     // Horizon is equal to sub-combinator's horizon

@@ -35,10 +35,6 @@ impl ContractCombinator for ZeroCombinator {
         Combinator::ZERO
     }
 
-    fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        0
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -77,22 +73,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = ZeroCombinator::new();
         assert_eq!(combinator.get_combinator_number(), Combinator::ZERO);
-    }
-    
-    // Value is 0
-    #[test]
-    fn correct_value() {
-        // Create combinator zero
-        let combinator = ZeroCombinator::new();
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'zero' contract is not equal to 0: {}",
-            value
-        );
     }
 
     // Horizon is None

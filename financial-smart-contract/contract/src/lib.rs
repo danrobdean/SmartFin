@@ -117,10 +117,6 @@ pub trait FinancialScInterface {
     #[constant]
     fn get_contract_definition(&mut self) -> Vec<i64>;
 
-    // Gets the current value of the contract (TODO: for dev purposes)
-    #[constant]
-    fn get_value(&mut self) -> i64;
-
     // Gets the current balance of the given party (true is holder, false counter-party)
     #[constant]
     fn get_balance(&mut self, holderBalance: bool) -> i64;
@@ -214,15 +210,6 @@ impl FinancialScInterface for FinancialScContract {
     // Gets the combinator contract definition (serialized)
     fn get_contract_definition(&mut self) -> Vec<i64> {
         self.storage.read_ref(&serialized_remote_combinator_contract_key()).0
-    }
-
-    // Gets the current value of the contract
-    fn get_value(&mut self) -> i64 {
-        let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-        let obs_values: Vec<Option<i64>> = self.get_obs_values();
-        let anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
-
-        self.get_combinator().get_value(pwasm_ethereum::timestamp() as u32, &or_choices, &obs_values, &anytime_acquisition_times)
     }
 
     // Gets the total balance of the caller
@@ -803,21 +790,6 @@ mod tests {
             "Combinator contract does not match provided combinator contract: {:?}",
             registered_combinator_contract
         );
-    }
-
-    // The contract doesn't use extraneous combinators in the serialized combinators vector
-    #[test]
-    fn contract_ignores_extra_combinators_in_serialized_vector() {
-        let combinator_contract = vec![0, 2, 1, 1];
-        let mut contract = setup_contract(
-            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
-            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
-            0,
-            combinator_contract.clone()
-        );
-
-        // Check that the value is correct
-        assert_eq!(contract.get_value(), 0);
     }
 
     // Updating before acquiring the contract does nothing

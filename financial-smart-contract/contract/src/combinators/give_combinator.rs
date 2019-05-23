@@ -41,10 +41,6 @@ impl ContractCombinator for GiveCombinator {
         Combinator::GIVE
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        -1 * self.sub_combinator.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-    }
-
     fn get_horizon(&self) -> Option<u32> {
         self.sub_combinator.get_horizon()
     }
@@ -99,22 +95,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
         assert_eq!(combinator.get_combinator_number(), Combinator::GIVE);
-    }
-    
-    // Value is negation of sub-combinator's value
-    #[test]
-    fn correct_value() {
-        // Create combinator give one
-        let combinator = GiveCombinator::new(Box::from(OneCombinator::new()));
-
-        // Check value = -1
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            -1,
-            "Value of 'give one' contract is not equal to -1: {}",
-            value
-        );
     }
 
     // Horizon is equal to sub-combinator's horizon

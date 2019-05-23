@@ -51,14 +51,6 @@ impl ContractCombinator for TruncateCombinator {
         earliest_time(self.sub_combinator.get_horizon(), Some(self.truncated_horizon))
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        if self.past_horizon(time) {
-            0
-        } else {
-            self.sub_combinator.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-        }
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -110,38 +102,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = TruncateCombinator::new(Box::new(OneCombinator::new()), 0);
         assert_eq!(combinator.get_combinator_number(), Combinator::TRUNCATE);
-    }
-    
-    // Value before expiry is equal to the value of the sub-combinator
-    #[test]
-    fn correct_value_pre_expiry() {
-        // Create truncate 1 one
-        let combinator = TruncateCombinator::new(Box::from(OneCombinator::new()), 1);
-
-        // Check value = 1
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'truncate 1 one' contract at time = 0 is not equal to 1: {}",
-            value
-        );
-    }
-    
-    // Value after expiry is 0
-    #[test]
-    fn correct_value_post_expiry() {
-        // Create truncate 1 one
-        let combinator = TruncateCombinator::new(Box::from(OneCombinator::new()), 1);
-
-        // Check value = 0
-        let value = combinator.get_value(2, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'truncate 1 one' contract at time = 2 is not equal to 0: {}",
-            value
-        );
     }
     
     // Horizon is correct

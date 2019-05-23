@@ -52,10 +52,6 @@ impl ContractCombinator for AndCombinator {
         latest_time(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        self.sub_combinator0.get_value(time, or_choices, obs_values, anytime_acquisition_times) + self.sub_combinator1.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -114,22 +110,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = AndCombinator::new(Box::new(OneCombinator::new()), Box::new(OneCombinator::new()));
         assert_eq!(combinator.get_combinator_number(), Combinator::AND);
-    }
-    
-    // Value is sum of sub-combinators' values
-    #[test]
-    fn and_combinator_correct_value() {
-        // Create combinator and one one
-        let combinator = AndCombinator::new(Box::from(OneCombinator::new()), Box::from(OneCombinator::new()));
-
-        // Check value = 2
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            2,
-            "Value of 'and one one' contract is not equal to 2: {}",
-            value
-        );
     }
     
     // Horizon is latest of sub-combinators' horizons with the left combinator truncated

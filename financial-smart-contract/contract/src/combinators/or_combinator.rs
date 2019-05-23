@@ -72,18 +72,6 @@ impl ContractCombinator for OrCombinator {
         latest_time(self.sub_combinator0.get_horizon(), self.sub_combinator1.get_horizon())
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        if self.get_or_choice(time, or_choices) == None {
-            panic!("Cannot get OR choice when neither sub-combinator has been chosen or has expired.");
-        }
-
-        if self.get_or_choice(time, or_choices).unwrap() {
-            self.sub_combinator0.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-        } else {
-            self.sub_combinator1.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-        }
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -154,84 +142,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = OrCombinator::new(Box::new(ZeroCombinator::new()), Box::new(ZeroCombinator::new()), 0);
         assert_eq!(combinator.get_combinator_number(), Combinator::OR);
-    }
-    
-    // Value is value of left sub-combinator when left or-choice is made and no sub-combinators have expired
-    #[test]
-    fn correct_value_left_no_expiry() {
-        // Create combinator or zero one
-        let combinator = OrCombinator::new(Box::from(ZeroCombinator::new()), Box::from(OneCombinator::new()), 0);
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![Some(true)], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'or zero one' contract with or-choice 0 = left is not equal to 0: {}",
-            value
-        );
-    }
-    
-    // Value is value of right sub-combinator when right or-choice is made and no sub-combinators have expired
-    #[test]
-    fn correct_value_right_no_expiry() {
-        // Create combinator or zero one
-        let combinator = OrCombinator::new(Box::from(ZeroCombinator::new()), Box::from(OneCombinator::new()), 0);
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![Some(false)], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'or zero one' contract with or-choice 0 = right is not equal to 1: {}",
-            value
-        );
-    }
-    
-    // Value is value of right sub-combinator when left or-choice is made and left sub-combinator is expired
-    #[test]
-    fn correct_value_left_expired() {
-        // Create combinator or truncate 1 zero one
-        let combinator = OrCombinator::new(
-            Box::from(TruncateCombinator::new(
-                Box::from(ZeroCombinator::new()),
-                1
-            )),
-            Box::from(OneCombinator::new()),
-            0
-        );
-
-        // Check value = 1 at time = 2
-        let value = combinator.get_value(2, &vec![Some(true)], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'or truncate zero one' contract with expired left combinator is not 1: {}",
-            value
-        );
-    }
-    
-    // Value is value of left sub-combinator when right or-choice is made and right sub-combinator is expired
-    #[test]
-    fn correct_value_right_expired() {
-        // Create combinator or one truncate 1 zero
-        let combinator = OrCombinator::new(
-            Box::from(OneCombinator::new()),
-            Box::from(TruncateCombinator::new(
-                Box::from(ZeroCombinator::new()),
-                1
-            )),
-            0
-        );
-
-        // Check value = 1 at time = 2
-        let value = combinator.get_value(2, &vec![Some(true)], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'or one truncate zero' contract with expired right combinator is not 1: {}",
-            value
-        );
     }
     
     // Horizon is latest of sub-combinators' horizons with the left combinator truncated
@@ -507,21 +417,6 @@ mod tests {
         let serialized = combinator.serialize();
         let deserialized = OrCombinator::deserialize(1, &serialized).1;
         assert_eq!(deserialized.serialize(), serialized);
-    }
-
-    // Getting value if bot sub-combinators non-expired and or-choice not made is not allowed
-    #[test]
-    #[should_panic(expected = "Cannot get OR choice when neither sub-combinator has been chosen or has expired.")]
-    fn should_panic_if_getting_value_with_both_sub_combinators_non_expired_and_no_or_choice() {
-        // Create combinator or one one
-        let combinator = OrCombinator::new(
-            Box::from(OneCombinator::new()),
-            Box::from(OneCombinator::new()),
-            0
-        );
-
-        // Get value at time = 0 with no or-choice
-        combinator.get_value(2, &vec![None], &vec![], &vec![]);
     }
 
     // Acquiring combinator twice is not allowed

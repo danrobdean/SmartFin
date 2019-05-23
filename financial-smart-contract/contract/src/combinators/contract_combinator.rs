@@ -125,9 +125,6 @@ pub trait ContractCombinator {
         serialized
     }
 
-    // Returns the value of the combinator if acquired at the given time
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64;
-
     // Returns the common combinator details of the combinator
     fn get_combinator_details(&self) -> &CombinatorDetails;
 
@@ -221,10 +218,6 @@ mod tests {
     impl ContractCombinator for DummyCombinator {
         fn get_combinator_number(&self) -> Combinator {
             Combinator::ZERO
-        }
-
-        fn get_value(&self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-            panic!("Method not implemented.");
         }
 
         fn get_combinator_details(&self) -> &CombinatorDetails {

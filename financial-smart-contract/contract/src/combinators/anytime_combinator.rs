@@ -51,22 +51,6 @@ impl ContractCombinator for AnytimeCombinator {
         self.sub_combinator.get_horizon()
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        let mut acquisition_time = anytime_acquisition_times[self.anytime_index].1;
-
-        // If no acquisition time set, or acquisition time set after the sub-combinator's horizon
-        if acquisition_time == None || self.sub_combinator.past_horizon(acquisition_time.unwrap()) {
-            acquisition_time = self.sub_combinator.get_horizon();
-        }
-
-        // If current concrete acquisition time is None or not reached yet, value is 0, otherwise value of sub-combinator
-        if acquisition_time == None || time < acquisition_time.unwrap() {
-            0
-        } else {
-            self.sub_combinator.get_value(acquisition_time.unwrap(), or_choices, obs_values, anytime_acquisition_times)
-        }
-    }
-
     fn get_combinator_details(&self) -> &CombinatorDetails {
         &self.combinator_details
     }
@@ -140,91 +124,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = AnytimeCombinator::new(Box::new(OneCombinator::new()), 0);
         assert_eq!(combinator.get_combinator_number(), Combinator::ANYTIME);
-    }
-    
-    // Value is sub-combinator's value
-    #[test]
-    fn correct_value_after_acquisition_time() {
-        // Create combinator anytime truncate 1 one
-        let combinator = AnytimeCombinator::new(
-            Box::from(TruncateCombinator::new(
-                Box::from(OneCombinator::new()),
-                1
-            )),
-            0
-        );
-
-        // Check value = 1
-        let value = combinator.get_value(2, &vec![], &vec![], &vec![(true, Some(0))]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'anytime truncate 1 one' at time = 2 with acquisition time 0 is not equal to 1: {}",
-            value
-        );
-    }
-    
-    // Value is 0 before horizon
-    #[test]
-    fn correct_value_before_acquisition_time() {
-        // Create combinator anytime truncate 1 one
-        let combinator = AnytimeCombinator::new(
-            Box::from(TruncateCombinator::new(
-                Box::from(OneCombinator::new()),
-                1
-            )),
-            0
-        );
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![(true, Some(1))]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'anytime truncate 1 one' with acquisition time 1 at time = 0 is not equal to 0: {}",
-            value
-        );
-    }
-    
-    // Value is 1 after horizon with no acquisition time
-    #[test]
-    fn correct_value_after_horizon_no_acquisition_time() {
-        // Create combinator anytime truncate 1 one
-        let combinator = AnytimeCombinator::new(
-            Box::from(TruncateCombinator::new(
-                Box::from(OneCombinator::new()),
-                1
-            )),
-            0
-        );
-
-        // Check value = 0
-        let value = combinator.get_value(2, &vec![], &vec![], &vec![(false, None)]);
-        assert_eq!(
-            value,
-            1,
-            "Value of 'anytime truncate 1 one' with no acquisition time at time = 2 is not equal to 1: {}",
-            value
-        );
-    }
-    
-    // Value is 0 if the sub-combinator has no horizon or acquisition time
-    #[test]
-    fn correct_value_no_horizon_no_acquisition_time() {
-        // Create combinator anytime one
-        let combinator = AnytimeCombinator::new(
-            Box::from(OneCombinator::new()),
-            0
-        );
-
-        // Check value = 0
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![(false, None)]);
-        assert_eq!(
-            value,
-            0,
-            "Value of 'anytime one' at time = 0 is not equal to 0: {}",
-            value
-        );
     }
 
     // Horizon is equal to sub-combinator's horizon

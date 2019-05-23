@@ -80,15 +80,6 @@ impl ContractCombinator for ScaleCombinator {
         Combinator::SCALE
     }
 
-    fn get_value(&self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &Vec<(bool, Option<u32>)>) -> i64 {
-        let scale_value = self.get_scale_value(obs_values);
-        if scale_value == None {
-            panic!("Cannot get value of an undefined observable.");
-        }
-
-        scale_value.unwrap() * self.sub_combinator.get_value(time, or_choices, obs_values, anytime_acquisition_times)
-    }
-
     fn get_horizon(&self) -> Option<u32> {
         self.sub_combinator.get_horizon()
     }
@@ -160,54 +151,6 @@ mod tests {
     fn correct_combinator_number() {
         let combinator = ScaleCombinator::new(Box::new(OneCombinator::new()), Some(0), None);
         assert_eq!(combinator.get_combinator_number(), Combinator::SCALE);
-    }
-    
-    // Value with provided positive scale value is correct
-    #[test]
-    fn correct_value_scale_value_positive() {
-        // Create combinator scale 5 one
-        let combinator = ScaleCombinator::new(Box::from(OneCombinator::new()), None, Some(5));
-
-        // Check value = 5
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            5,
-            "Value of 'scale 5 one' contract is not equal to 5: {}",
-            value
-        );
-    }
-    
-    // Value with provided negative scale value is correct
-    #[test]
-    fn correct_value_scale_value_negative() {
-        // Create combinator scale -5 one
-        let combinator = ScaleCombinator::new(Box::from(OneCombinator::new()), None, Some(-5));
-
-        // Check value = -5
-        let value = combinator.get_value(0, &vec![], &vec![], &vec![]);
-        assert_eq!(
-            value,
-            -5,
-            "Value of 'scale -5 one' contract is not equal to -5: {}",
-            value
-        );
-    }
-    
-    // Value with observable value is correct
-    #[test]
-    fn correct_value_observable() {
-        // Create combinator scale obs one
-        let combinator = ScaleCombinator::new(Box::from(OneCombinator::new()), Some(0), None);
-
-        // Check value = 5
-        let value = combinator.get_value(0, &vec![], &vec![Some(5)], &vec![]);
-        assert_eq!(
-            value,
-            5,
-            "Value of 'scale obs one' contract with observable 5 is not equal to 5: {}",
-            value
-        );
     }
 
     // Horizon is equal to sub-combinator's horizon
@@ -438,28 +381,6 @@ mod tests {
     fn should_panic_if_instantiated_without_obs_index_or_scale_value() {
         // Create combinator scale <> one
         ScaleCombinator::new(Box::from(OneCombinator::new()), None, None);
-    }
-
-    // Getting value without a concrete observable value is not allowed
-    #[test]
-    #[should_panic(expected = "Cannot get value of an undefined observable.")]
-    fn should_panic_if_getting_value_without_concrete_observable_value() {
-        // Create combinator scale obs one
-        let combinator = ScaleCombinator::new(Box::from(OneCombinator::new()), Some(0), None);
-
-        // Get value
-        combinator.get_value(0, &vec![], &vec![None], &vec![]);
-    }
-
-    // Getting value without the corresponding observable value is not allowed
-    #[test]
-    #[should_panic(expected = "Attempted to lookup observable which does not exist.")]
-    fn should_panic_if_getting_value_without_observable_value_for_index() {
-        // Create combinator scale obs one
-        let combinator = ScaleCombinator::new(Box::from(OneCombinator::new()), Some(0), None);
-
-        // Get value
-        combinator.get_value(0, &vec![], &vec![], &vec![]);
     }
 
     // Acquiring combinator twice is not allowed
