@@ -310,7 +310,11 @@ impl FinancialScInterface for FinancialScContract {
             panic!("Given or-index does not exist.");
         }
 
-        or_choices[index as usize] = Some(prefer_first);
+        if or_choices[index] != None {
+            panic!("Or-choice has already been set.");
+        }
+
+        or_choices[index] = Some(prefer_first);
         self.storage.write_ref(&or_choices_key(), &or_choices);
     }
 
@@ -322,6 +326,11 @@ impl FinancialScInterface for FinancialScContract {
         let index: usize = obs_index as usize;
         if index >= obs_entries.len() {
             panic!("Given observable-index does not exist.");
+        }
+
+        // Check not set yet
+        if obs_entries[index].1 != None {
+            panic!("Observable has already been set.");
         }
 
         // Check sender

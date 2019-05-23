@@ -210,33 +210,6 @@ fn scale_with_concrete_negative_obs_value_has_correct_value() {
     assert_eq!(contract_details.contract.get_balance(true), -2);
 }
 
-// The value of a scale combinator with an agreed-upon observable scale value changes after a new agreed-upon proposal
-#[test]
-fn scale_with_concrete_obs_value_has_correct_value_after_second_agreement() {
-    let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
-    let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
-
-    // Create contract or scale obs arbiter one
-    let mut contract_details = setup_contract(vec![
-        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
-        1
-    ]);
-
-
-    // Propose obs_value_0 = 2 from the arbiter
-    ext_update(|e| e.sender(arbiter));
-    contract_details.contract.set_obs_value(0, 2);
-
-    // Propose obs_value_0 = 3 from the arbiter
-    contract_details.contract.set_obs_value(0, 3);
-
-    // Check that contract value is now 3
-    ext_update(|e| e.sender(contract_details.holder));
-    contract_details.contract.acquire();
-
-    assert_eq!(contract_details.contract.get_balance(true), 3);
-}
-
 // The value of a give contract is correct
 #[test]
 fn give_value_correct() {
@@ -376,6 +349,35 @@ fn fully_updated_contract_concluded() {
     contract.acquire();
 
     assert!(contract.get_concluded());
+}
+
+// Setting an or-choice twice is not allowed
+#[test]
+#[should_panic(expected="Or-choice has already been set.")]
+fn should_panic_if_or_choice_set_twice() {
+    let mut contract_details = setup_contract(vec![3, 0, 0]);
+
+    ext_update(|e| e.sender(contract_details.holder));
+    contract_details.contract.set_or_choice(0, true);
+    contract_details.contract.set_or_choice(0, false);
+}
+
+// Setting an observable value twice is not allowed
+#[test]
+#[should_panic(expected="Observable has already been set.")]
+fn should_panic_if_obs_value_set_twice() {
+    let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
+    let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
+
+    // Create contract or scale obs arbiter one
+    let mut contract_details = setup_contract(vec![
+        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        1
+    ]);
+
+    ext_update(|e| e.sender(arbiter));
+    contract_details.contract.set_obs_value(0, 2);
+    contract_details.contract.set_obs_value(0, 3);
 }
 
 // Acquiring an expired contract is not allowed

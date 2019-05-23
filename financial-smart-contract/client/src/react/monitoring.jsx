@@ -71,12 +71,13 @@ export default class Monitoring extends React.Component {
     render() {
         var orChoicesDisabled = this.state.holder !== this.props.address
             || this.state.concluded
-            || !(this.state.orChoices && this.state.orChoices.length > 0);
+            || !(this.state.orChoices && this.state.orChoices.length > 0)
+            || this.state.orChoices.every(elem => elem.isDefined());
 
         var setObsValueDisabled = true;
         if (!this.state.concluded) {
             for (var entry of this.state.obsEntries) {
-                if (this.props.address === entry.getAddress()) {
+                if (this.props.address === entry.getAddress() && !entry.getValue().isDefined()) {
                     setObsValueDisabled = false;
                     break;
                 }

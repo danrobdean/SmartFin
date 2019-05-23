@@ -61,6 +61,10 @@ export default class OrChoiceControls extends React.Component {
         var selectOptions = [];
         if (this.props.orChoices) {
             for (var i = 0; i < this.props.orChoices.length; i++) {
+                if (this.props.orChoices[i].isDefined()) {
+                    continue;
+                }
+
                 selectOptions.push(
                     <option value={i} key={i}>{i}</option>
                 );
@@ -133,7 +137,7 @@ export default class OrChoiceControls extends React.Component {
         // If we receive new or choices, set choice value.
         if (prevProps.orChoices != this.props.orChoices && this.props.orChoices && this.props.orChoices.length > 0) {
             this.setState({
-                orIndex: 0
+                orIndex: this.props.orChoices.findIndex(elem => !elem.isDefined())
             });
         }
 
@@ -196,7 +200,7 @@ export default class OrChoiceControls extends React.Component {
      * Gets the or choice for the given or-index.
      */
     getOrChoice(index) {
-        if (this.props.orChoices && this.props.orChoices.length > index) {
+        if (this.props.orChoices && this.props.orChoices.length > index && index > 0) {
             if (this.props.orChoices[index].isDefined()) {
                 if (this.props.orChoices[index].getValue() === "true") {
                     return "first";

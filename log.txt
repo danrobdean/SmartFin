@@ -987,7 +987,7 @@ Making final smart contract changes:
 	- Store last-updated time
 	- Moving storage to new file
 	- Removing get_value and tests
-	- Double check or-choice setting restrictions
+	- Double check or-choice and obs-value setting restrictions
 	- Adding names for observables (and to contract-utils)
 
 
@@ -1018,7 +1018,17 @@ Implemented:
 		- Replaced get_value checks in integration tests with acquire() -> get_balance()
 		- Removed extraneous update()s after acquire()s
 
-	- Double-check OR-choice setting restrictions
+	- Double-check OR-choice and obs-value setting restrictions
+		- If acquired and or-choice set, should NOT be able to reset it
+		- Right now, we allow resetting no matter what. This is wrong as it allows you to acquire with one or-choice, reset, then update
+		- This doesn't get you the other choice's funds, as it will never be acquired (and you can't re-acquire the contract), but it doesn't let you get the funds of the first choice either
+		- Obs-value is less of an issue, but changing it mid-contract shouldn't really be allowed (as the payout occurs over time), so should also not allow changing after acquisition
+		- As it's less work, for now will not allow changing of obs-values/or-choices if they've already been set (ever), ignoring acquisition time
+		- Updated rust code to check if defined before allowing setting these values, panics if defined
+		- Updated JS UI to only show undefined or-choices/obs-values for setting, and disable the button if all are defined
+
+Todo:
+	- Add names for observables
 
 
 

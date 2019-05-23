@@ -50,11 +50,15 @@ export default class ObsValueControls extends React.Component {
         var obsIndexOptions = [];
         if (this.props.address in this.state.obsEntryMap) {
             for (var index of this.state.obsEntryMap[this.props.address]) {
-                obsIndexOptions.push(
-                    <option key={index} value={index}>{index}</option>
-                );
+                if (!this.props.obsEntries[index].getValue().isDefined()) {
+                    obsIndexOptions.push(
+                        <option key={index} value={index}>{index}</option>
+                    );
+                }
             }
-        } else {
+        }
+
+        if (obsIndexOptions.length == 0) {
             obsIndexOptions.push(
                 <option key={0} value={null}>N/A</option>
             );
@@ -107,7 +111,7 @@ export default class ObsValueControls extends React.Component {
             var obsEntryMap = this.getObsEntryMap(this.props.obsEntries);
             this.setState({
                 obsEntryMap: obsEntryMap,
-                obsIndex: (this.props.address in obsEntryMap) ? obsEntryMap[this.props.address][0] : "N/A"
+                obsIndex: (this.props.address in obsEntryMap) ? obsEntryMap[this.props.address].findIndex(elem => !this.props.obsEntries[elem].getValue().isDefined()) : "N/A"
             });
         }
 
