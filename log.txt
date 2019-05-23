@@ -1000,5 +1000,11 @@ Implemented:
 		- Added new JS tests
 		- Added no-gas option in deployment UI and styled/tested
 
+	- Storing the last-updated time on the contract:
+		- last_updated stored and retrievable via function
+		- Function tested in RS
+		- Function implemented in JS
+		- Update UI of monitoring
+
 
 

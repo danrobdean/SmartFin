@@ -14,6 +14,7 @@ export default class DropDown extends React.Component {
      * @param props.title The title.
      * @param props.disableChildClick Whether or not to disable the on-click event for the child.
      * @param props.children The child elements displayed in a drop-down box (optional, if provided a drop-down arrow is displayed).
+     * @param props.className An additional classname to append to this class's class name list.
      */
     constructor(props) {
         super(props);
@@ -32,6 +33,7 @@ export default class DropDown extends React.Component {
             containerClassName,
             containerClassName + ((this.props.disableChildClick) ? "--no-click" : ""),
             containerClassName + ((this.props.children) ? "--drop-down" : ""),
+            containerClassName + ((this.state.open) ? "--open" : "--closed"),
             this.props.className
         ].join(" ");
 
@@ -51,10 +53,10 @@ export default class DropDown extends React.Component {
         return (
             <div
                 className={containerClassNames}
-                onClick={((this.props.disableChildClick) ? () => { } : () => this.toggleOpen())}>
+                onClick={((this.props.disableChildClick && this.state.open) ? () => { } : () => this.toggleOpen())}>
                 <div
                     className={shortContainerClassNames}
-                    onClick={() => this.toggleOpen()}>
+                    onClick={((this.props.disableChildClick && this.state.open) ? () => this.toggleOpen() : () => { })}>
                     <span className={DropDown.blockName + "__title"}>
                         {this.props.title}
                     </span>

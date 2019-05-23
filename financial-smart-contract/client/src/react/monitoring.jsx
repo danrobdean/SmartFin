@@ -8,7 +8,7 @@ import Modal from "./modal.jsx";
 import ObsValueControls from "./obs-value-controls.jsx";
 import OrChoiceControls from "./or-choice-controls.jsx";
 
-import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getUseGas, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getUseGas, getLastUpdated, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, unixTimestampToDateString } from "./../js/contract-utils.mjs";
 import StakeWithdrawControls from "./stake-withdraw-controls.jsx";
 
 /**
@@ -60,7 +60,8 @@ export default class Monitoring extends React.Component {
             holderBalance: "N/A",
             counterPartyBalance: "N/A",
             combinatorContract: "N/A",
-            useGas: "N/A"
+            useGas: "N/A",
+            lastUpdated: "N/A"
         };
     }
 
@@ -164,58 +165,68 @@ export default class Monitoring extends React.Component {
 
                     <div className={Monitoring.blockName + "__contract-interactables"}>
                         <div className={Monitoring.blockName + "__contract-details"}>
-                            <div className={Monitoring.blockName + "__basic-details"}>
-                                <div className={Monitoring.blockName + "__detail-labels"}>
-                                    <span className={Monitoring.blockName + "__detail-label"}>
-                                        Holder:
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail-label"}>
-                                        Counter-party:
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail-label"}>
-                                        Concluded:
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail-label"}>
-                                        Acquisition Time:
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail-label"}>
-                                        Holder Balance:
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail-label"}>
-                                        Counter-party Balance:
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail-label"}>
-                                        Uses Gas Upon Withdrawal:
-                                    </span>
-                                </div>
+                            <div className={Monitoring.blockName + "__details-drop-down"}>
+                                <DropDown title="Contract Details" className={Monitoring.blockName + "__drop-down"}>
+                                    <div className={Monitoring.blockName + "__basic-details"}>
+                                        <div className={Monitoring.blockName + "__detail-labels"}>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Holder:
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Counter-party:
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Concluded:
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Acquisition Time:
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Holder Balance:
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Counter-party Balance:
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Uses Gas Upon Withdrawal:
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail-label"}>
+                                                Last Updated At:
+                                            </span>
+                                        </div>
 
-                                <div className={Monitoring.blockName + "__details"}>
-                                    <span className={Monitoring.blockName + "__detail"}>
-                                        {this.state.holder}
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail"}>
-                                        {this.state.counterParty}
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail"}>
-                                        {this.state.concluded.toString()}
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail"}>
-                                        {acquisitionTime}
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail"}>
-                                        {this.state.holderBalance}
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail"}>
-                                        {this.state.counterPartyBalance}
-                                    </span>
-                                    <span className={Monitoring.blockName + "__detail"}>
-                                        {this.state.useGas.toString()}
-                                    </span>
-                                </div>
+                                        <div className={Monitoring.blockName + "__details"}>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {this.state.holder}
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {this.state.counterParty}
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {this.state.concluded.toString()}
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {acquisitionTime}
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {this.state.holderBalance}
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {this.state.counterPartyBalance}
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {this.state.useGas.toString()}
+                                            </span>
+                                            <span className={Monitoring.blockName + "__detail"}>
+                                                {(isNaN(this.state.lastUpdated)) ? this.state.lastUpdated : unixTimestampToDateString(this.state.lastUpdated)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </DropDown>
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Combinator Contract"} disableChildClick={true}>
+                                <DropDown title={"Combinator Contract"} disableChildClick={true} className={Monitoring.blockName + "__drop-down"}>
                                     <div className={Monitoring.blockName + "__combinator-contract-container"}>
                                         <em>{this.state.combinatorContract}</em>
                                     </div>
@@ -223,19 +234,19 @@ export default class Monitoring extends React.Component {
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Or Choices"}>
+                                <DropDown title={"Or Choices"} className={Monitoring.blockName + "__drop-down"}>
                                     {this.renderOrChoices()}
                                 </DropDown>
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Observable Values"}>
+                                <DropDown title={"Observable Values"} className={Monitoring.blockName + "__drop-down"}>
                                     {this.renderObsValues()}
                                 </DropDown>
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Sub-contract Acquisition Times"}>
+                                <DropDown title={"Sub-contract Acquisition Times"} className={Monitoring.blockName + "__drop-down"}>
                                     {this.renderAcquisitionTimes()}
                                 </DropDown>
                             </div>
@@ -541,6 +552,7 @@ export default class Monitoring extends React.Component {
             var counterPartyBalance = await getBalance(this.props.contract, this.props.address, false);
             var combinatorContract = await getCombinatorContract(this.props.contract, this.props.address);
             var useGas = await getUseGas(this.props.contract, this.props.address);
+            var lastUpdated = await getLastUpdated(this.props.contract, this.props.address);
 
             this.setState({
                 holder: holder,
@@ -552,7 +564,8 @@ export default class Monitoring extends React.Component {
                 holderBalance: holderBalance,
                 counterPartyBalance: counterPartyBalance,
                 combinatorContract: combinatorContract,
-                useGas: useGas
+                useGas: useGas,
+                lastUpdated: lastUpdated
             }, () => {
                 this.reloadStateTimeout = setTimeout(() => this.initStateFromContract(), Monitoring.RELOAD_PERIOD);
             });

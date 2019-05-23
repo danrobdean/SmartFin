@@ -87,10 +87,10 @@
     }
 }
 
-.monitoring__details-drop-down {
-    border-top: 1px ridge $colour-border;
-    margin-top: 2em;
+.monitoring__drop-down {
     padding-top: 0.5em;
+    padding-bottom: 2em;
+    border-bottom: 1px ridge $colour-border;
     box-sizing: border-box;
 }
 

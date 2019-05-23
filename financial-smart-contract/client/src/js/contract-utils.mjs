@@ -570,6 +570,19 @@ export async function getUseGas(contract, caller) {
     });
 }
 
+// Gets the last-updated time.
+export async function getLastUpdated(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_last_updated().call({ from: caller }).then(res => {
+        return res.returnValue0;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
 // Gets the or-choices of the contract.
 export async function getOrChoices(contract, caller) {
     if (!web3) {

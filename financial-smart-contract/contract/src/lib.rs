@@ -400,6 +400,11 @@ fn use_gas_key() -> H256 {
     H256::from([4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
 }
 
+// The storage key for the last-updated time
+fn last_updated_key() -> H256 {
+    H256::from([5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
+}
+
 // The serialized combinator contract (obtained remotely) storage key (first slot is length, the following are elements)
 fn serialized_remote_combinator_contract_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
@@ -464,6 +469,10 @@ pub trait FinancialScInterface {
     #[constant]
     fn get_use_gas(&mut self) -> bool;
 
+    // Gets the last-updated time.
+    #[constant]
+    fn get_last_updated(&mut self) -> i64;
+
     // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
     #[constant]
     fn get_acquisition_times(&mut self) -> Vec<i64>;
@@ -522,6 +531,7 @@ impl FinancialScInterface for FinancialScContract {
         self.storage.write(&holder_balance_key(), 0_i64);
         self.storage.write(&counter_party_balance_key(), 0_i64);
         self.storage.write(&use_gas_key(), use_gas);
+        self.storage.write(&last_updated_key(), pwasm_ethereum::timestamp() as i64);
         self.storage.write_ref(&serialized_remote_combinator_contract_key() , &contract_definition);
 
         self.set_remote_combinator();
@@ -571,6 +581,11 @@ impl FinancialScInterface for FinancialScContract {
     // Gets whether or not the contract allocates gas fees upon withdrawal.
     fn get_use_gas(&mut self) -> bool {
         self.storage.read(&use_gas_key()).0
+    }
+
+    // Gets the last-updated time.
+    fn get_last_updated(&mut self) -> i64 {
+        self.storage.read(&last_updated_key()).0
     }
 
     // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
@@ -698,6 +713,9 @@ impl FinancialScInterface for FinancialScContract {
         if self.get_concluded() {
             panic!("Contract has concluded, nothing more to update.");
         }
+
+        // Set the last-updated time
+        self.storage.write(&last_updated_key(), pwasm_ethereum::timestamp() as i64);
 
         // Update combinators
         let mut combinator = self.get_combinator();
@@ -1313,6 +1331,28 @@ mod tests {
         assert_eq!(contract.get_balance(true), 1);
 
         assert_eq!(contract.get_balance(false), -1);
+    }
+
+    #[test]
+    fn updating_sets_last_updated_time() {
+        let initial_time = 2;
+        let update_time = 3;
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
+            initial_time,
+            vec![0]
+        );
+
+        // Check the initial last-updated time is correct
+        assert_eq!(contract.get_last_updated() as u64, initial_time);
+
+        // Update
+        ext_update(|e| e.timestamp(update_time));
+        contract.update();
+
+        // Check last-updated time is correct
+        assert_eq!(contract.get_last_updated() as u64, update_time);
     }
 
     // Staking Eth as the holder stakes the correct amount

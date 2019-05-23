@@ -11,7 +11,7 @@
     cursor: pointer;
 }
 
-.drop-down__container--no-click {
+.drop-down__container--no-click.drop-down__container--open {
     cursor: default;
 }
 
