@@ -92,6 +92,36 @@ describe('Contract integration tests', function() {
             });
         });
     
+        it('Updates balance correctly when withdrawing for the holder and using gas', function() {
+            var stake = 1000000;
+            var withdrawal = stake / 10;
+    
+            return contract.methods.stake().send({ from: holder.address, value: stake }).then(function() {
+                return contract.methods.get_balance(true).call({ from: holder.address }).then(function(balance) {
+                    return contract.methods.withdraw(withdrawal).send({ from: holder.address }).then(function() {
+                        return contract.methods.get_balance(true).call({ from: holder.address }).then(function(newBalance) {    
+                            assert.equal(newBalance.returnValue0, balance.returnValue0 - withdrawal - 2300);
+                        });
+                    });
+                });
+            });
+        });
+    
+        it('Updates balance correctly when withdrawing for the counter-party and using gas', function() {
+            var stake = 1000000;
+            var withdrawal = stake / 10;
+    
+            return contract.methods.stake().send({ from: counterParty.address, value: stake }).then(function() {
+                return contract.methods.get_balance(false).call({ from: counterParty.address }).then(function(balance) {
+                    return contract.methods.withdraw(withdrawal).send({ from: counterParty.address }).then(function() {
+                        return contract.methods.get_balance(false).call({ from: counterParty.address }).then(function(newBalance) {    
+                            assert.equal(newBalance.returnValue0, balance.returnValue0 - withdrawal - 2300);
+                        });
+                    });
+                });
+            });
+        });
+    
         it('Updates balances correctly after acquiring', function() {
             // Initial balance is 0
             return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
@@ -122,6 +152,47 @@ describe('Contract integration tests', function() {
                 return contract.methods.acquire().send({ from: holder.address }).then(function() {
                     return contract.methods.get_concluded().call({ from: holder.address }).then(function(res) {
                         assert.ok(res.returnValue0);
+                    });
+                });
+            });
+        });
+    });
+
+    // Tests for a contract which doesn't use gas upon withdrawal
+    describe('No gas simple contract tests', function() {
+        var contract;
+
+        beforeEach(function() {
+            return deploy("one", false).then(res => {
+                contract = res;
+            });
+        });
+    
+        it('Updates balance correctly when withdrawing for the holder and not using gas', function() {
+            var stake = 1000000;
+            var withdrawal = stake / 10;
+    
+            return contract.methods.stake().send({ from: holder.address, value: stake }).then(function() {
+                return contract.methods.get_balance(true).call({ from: holder.address }).then(function(balance) {
+                    return contract.methods.withdraw(withdrawal).send({ from: holder.address }).then(function() {
+                        return contract.methods.get_balance(true).call({ from: holder.address }).then(function(newBalance) {    
+                            assert.equal(newBalance.returnValue0, balance.returnValue0 - withdrawal);
+                        });
+                    });
+                });
+            });
+        });
+    
+        it('Updates balance correctly when withdrawing for the counter-party and not using gas', function() {
+            var stake = 1000000;
+            var withdrawal = stake / 10;
+    
+            return contract.methods.stake().send({ from: counterParty.address, value: stake }).then(function() {
+                return contract.methods.get_balance(false).call({ from: counterParty.address }).then(function(balance) {
+                    return contract.methods.withdraw(withdrawal).send({ from: counterParty.address }).then(function() {
+                        return contract.methods.get_balance(false).call({ from: counterParty.address }).then(function(newBalance) {    
+                            assert.equal(newBalance.returnValue0, balance.returnValue0 - withdrawal);
+                        });
                     });
                 });
             });

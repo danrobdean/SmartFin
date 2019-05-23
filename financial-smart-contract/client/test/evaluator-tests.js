@@ -4,7 +4,7 @@ import { dateToUnixTimestamp } from "./../src/js/contract-utils.mjs";
 import Evaluator from "./../src/js/evaluator.mjs";
 import StepThroughOptions from "./../src/js/step-through-options.mjs";
 
-describe.only('Evaluator tests', function() {
+describe('Evaluator tests', function() {
     const OR_CHOICE_OPTIONS = [true, false];
 
     var evaluator;

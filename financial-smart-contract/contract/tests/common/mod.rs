@@ -40,7 +40,7 @@ pub fn setup_contract(deserialized_combinator: Vec<i64>) -> TestContractDetails 
         .sender(sender)
         .timestamp(timestamp)
     );
-    contract.constructor(deserialized_combinator, holder);
+    contract.constructor(deserialized_combinator, holder, true);
 
     TestContractDetails::new(holder, sender, timestamp, contract)
 }

@@ -395,6 +395,11 @@ fn counter_party_balance_key() -> H256 {
     H256::from([3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
 }
 
+// The storage key for whether or not to use gas
+fn use_gas_key() -> H256 {
+    H256::from([4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
+}
+
 // The serialized combinator contract (obtained remotely) storage key (first slot is length, the following are elements)
 fn serialized_remote_combinator_contract_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
@@ -429,7 +434,7 @@ fn serialized_local_combinator_contract_key() -> H256 {
 #[eth_abi(FinancialScEndpoint)]
 pub trait FinancialScInterface {
     // The contract constructor, takes the combinator contract definition (serialized) and the holder address
-    fn constructor(&mut self, contract_definition: Vec<i64>, holder: Address);
+    fn constructor(&mut self, contract_definition: Vec<i64>, holder: Address, use_gas: bool);
 
     // Gets the address of the contract holder
     #[constant]
@@ -454,6 +459,10 @@ pub trait FinancialScInterface {
     // Gets whether or not the contract has concluded all operation (i.e. updating will never change the balance).
     #[constant]
     fn get_concluded(&mut self) -> bool;
+
+    // Gets whether or not the contract allocates gas fees upon withdrawal.
+    #[constant]
+    fn get_use_gas(&mut self) -> bool;
 
     // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
     #[constant]
@@ -499,7 +508,7 @@ pub struct FinancialScContract {
 // The financial smart contract interface implementation
 impl FinancialScInterface for FinancialScContract {
     // The financial smart contract constructor
-    fn constructor(&mut self, contract_definition: Vec<i64>, holder: Address) {
+    fn constructor(&mut self, contract_definition: Vec<i64>, holder: Address, use_gas: bool) {
         if holder == pwasm_ethereum::sender() {
             panic!("Holder and counter-party must be different addresses.");
         }
@@ -512,6 +521,7 @@ impl FinancialScInterface for FinancialScContract {
         self.storage.write(&counter_party_address_key(), pwasm_ethereum::sender());
         self.storage.write(&holder_balance_key(), 0_i64);
         self.storage.write(&counter_party_balance_key(), 0_i64);
+        self.storage.write(&use_gas_key(), use_gas);
         self.storage.write_ref(&serialized_remote_combinator_contract_key() , &contract_definition);
 
         self.set_remote_combinator();
@@ -556,6 +566,11 @@ impl FinancialScInterface for FinancialScContract {
         let combinator_details = combinator.get_combinator_details();
         combinator_details.fully_updated
             || combinator_details.acquisition_time == None && combinator.past_horizon(pwasm_ethereum::timestamp() as u32)
+    }
+
+    // Gets whether or not the contract allocates gas fees upon withdrawal.
+    fn get_use_gas(&mut self) -> bool {
+        self.storage.read(&use_gas_key()).0
     }
 
     // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
@@ -768,6 +783,7 @@ impl FinancialScInterface for FinancialScContract {
         let counter_party_balance = self.storage.read(&counter_party_balance_key()).0;
         let holder: Address = self.storage.read(&holder_address_key()).0;
         let counter_party: Address = self.storage.read(&counter_party_address_key()).0;
+        let use_gas = self.storage.read(&use_gas_key()).0;
         
         // Get the amount to send (clamp at balance amount)
         if sender == holder {
@@ -781,15 +797,19 @@ impl FinancialScInterface for FinancialScContract {
         }
 
         let funds = holder_balance + counter_party_balance;
-        final_amount = FinancialScContract::get_withdrawal_amount(amount, original_balance, funds);
+        final_amount = FinancialScContract::get_withdrawal_amount(amount, original_balance, funds, use_gas);
 
-        if final_amount < CALL_GAS {
+        if use_gas && final_amount < CALL_GAS {
             panic!("Not enough funds to pay the gas price while withdrawing.");
         }
 
         self.storage.write(&key, original_balance - final_amount);
         let mut result = Vec::<u8>::new();
-        match pwasm_ethereum::call(CALL_GAS as u64, &sender, U256::from(final_amount - CALL_GAS), &[], &mut result) {
+
+        let gas_cost = if use_gas { CALL_GAS } else { 0 };
+        let withdraw_amount = final_amount - gas_cost;
+
+        match pwasm_ethereum::call(gas_cost as u64, &sender, U256::from(withdraw_amount), &[], &mut result) {
             Ok(_v) => return,
             Err(_e) => {
                 // Payment failed, roll-back balance
@@ -981,11 +1001,14 @@ impl FinancialScContract {
     }
 
     // Withdraws Ether from the given contract participant, returns the amount to send including gas price
-    fn get_withdrawal_amount(amount: u64, balance: i64, funds: i64) -> i64 {
-        let mut final_amount = amount as i64 + CALL_GAS;
+    fn get_withdrawal_amount(amount: u64, balance: i64, funds: i64, use_gas: bool) -> i64 {
+        let mut final_amount = amount as i64;
+        if use_gas {
+            final_amount = final_amount + CALL_GAS;
+        }
 
         // If the withdrawer or contract can't afford the gas for the transaction, do nothing more
-        if balance < CALL_GAS || funds < CALL_GAS {
+        if use_gas && (balance < CALL_GAS || funds < CALL_GAS) {
             return 0;
         }
 
@@ -1019,7 +1042,19 @@ mod tests {
             .sender(sender)
             .timestamp(timestamp)
         );
-        contract.constructor(serialized_combinator_contract, holder);
+        contract.constructor(serialized_combinator_contract, holder, true);
+        contract
+    }
+
+    // Initialise a FinancialScContract with the given values (and mock blockchain parameters)
+    fn setup_contract_no_gas(sender: Address, holder: Address, timestamp: u64, serialized_combinator_contract: Vec<i64>) -> FinancialScContract {
+        let mut contract = FinancialScContract::new();
+
+        ext_reset(|e| e
+            .sender(sender)
+            .timestamp(timestamp)
+        );
+        contract.constructor(serialized_combinator_contract, holder, false);
         contract
     }
 
@@ -1452,9 +1487,19 @@ mod tests {
     fn get_withdrawal_amount_calculates_correct_normal_amount() {
         let balance = 10000;
         let withdrawal = 5000;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, balance as i64);
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, balance as i64, true);
 
         assert_eq!(amount, withdrawal as i64 + super::CALL_GAS);
+    }
+
+    // Withdrawal amount is calculated correctly for a normal withdrawal when not using gas
+    #[test]
+    fn get_withdrawal_amount_calculates_correct_normal_amount_no_gas() {
+        let balance = 10000;
+        let withdrawal = 5000;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, balance as i64, false);
+
+        assert_eq!(amount, withdrawal as i64);
     }
 
     // Withdrawal withdraws balance amount at maximum, even if requested amount is higher
@@ -1462,7 +1507,7 @@ mod tests {
     fn get_withdrawal_amount_clamps_withdrawal_to_balance() {
         let balance = 5000;
         let withdrawal = 10000;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, balance as i64);
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, balance as i64, true);
 
         assert_eq!(balance, amount);
     }
@@ -1473,7 +1518,7 @@ mod tests {
         let balance = 5000;
         let withdrawal = 10000;
         let funds = 2500;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, funds);
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, funds, true);
 
         assert_eq!(funds, amount);
     }
@@ -1483,7 +1528,7 @@ mod tests {
     fn withdraw_does_not_withdraw_if_balance_below_gas_price() {
         let balance = (super::CALL_GAS - 1) as i64;
         let withdrawal = 1 as u64;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, 10000);
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, 10000, true);
 
         assert_eq!(amount, 0);
     }
@@ -1494,9 +1539,30 @@ mod tests {
         let balance = 10000 as i64;
         let withdrawal = 1 as u64;
         let funds = super::CALL_GAS - 1;
-        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, funds as i64);
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, funds as i64, true);
 
         assert_eq!(amount, 0);
+    }
+
+    // Withdrawal withdraws even if the balance is below the required call gas price when not using gas
+    #[test]
+    fn withdraw_withdraws_if_balance_below_gas_price_when_not_using_gas() {
+        let balance = (super::CALL_GAS - 1) as i64;
+        let withdrawal = 1 as u64;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, 10000, false);
+
+        assert_eq!(amount, 1);
+    }
+
+    // Withdrawal withdraws if the funds are below the required call gas price when not using gas
+    #[test]
+    fn withdraw_withdraws_if_funds_below_gas_price_when_not_using_gas() {
+        let balance = 10000 as i64;
+        let withdrawal = 1 as u64;
+        let funds = super::CALL_GAS - 1;
+        let amount = FinancialScContract::get_withdrawal_amount(withdrawal, balance, funds as i64, false);
+
+        assert_eq!(amount, 1);
     }
 
     // Attempting to create a contract with the same holder and counter-party should panic

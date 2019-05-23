@@ -8,7 +8,7 @@ import Modal from "./modal.jsx";
 import ObsValueControls from "./obs-value-controls.jsx";
 import OrChoiceControls from "./or-choice-controls.jsx";
 
-import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getUseGas, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, unixTimestampToDateString } from "./../js/contract-utils.mjs";
 import StakeWithdrawControls from "./stake-withdraw-controls.jsx";
 
 /**
@@ -59,7 +59,8 @@ export default class Monitoring extends React.Component {
             acquisitionTimes: [],
             holderBalance: "N/A",
             counterPartyBalance: "N/A",
-            combinatorContract: "N/A"
+            combinatorContract: "N/A",
+            useGas: "N/A"
         };
     }
 
@@ -183,6 +184,9 @@ export default class Monitoring extends React.Component {
                                     <span className={Monitoring.blockName + "__detail-label"}>
                                         Counter-party Balance:
                                     </span>
+                                    <span className={Monitoring.blockName + "__detail-label"}>
+                                        Uses Gas Upon Withdrawal:
+                                    </span>
                                 </div>
 
                                 <div className={Monitoring.blockName + "__details"}>
@@ -203,6 +207,9 @@ export default class Monitoring extends React.Component {
                                     </span>
                                     <span className={Monitoring.blockName + "__detail"}>
                                         {this.state.counterPartyBalance}
+                                    </span>
+                                    <span className={Monitoring.blockName + "__detail"}>
+                                        {this.state.useGas.toString()}
                                     </span>
                                 </div>
                             </div>
@@ -533,6 +540,7 @@ export default class Monitoring extends React.Component {
             var holderBalance = await getBalance(this.props.contract, this.props.address, true);
             var counterPartyBalance = await getBalance(this.props.contract, this.props.address, false);
             var combinatorContract = await getCombinatorContract(this.props.contract, this.props.address);
+            var useGas = await getUseGas(this.props.contract, this.props.address);
 
             this.setState({
                 holder: holder,
@@ -543,7 +551,8 @@ export default class Monitoring extends React.Component {
                 acquisitionTimes: acquisitionTimes,
                 holderBalance: holderBalance,
                 counterPartyBalance: counterPartyBalance,
-                combinatorContract: combinatorContract
+                combinatorContract: combinatorContract,
+                useGas: useGas
             }, () => {
                 this.reloadStateTimeout = setTimeout(() => this.initStateFromContract(), Monitoring.RELOAD_PERIOD);
             });

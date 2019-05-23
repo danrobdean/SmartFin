@@ -143,7 +143,7 @@ export async function unlockAccount(address, password) {
 }
 
 // Loads and deploys the contract (from a fixed contract for this test), returns the contract object
-export function loadAndDeployContract(contractBytes, contractHolder, sender) {
+export function loadAndDeployContract(contractBytes, contractHolder, sender, useGas) {
     if (!contractBytes || !contractHolder || !sender) {
         return Promise.reject("Expected arguments are contractBytes, contractHolder, and sender. At least one argument was not supplied!");
     }
@@ -156,7 +156,7 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender) {
     var TestContract = new web3.eth.Contract(ABI);
     
     // Construct a deployment transaction
-    var TestDeployTransaction = TestContract.deploy({ data: web3.utils.toHex(CODE_HEX), from: sender, arguments: [contractBytes, contractHolder] });
+    var TestDeployTransaction = TestContract.deploy({ data: web3.utils.toHex(CODE_HEX), from: sender, arguments: [contractBytes, contractHolder, useGas] });
     
     return new Promise(function(resolve, reject) {
         // Attempt to estimate the cost of the deployment transaction
@@ -551,6 +551,19 @@ export async function getConcluded(contract, caller) {
     }
 
     return contract.methods.get_concluded().call({ from: caller }).then(res => {
+        return res.returnValue0;
+    }, err => {
+        return Promise.reject(err);
+    });
+}
+
+// Gets whether or not the contract allocates gas fees upon withdrawal.
+export async function getUseGas(contract, caller) {
+    if (!web3) {
+        setupWeb3();
+    }
+
+    return contract.methods.get_use_gas().call({ from: caller }).then(res => {
         return res.returnValue0;
     }, err => {
         return Promise.reject(err);

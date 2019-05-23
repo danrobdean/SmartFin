@@ -31,9 +31,13 @@ r1.question("Please input a combinator contract, or press ENTER to exit: ", (ans
     
         // Serialize contract
         var serializedCombinatorContract = serializeCombinatorContract(combinatorContract);
-    
-        // Deploy contract
-        loadAndDeployContract(serializedCombinatorContract, holder, sender).then((_) => {}, err => console.error(err));
-        r1.close();
-    })
+
+        r1.question("Would you like the contract to spend gas upon withdrawal? Y/N: ", (answer) => {
+            var useGas = (answer === "Y");
+
+            // Deploy contract
+            loadAndDeployContract(serializedCombinatorContract, holder, sender, useGas).then((_) => {}, err => console.error(err));
+            r1.close();
+        });
+    });
 });

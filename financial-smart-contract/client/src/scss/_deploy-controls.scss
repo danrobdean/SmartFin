@@ -27,6 +27,15 @@
     font-size: 1.2em;
 }
 
+.deploy-controls__use-gas-input {
+    margin: 3em 0 1em 0;
+    cursor: pointer;
+}
+
+.deploy-controls__use-gas-checkbox {
+    margin-right: 1em;
+}
+
 .deploy-controls__button-container {
     display: flex;
     flex-direction: row;

@@ -980,4 +980,25 @@ ToDo:
 
 
 
+========== 23 May ==========
+
+Making final smart contract changes:
+	- Adding gas-free parameter
+	- Store last-updated time
+	- Moving storage to new file
+	- Removing get_value and tests
+	- Adding names for observables (and to contract-utils)
+
+
+Implemented:
+	- No gas contracts:
+		- use_gas constructor parameter (if true, acts the same as before, if false then doesn't spend anything from withdrawals as gas)
+		- Updated old rust tests
+		- Added new rust tests
+		- Updated JS functionality (loadAndDeployContract(), deploy(), etc)
+		- Updated JS tests
+		- Added new JS tests
+		- Added no-gas option in deployment UI and styled/tested
+
+
 

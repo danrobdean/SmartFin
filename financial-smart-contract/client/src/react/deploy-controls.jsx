@@ -25,6 +25,11 @@ export default class DeployControls extends React.Component {
     holderInput;
 
     /**
+     * The use gas input.
+     */
+    useGasInput;
+
+    /**
      * The contract deployment timeout.
      */
     deployTimeout;
@@ -42,7 +47,8 @@ export default class DeployControls extends React.Component {
             holderError: "",
             contractError: "",
             contractErrorDetails: "",
-            deploying: false
+            deploying: false,
+            useGas: false
         };
     }
 
@@ -77,6 +83,21 @@ export default class DeployControls extends React.Component {
 
                     {Message.renderInfo("The contract holder is the only account that has the ability to acquire the contract.")}
                     {Message.renderError(this.state.holderError, null, DeployControls.blockName + "__holder-error")}
+
+                    <div className={DeployControls.blockName + "__use-gas-input"}>
+                        <label>
+                            <input
+                                className={DeployControls.blockName + "__use-gas-checkbox"}
+                                type="checkbox"
+                                ref={r => this.useGasInput = r}
+                                checked={this.state.useGas}
+                                onChange={() => this.handleUseGasChange()}/>
+
+                            Allocate gas fees upon withdrawal.
+                        </label>
+                    </div>
+
+                    {Message.renderInfo("If ticked, then when a user withdraws funds from the contract, part of their balance will also be used to pay gas fees.")}
                 </div>
                 <div className={DeployControls.blockName + "__button-container"}>
                     <button
@@ -126,7 +147,7 @@ export default class DeployControls extends React.Component {
         }, DeployControls.DEPLOY_TIMEOUT);
 
         var serializedContract = serializeCombinatorContract(this.props.contract);
-        loadAndDeployContract(serializedContract, this.state.holder, this.props.address).then(contract => {
+        loadAndDeployContract(serializedContract, this.state.holder, this.props.address, this.state.useGas).then(contract => {
             clearTimeout(this.deployTimeout);
 
             this.setState({
@@ -159,11 +180,24 @@ export default class DeployControls extends React.Component {
         }
     }
 
+    /**
+     * Handles the holder input change event.
+     * @param event The change event.
+     */
     handleHolderChange(event) {
         event.preventDefault();
 
         this.setState({
             holder: this.holderInput.value
+        });
+    }
+
+    /**
+     * Inverts the checked status of the use-gas checkbox.
+     */
+    handleUseGasChange() {
+        this.setState({
+            useGas: !this.state.useGas
         });
     }
 }

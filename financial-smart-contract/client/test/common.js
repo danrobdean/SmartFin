@@ -20,17 +20,17 @@ export const counterParty = {
 }
 
 // Deploy the given combinator contract string
-export function deploy(contractDefinition) {
+export function deploy(contractDefinition, useGas=true) {
     // Get serialized test contract
     var combinatorContract = serializeCombinatorContract(contractDefinition);
 
     // First deployment may fail
-    return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
+    return loadAndDeployContract(combinatorContract, holder.address, counterParty.address, useGas).then(function(res) {
         // First deployment succeeded
         return res;
     }, function(_) {
         // Should deploy successfully
-        return loadAndDeployContract(combinatorContract, holder.address, counterParty.address).then(function(res) {
+        return loadAndDeployContract(combinatorContract, holder.address, counterParty.address, useGas).then(function(res) {
             return res;
         });
     });

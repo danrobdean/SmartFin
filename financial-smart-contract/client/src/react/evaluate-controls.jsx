@@ -260,14 +260,18 @@ export default class EvaluateControls extends React.Component {
         this.props.evaluator.setContract(this.props.contract);
 
         this.resetError();
+        this.setState({
+            value: undefined,
+            contractEvaluationError: "",
+            contractEvaluationErrorDetails: "",
+            options: undefined,
+            prevValues: undefined
+        })
 
         if (this.props.evaluator.hasNextStep()) {
             this.setState({
                 options: this.props.evaluator.getNextStepThroughOptions(),
-                prevValues: this.props.evaluator.getPrevValues(),
-                value: undefined,
-                contractEvaluationError: "",
-                contractEvaluationErrorDetails: ""
+                prevValues: this.props.evaluator.getPrevValues()
             });
         }
     }
