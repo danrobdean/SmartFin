@@ -1006,5 +1006,9 @@ Implemented:
 		- Function implemented in JS
 		- Update UI of monitoring
 
+	- Moving storage to new file
+		- Moved storage and tests to storage.rs
+		- Re-export storage as module from lib.rs
+
 
 

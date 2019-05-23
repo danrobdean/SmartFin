@@ -2,7 +2,7 @@ extern crate pwasm_std;
 extern crate pwasm_test;
 extern crate financial_smart_contract;
 
-pub use self::financial_smart_contract::{ FinancialScContract, FinancialScInterface, address_to_i64 };
+pub use self::financial_smart_contract::{ FinancialScContract, FinancialScInterface, storage::{ address_to_i64 } };
 
 use self::pwasm_std::{ types::Address };
 use self::pwasm_test::ext_reset;
