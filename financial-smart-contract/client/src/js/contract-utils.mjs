@@ -436,7 +436,6 @@ export function deserializeAddress(address) {
         }
     }
 
-    var hex = web3.utils.bytes
     return bytesToAddress(bytes);
 }
 
@@ -464,7 +463,7 @@ export function deserializeOrChoices(orChoices) {
         orChoices = web3.utils.hexToBytes(orChoices);
 
         for (let elem of orChoices) {
-            res.push(new Option(elem == 2 ? undefined : elem == 1));
+            res.push(new Option(elem >= 2 ? undefined : elem == 1));
         }
     }
 

@@ -1070,6 +1070,15 @@ Implementation JS UI:
 		- Observables with same name and arbiter are treated the same (only one shown, both set to the given value upon setting, etc)
 		- Observable names are shown/selected from, instead of indices
 
+Adding tests:
+	- Tests added (all failing)
+	- Added util function tests
+	- Added serialization/deserialization tests
+	- Added verification tests
+
+Todo:
+	- Add API tests for contract-utils
+
 
 
 
