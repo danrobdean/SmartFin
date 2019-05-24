@@ -10,6 +10,21 @@ struct Entry {
     value: [u8; 32]
 }
 
+// Struct for storing an observable value's name
+#[derive(Clone)]
+pub struct ObsName {
+    pub name: Vec<i64>
+}
+
+impl ObsName {
+    // Initialise a new ObsName object
+    pub fn new(name: &Vec<i64>) -> ObsName {
+        ObsName {
+            name: name.to_vec()
+        }
+    }
+}
+
 // Storage table, stores anything looked up while the contract is executing, clears upon exiting contract code
 pub struct Storage {
     table: Vec<Entry>
@@ -272,6 +287,7 @@ impl<T> Stores<Option<T>> for Storage where Storage: Stores<T> {
     }
 }
 
+// Tuple implementation
 impl<T, U> Stores<(T, U)> for Storage where Storage: Stores<T> + Stores<U> {
     fn read(&mut self, key: &H256) -> ((T, U), H256) {
         let (first, key0): (T, H256) = self.read(key);
@@ -282,6 +298,33 @@ impl<T, U> Stores<(T, U)> for Storage where Storage: Stores<T> + Stores<U> {
     fn write(&mut self, key: &H256, value: (T, U)) -> H256 {
         let key0 = self.write(&key, value.0);
         self.write(&add_to_key(key0, 1), value.1)
+    }
+}
+
+impl<T, U, V> Stores<(T, U, V)> for Storage where Storage: Stores<T> + Stores<U> + Stores<V> {
+    fn read(&mut self, key: &H256) -> ((T, U, V), H256) {
+        let (first, key0): (T, H256) = self.read(key);
+        let (second, key1): (U, H256) = self.read(&add_to_key(key0, 1));
+        let (third, key2): (V, H256) = self.read(&add_to_key(key1, 1));
+        ((first, second, third), key2)
+    }
+
+    fn write(&mut self, key: &H256, value: (T, U, V)) -> H256 {
+        let key0 = self.write(&key, value.0);
+        let key1 = self.write(&add_to_key(key0, 1), value.1);
+        self.write(&add_to_key(key1, 1), value.2)
+    }
+}
+
+// ObsName implementation
+impl Stores<ObsName> for Storage where Storage: StoresRef<Vec<i64>> {
+    fn read(&mut self, key: &H256) -> (ObsName, H256) {
+        let (name, key) = self.read_ref(key);
+        (ObsName::new(&name), key)
+    }
+
+    fn write(&mut self, key: &H256, value: ObsName) -> H256 {
+        self.write_ref(key, &value.name.clone())
     }
 }
 

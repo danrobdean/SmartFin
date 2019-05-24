@@ -34,11 +34,6 @@ export default class Evaluator {
     combinatorTailIndexMap;
 
     /**
-     * The map of combinator indexes to their observable index (if applicable).
-     */
-    combinatorObsIndexMap;
-
-    /**
      * The relevant time slices of the top-level contract.
      */
     timeSlices;
@@ -98,26 +93,24 @@ export default class Evaluator {
      * @param contract The financial contract string.
      */
     setContract(contract) {
-        if (this.contract !== contract && contract !== undefined) {
-            this._resetState();
-            this._resetStepThroughState();
-            this.contract = contract.toLowerCase();
+        this._resetState();
+        this._resetStepThroughState();
+        this.contract = contract;
 
-            // Set the array of combinator atoms.
-            this.combinators = this.contract.split(/[ \(\),]/).filter(elem => elem !== "");
+        // Set the array of combinator atoms.
+        this.combinators = this.contract.split(/[ \(\),]/).filter(elem => elem !== "");
 
-            var result = this._processCombinators(0);
-            this.horizon = result.horizon;
-            this.timeSlices = result.timeSlices;
-            this.anytimeTimeSlices = result.anytimeTimeSlices;
+        var result = this._processCombinators(0);
+        this.horizon = result.horizon;
+        this.timeSlices = result.timeSlices;
+        this.anytimeTimeSlices = result.anytimeTimeSlices;
 
-            // Set initial acquisition time to now if it makes no difference
-            var timeSlices = this.timeSlices.getSlices();
-            if (timeSlices.length == 0) {
-                this.setStepThroughOption(dateToUnixTimestamp(new Date()), true);
-            } else if (timeSlices.length == 1) {
-                this.setStepThroughOption(timeSlices[0], true);
-            }
+        // Set initial acquisition time to now if it makes no difference
+        var timeSlices = this.timeSlices.getSlices();
+        if (timeSlices.length == 0) {
+            this.setStepThroughOption(dateToUnixTimestamp(new Date()), true);
+        } else if (timeSlices.length == 1) {
+            this.setStepThroughOption(timeSlices[0], true);
         }
     }
 
@@ -180,7 +173,7 @@ export default class Evaluator {
             this.stepThroughAcquisitionTimeIndex += 1;
             this.stepThroughTime = option;
         } else {
-            switch (this.combinators[this.stepThroughCombinatorIndex]) {
+            switch (this.combinators[this.stepThroughCombinatorIndex].toLowerCase()) {
                 case "or":
                     this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_OR_CHOICE, option, this.stepThroughCombinatorIndex, this.stepThroughOrIndex, automatic));
 
@@ -271,7 +264,7 @@ export default class Evaluator {
             return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, slices, this.stepThroughCombinatorIndex, -1);
         }
 
-        switch (this.combinators[this.stepThroughCombinatorIndex]) {
+        switch (this.combinators[this.stepThroughCombinatorIndex].toLowerCase()) {
             case "or":
                 return new StepThroughOptions(StepThroughOptions.TYPE_OR_CHOICE, [true, false], this.stepThroughCombinatorIndex, this.stepThroughOrIndex);
 
@@ -338,7 +331,7 @@ export default class Evaluator {
      * @param i The index to start processing the associated combinator contract at.
      */
     _processCombinators(i) {
-        switch (this.combinators[i]) {
+        switch (this.combinators[i].toLowerCase()) {
             case "zero":
             case "one":
                 // Add end-of-contract tail index to map
@@ -394,10 +387,7 @@ export default class Evaluator {
             case "scale":
                 var subCombinatorRes;
 
-                if (this.combinators[i + 1] == "obs") {
-                    // Keep track of observable index
-                    this.combinatorObsIndexMap[i.toString()] = Object.keys(this.combinatorObsIndexMap).length;
-
+                if (isNaN(this.combinators[i + 1])) {
                     subCombinatorRes = this._processCombinators(i + 3);
                 } else {
                     subCombinatorRes = this._processCombinators(i + 2);
@@ -418,7 +408,7 @@ export default class Evaluator {
 
                 // Merge time slices
                 var timeSlices = subHorizonRes0.timeSlices;
-                if (this.combinators[i] == "then") {
+                if (this.combinators[i].toLowerCase() == "then") {
                     // Merge time slices, only adding sub-combinator 2's slices after sub-combinator 1's horizon
                     timeSlices.mergeAfter(subHorizonRes1.timeSlices);
                 } else {
@@ -441,7 +431,7 @@ export default class Evaluator {
         var foundValidInputReliantCombinator = false;
 
         while (this.hasMoreSteps && !foundValidInputReliantCombinator) {
-            switch (this.combinators[this.stepThroughCombinatorIndex]) {
+            switch (this.combinators[this.stepThroughCombinatorIndex].toLowerCase()) {
                 case "and":
                     this.stepThroughRevisitAndStack.push(new StepThroughRevisitAndEntry(this.stepThroughCombinatorIndex, this.stepThroughTime));
                     this.stepThroughCombinatorIndex += 1;
@@ -463,7 +453,7 @@ export default class Evaluator {
                         // Combinator has expired, don't bother setting it and move on
                         this._tryRevisitOrEndStepThrough();
                     } else {
-                        if (this.combinators[this.stepThroughCombinatorIndex] == "or") {
+                        if (this.combinators[this.stepThroughCombinatorIndex].toLowerCase() == "or") {
                             // OR combinator, check if either sub-contract has expired, if so then make choice and move on
                             var subHorizon0 = this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex + 1);
                             var tail0 = this.combinatorTailIndexMap.getNextValue(this.stepThroughCombinatorIndex + 1);
@@ -513,11 +503,18 @@ export default class Evaluator {
 
                     break;
 
+                case "scale":
+                    // Skip over any named observables, in case the name is also a combinator name
+                    if (isNaN(this.combinators[this.stepThroughCombinatorIndex + 1])) {
+                        this.stepThroughCombinatorIndex += 3;
+                        break;
+                    }
+
                 default:
                     // If we've reached a combinator with no children, or the horizon has
                     // passed and the sub-contract is worthless, the sub-contract has ended
                     var subContractEnd =
-                        ["zero", "one"].includes(this.combinators[this.stepThroughCombinatorIndex])
+                        ["zero", "one"].includes(this.combinators[this.stepThroughCombinatorIndex].toLowerCase())
                         || this._horizonLaterThan(this.stepThroughTime, this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex));
 
                     if (!subContractEnd) {
@@ -558,7 +555,7 @@ export default class Evaluator {
             return new StepThroughEvaluationResult(0);
         }
 
-        switch (this.combinators[i]) {
+        switch (this.combinators[i].toLowerCase()) {
             case "zero":
                 return new StepThroughEvaluationResult(0);
 
@@ -580,10 +577,10 @@ export default class Evaluator {
             case "scale":
                 var subRes;
 
-                if (!isNaN(this.combinatorObsIndexMap[i.toString()])) {
-                    // Combinator has observale value
+                if (isNaN(this.combinators[i + 1])) {
+                    // Combinator has observable value
                     subRes = this._stepThroughEvaluate(i + 3, time, values);
-                    subRes.addObservableIndex(this.combinatorObsIndexMap[i.toString()]);
+                    subRes.addObservable(this.combinators[i + 1]);
                 } else {
                     subRes = this._stepThroughEvaluate(i + 2, time, values);
 
@@ -722,7 +719,6 @@ export default class Evaluator {
     _resetState() {
         this.combinatorHorizonMap = new NextMap();
         this.combinatorTailIndexMap = new NextMap();
-        this.combinatorObsIndexMap = {};
         this.horizon = undefined;
 
         this._resetStepThroughState();
@@ -882,10 +878,10 @@ class StepThroughEvaluationResult {
 
     /**
      * Add an observable index to the list of observables which are factors in the final result.
-     * @param obsIndex The observable index.
+     * @param obsName The observable name.
      */
-    addObservableIndex(obsIndex) {
-        this.obsPrefixes.push("obs_" + obsIndex.toString() + " * ");
+    addObservable(obsName) {
+        this.obsPrefixes.push(obsName + " * ");
     }
 
     /**

@@ -172,7 +172,7 @@ fn scale_with_concrete_obs_value_has_correct_value() {
 
     // Create contract or scale obs arbiter one
     let mut contract_details = setup_contract(vec![
-        5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 1, 1,
         1
     ]);
 
@@ -195,7 +195,7 @@ fn scale_with_concrete_negative_obs_value_has_correct_value() {
 
     // Create contract or scale obs arbiter one
     let mut contract_details = setup_contract(vec![
-        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 2, 1, 1,
         1
     ]);
 
@@ -371,7 +371,7 @@ fn should_panic_if_obs_value_set_twice() {
 
     // Create contract or scale obs arbiter one
     let mut contract_details = setup_contract(vec![
-        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+        5, 0, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 3, 1, 2, 3,
         1
     ]);
 

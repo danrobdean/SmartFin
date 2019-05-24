@@ -272,7 +272,7 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the concrete observable values
     fn get_obs_entries(&mut self) -> Vec<i64> {
-        let obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
+        let obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
         let mut serialized_obs_entries: Vec<i64> = Vec::new();
 
         // Serialize obs values
@@ -292,6 +292,10 @@ impl FinancialScInterface for FinancialScContract {
                 serialized_obs_entries.push(0);
                 serialized_obs_entries.push(value.1.unwrap());
             }
+
+            // Push name
+            serialized_obs_entries.push(value.2.name.len() as i64);
+            serialized_obs_entries.extend_from_slice(&value.2.name);
         }
 
         serialized_obs_entries
@@ -320,7 +324,7 @@ impl FinancialScInterface for FinancialScContract {
 
     // Sets the given observable's value
     fn set_obs_value(&mut self, obs_index: u64, value: i64) {
-        let mut obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
+        let mut obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
 
         // Check index in bounds
         let index: usize = obs_index as usize;
@@ -340,8 +344,10 @@ impl FinancialScInterface for FinancialScContract {
             panic!("Sender cannot set value for given observable-index.");
         }
 
+        let obsName = obs_entries[index].2.clone();
+
         // Set the value
-        obs_entries[index] = (arbiter, Some(value));
+        obs_entries[index] = (arbiter, Some(value), obsName);
         self.storage.write_ref(&obs_entries_key(), &obs_entries);
     }
 
@@ -510,7 +516,7 @@ impl FinancialScContract {
     // Constructs the combinators from a serialized combinator contract
     fn set_remote_combinator(&mut self) {
         self.storage.write_ref(&or_choices_key(), &Vec::<Option<bool>>::new());
-        self.storage.write_ref(&obs_entries_key(), &Vec::<(Address, Option<i64>)>::new());
+        self.storage.write_ref(&obs_entries_key(), &Vec::<(Address, Option<i64>, ObsName)>::new());
         self.storage.write_ref(&anytime_acquisition_times_key(), &Vec::<Option<u32>>::new());
 
         let (_, combinator) = self.deserialize_remote_combinator(0);
@@ -580,19 +586,26 @@ impl FinancialScContract {
                     scale_value = Some(serialized_combinators[i0]);
                     i0 += 1;
                 } else {
-                    let mut obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
+                    let mut obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
 
                     // Deserialize arbiter address
                     let mut serialized_address: [i64; 4] = [0; 4];
-                    serialized_address.copy_from_slice(&serialized_combinators[(i + 2)..(i + 6)]);
+                    serialized_address.copy_from_slice(&serialized_combinators[(i0)..(i0 + 4)]);
                     let address = i64_to_address(serialized_address);
+                    i0 += 4;
+
+                    // Deserialize name
+                    let name_len = serialized_combinators[(i0)] as usize;
+                    let mut name: Vec<i64> = Vec::new();
+                    name.extend_from_slice(&serialized_combinators[(i0 + 1)..(i0 + 1 + name_len)]);
+                    let mut obsName: ObsName = ObsName::new(&name);
+                    i0 += 1 + name_len;
 
                     obs_index = Some(obs_entries.len());
-                    obs_entries.push((address, None));
+                    obs_entries.push((address, None, obsName));
 
                     self.storage.write_ref(&obs_entries_key(), &obs_entries);
                     scale_value = None;
-                    i0 += 4;
                 }
 
                 // Deserialize sub-contract
@@ -656,7 +669,7 @@ impl FinancialScContract {
 
     // Gets the observable values
     fn get_obs_values(&mut self) -> Vec<Option<i64>> {
-        let obs_entries: Vec<(Address, Option<i64>)> = self.storage.read_ref(&obs_entries_key()).0;
+        let obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
         obs_entries.into_iter().map(|e| e.1).collect()
     }
 
@@ -975,10 +988,14 @@ mod tests {
         let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
         let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
 
+        let name0 = [1, 100];
+        let name1 = [2, 40, 10];
+        let name2 = [3, 10, 20, 30];
+
         let combinator_contract = vec![
-            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
-            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
-            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], name0[0], name0[1],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], name1[0], name1[1], name1[2],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], name2[0], name2[1], name2[2], name2[3],
             1
         ];
         let mut contract = setup_contract(
@@ -993,9 +1010,9 @@ mod tests {
         contract.set_obs_value(2, -1);
 
         assert_eq!(contract.get_obs_entries(), vec![
-            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 0, 1,
-            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], -1,
-            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 0, -1
+            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 0, 1, name0[0], name0[1],
+            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], -1, name1[0], name1[1], name1[2],
+            arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], 0, -1, name2[0], name2[1], name2[2], name2[3]
         ]);
     }
 
@@ -1007,10 +1024,14 @@ mod tests {
         let arbiter: Address = "3D04E16e08E4c1c7fa8fC5A386237669341EaAcE".parse().unwrap();
         let arbiter_serialized: [i64; 4] = address_to_i64(arbiter);
 
+        let name0 = [1, 100];
+        let name1 = [2, 500, 1000];
+        let name2 = [3, 10000, 10001, 10002];
+
         let combinator_contract = vec![
-            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
-            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
-            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], name0[0], name0[1],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], name1[0], name1[1], name1[2],
+            5, -1, arbiter_serialized[0], arbiter_serialized[1], arbiter_serialized[2], arbiter_serialized[3], name2[0], name2[1], name2[2], name2[3],
             1
         ];
         let mut contract = setup_contract(

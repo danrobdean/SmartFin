@@ -1029,6 +1029,47 @@ Implemented:
 
 Todo:
 	- Add names for observables
+	- contract-utils-tests
+	- Add evaluation modal to monitoring view
+
+
+
+========== 24 May ==========
+
+Adding names for observables (plan):
+	- Input name (instead of obs) in scale (e.g. "scale obs_name arb_addr")
+	- JS converts name to array of numbers (length followed by numbers)
+	- Contract takes name as slice of serialized contract
+	- Contract writes each of these names to storage
+	- Contract reads from storage and adds to serialized contract where appropriate
+	- JS takes from serialized contract and uses in deserialization/monitoring UI
+	- Contract always takes obs_index as before
+	- JS UI converts between names and obs_index
+
+Implementation Smart Contract:
+	- Added ObsName struct in Storage module
+	- ObsName implementation for Stores
+	- (T, U, V) where T + U + V implementation for Stores (to store a tuple with 3 elements)
+	- Clone implementation derived for ObsName (needed for some reason)
+	- obs_entries array now typed as Vec<(Address, Option<i64>, ObsName)>
+	- get_obs_entries, get_obs_values, set_obs_entry, deserialize_remote_combinator, and tests all updated
+	- Should we have a set_obs_entry_by_name/get_obs_index(name)/etc??
+		- I think no, because:
+		- More work
+		- Encourages command-line usage (which we shouldn't allow basically)
+		- Obs-index can be obtained from get_obs_entries, or just by working it out
+		- Would need some validation on the smart-contract that no two observables have the same name (MASSIVE pain)
+
+Implementation JS UI:
+	- Added name member to ObservableEntry class
+	- Added serializeName and deserializeName functions (name <-> [N, char0, char1..., charN])
+	- Added name serialization/deserialization to contract serialization/deserialization and obsEntry deserialization
+	- Updated tests
+	- Updated evaluator and tests
+	- Updated monitoring
+		- Observables with same name and arbiter are treated the same (only one shown, both set to the given value upon setting, etc)
+		- Observable names are shown/selected from, instead of indices
+
 
 
 

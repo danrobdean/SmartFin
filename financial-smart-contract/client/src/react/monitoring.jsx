@@ -431,13 +431,23 @@ export default class Monitoring extends React.Component {
         var obsValueElements = [];
         var obsArbiterLabels = [];
         var obsArbiterElements = [];
+        var seen = [];
 
         for (var i = 0; i < this.state.obsEntries.length; i++) {
             var obsEntry = this.state.obsEntries[i];
 
+            if (seen.findIndex(
+                elem => elem.getName() == obsEntry.getName()
+                    && elem.getAddress() == obsEntry.getAddress()
+                ) != -1) {
+                continue;
+            } else {
+                seen.push(obsEntry);
+            }
+
             obsValueLabels.push(
                 <span key={i} className={Monitoring.blockName + "__detail-label"}>
-                    Observable value {i}:
+                    {obsEntry.getName()}:
                 </span>
             );
 

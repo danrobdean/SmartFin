@@ -56,9 +56,11 @@ export class Option {
 // The observable entry class
 export class ObservableEntry {
     // Initialises a new object of this class
-    constructor(address, value) {
+    constructor(address, value, name, index) {
         this.address = address;
         this.value = new Option(value);
+        this.name = name;
+        this.index = index;
     }
 
     // Returns the address of the account that this observable entry can be modified by
@@ -69,6 +71,16 @@ export class ObservableEntry {
     // Returns the Optional value of this entry
     getValue() {
         return this.value;
+    }
+
+    // Returns the name of this observable
+    getName() {
+        return this.name;
+    }
+
+    // Returns the index of this observable
+    getIndex() {
+        return this.index;
     }
 }
 
@@ -184,8 +196,7 @@ export function serializeCombinatorContract(combinatorContract) {
     }
 
     var combinators = combinatorContract.split(/[ \(\),]/)
-        .filter(c => c.length != 0)
-        .map(c => c.toLowerCase());
+        .filter(c => c.length != 0);
     var result = [];
     for (var i = 0; i < combinators.length; i++) {
         // Lookup value of combinator when serialized
@@ -195,7 +206,7 @@ export function serializeCombinatorContract(combinatorContract) {
         }
 
         // Add combinator values to serialized result
-        switch (combinators[i]) {
+        switch (combinators[i].toLowerCase()) {
             case "truncate": {
                 result.push(combinator);
                 result.push(parseInt(combinators[i + 1]));
@@ -204,18 +215,32 @@ export function serializeCombinatorContract(combinatorContract) {
             }
             case "scale": {
                 result.push(combinator);
-                if (combinators[i + 1] != "obs") {
+                if (!isNaN(combinators[i + 1])) {
+                    // Scale value, push 1
                     result.push(1);
+
+                    // Push scale value
                     result.push(parseInt(combinators[i + 1]));
+
+                    i += 1;
                 } else {
+                    // Observable, push 0
                     result.push(0);
-                    var address_serialized = serializeAddress(combinators[i + 2]);
-                    for (let part of address_serialized) {
+
+                    // Push address
+                    var addressSerialized = serializeAddress(combinators[i + 2]);
+                    for (let part of addressSerialized) {
                         result.push(part.toString());
                     }
-                    i++;
+
+                    // Push observable name
+                    var nameSerialized = serializeName(combinators[i + 1]);
+                    for (let part of nameSerialized) {
+                        result.push(part.toString());
+                    }
+
+                    i += 2;
                 }
-                i++;
                 break;
             }
             default:
@@ -344,7 +369,7 @@ function verifyCombinator(combinators, i) {
             }
 
 
-            if (combinators[i + 1] == "obs") {
+            if (isNaN(combinators[i + 1])) {
                 // Observable, check address
                 subCombinatorIndex += 1;
 
@@ -356,8 +381,6 @@ function verifyCombinator(combinators, i) {
                 if (!web3.utils.isAddress(address)) {
                     return new VerificationError("Expected a valid address, found: '" + address + "'.", errDesc(i));
                 }
-            } else if (isNaN(combinators[i + 1])) {
-                return new VerificationError("Expected scale value or 'obs', found: '" + combinators[i + 1] + "'.", errDesc(i));
             } else if (!isValidScaleValue(combinators[i + 1])) {
                 return new VerificationError("Expected signed 64-bit scale value, found: '" + combinators[i + 1] + "'.", errDesc(i));
             }
@@ -451,20 +474,40 @@ export function deserializeOrChoices(orChoices) {
 // Deserializes the observable entries array into an array of ObservableEntries
 export function deserializeObsEntries(obsEntries) {
     var res = [];
+    var nameLen = 0;
+    var index = 0;
 
     if (obsEntries) {
-        for (var i = 0; i < obsEntries.length; i += 5) {
+        for (var i = 0; i < obsEntries.length; i += 6 + nameLen) {
             var address = deserializeAddress(obsEntries.slice(i, i + 4));
+
             var value = undefined;
             if (obsEntries[i + 4] != -1) {
                 value = obsEntries[i + 5];
                 i++;
-            } 
-            res.push(new ObservableEntry(address, value));
+            }
+
+            nameLen = parseInt(obsEntries[i + 5]);
+            var name = deserializeName(obsEntries.slice(i + 6, i + 6 + nameLen));
+
+            res.push(new ObservableEntry(address, value, name, index++));
         }
     }
 
     return res;
+}
+
+// Converts a name string into an array ([N, char0, char1..., charN])
+export function serializeName(name) {
+    var res = Array.from(name).map(c => c.charCodeAt(0));
+    res.unshift(name.length);
+
+    return res;
+}
+
+// Converts a serialized name array ([N, char0, char1..., charN]) into a string
+export function deserializeName(nameSerialized) {
+    return String.fromCharCode(...nameSerialized);
 }
 
 // Converts the given date object to a Unix timestamp
@@ -765,13 +808,19 @@ export function deserializeCombinatorContract(i, serializedCombinatorContract) {
 
         case "scale": {
             let contract = combinator + " ";
-            let nextIndex = i + 3;
+            var nextIndex;
 
             if (serializedCombinatorContract[i + 1] == 0) {
-                contract += "obs <" + deserializeAddress(serializedCombinatorContract.slice(i + 2, i + 6)) + "> ";
-                nextIndex += 3;
+                var address = deserializeAddress(serializedCombinatorContract.slice(i + 2, i + 6));
+
+                var nameLen = parseInt(serializedCombinatorContract[i + 6]);
+                var name = deserializeName(serializedCombinatorContract.slice(i + 7, i + 7 + nameLen));
+
+                contract += name + " <" + address + "> ";
+                nextIndex = i + 7 + nameLen;
             } else if (serializedCombinatorContract[i + 1] == 1) {
                 contract += serializedCombinatorContract[i + 2] + " ";
+                nextIndex = i + 3;
             }
 
             let subRes = deserializeCombinatorContract(nextIndex, serializedCombinatorContract);

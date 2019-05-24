@@ -16,7 +16,7 @@ export default class ObsValueControls extends React.Component {
     /**
      * The obserable index input.
      */
-    obsIndexInput;
+    obsEntryInput;
 
     /**
      * The observable value input.
@@ -34,9 +34,10 @@ export default class ObsValueControls extends React.Component {
         super(props);
 
         var obsEntryMap = this.getObsEntryMap(props.obsEntries);
+        var firstIndex = (props.address in obsEntryMap) ? obsEntryMap[props.address].findIndex(elem => !elem.getValue().isDefined()) : -1;
         this.state = {
             obsEntryMap: obsEntryMap,
-            obsIndex: (props.address in obsEntryMap) ? obsEntryMap[props.address][0] : "N/A",
+            obsEntry: (firstIndex >= 0) ? obsEntryMap[props.address][firstIndex] : undefined,
             obsValue: "",
             obsError: "",
             obsErrorDetails: ""
@@ -47,19 +48,22 @@ export default class ObsValueControls extends React.Component {
      * Returns the element representing this component.
      */
     render() {
-        var obsIndexOptions = [];
+        var obsEntryOptions = [];
+        var seen = [];
         if (this.props.address in this.state.obsEntryMap) {
-            for (var index of this.state.obsEntryMap[this.props.address]) {
-                if (!this.props.obsEntries[index].getValue().isDefined()) {
-                    obsIndexOptions.push(
-                        <option key={index} value={index}>{index}</option>
+            for (var entry of this.state.obsEntryMap[this.props.address]) {
+                if (!seen.includes(entry.getName()) && !entry.getValue().isDefined()) {
+                    obsEntryOptions.push(
+                        <option key={entry.getName()} value={entry}>{entry.getName()}</option>
                     );
+
+                    seen.push(entry.getName());
                 }
             }
         }
 
-        if (obsIndexOptions.length == 0) {
-            obsIndexOptions.push(
+        if (obsEntryOptions.length == 0) {
+            obsEntryOptions.push(
                 <option key={0} value={null}>N/A</option>
             );
         }
@@ -69,13 +73,13 @@ export default class ObsValueControls extends React.Component {
                 <div className={ObsValueControls.blockName + "__set-obs-value-input-container"}>
                     <div className={ObsValueControls.blockName + "__input-container"}>
                         <span className={ObsValueControls.blockName + "__label"}>
-                            Observable Index:
+                            Observable Name:
                         </span>
                         <select
                             className={ObsValueControls.blockName + "__obs-index-input"}
-                            ref={r => this.obsIndexInput = r}
-                            onChange={e => this.handleObsIndexInputChange(e)}>
-                            {obsIndexOptions}
+                            ref={r => this.obsEntryInput = r}
+                            onChange={e => this.handleObsEntryInputChange(e)}>
+                            {obsEntryOptions}
                         </select>
                     </div>
 
@@ -109,9 +113,10 @@ export default class ObsValueControls extends React.Component {
         // Update the observable entry mapping if the observable entries set has changed.
         if (this.props.obsEntries != prevProps.obsEntries) {
             var obsEntryMap = this.getObsEntryMap(this.props.obsEntries);
+            var firstIndex = (this.props.address in obsEntryMap) ? obsEntryMap[this.props.address].findIndex(elem => !elem.getValue().isDefined()) : -1;
             this.setState({
                 obsEntryMap: obsEntryMap,
-                obsIndex: (this.props.address in obsEntryMap) ? obsEntryMap[this.props.address].findIndex(elem => !this.props.obsEntries[elem].getValue().isDefined()) : "N/A"
+                obsEntry: (firstIndex >= 0) ? obsEntryMap[this.props.address][firstIndex] : undefined
             });
         }
 
@@ -128,27 +133,38 @@ export default class ObsValueControls extends React.Component {
      * Sets the observable value.
      */
     setObsValue() {
-        if (this.state.obsValue === "") {
+        if (!this.props.address in this.state.obsEntryMap) {
             this.setState({
-                obsError: "Please enter a value."
+                obsError: "This account is not the arbiter of any observables."
             });
 
             return;
         }
 
-        setObsValue(this.props.contract, this.props.address, this.state.obsIndex, this.state.obsValue).then(_ => {
+        if (!this.state.obsValue || isNaN(this.state.obsValue)) {
             this.setState({
-                obsError: "",
-                obsErrorDetails: ""
+                obsError: "Please enter a numeric value."
             });
 
-            this.props.callback();
-        }, err => {
-            this.setState({
-                obsError: "Error occurred while setting the observable value.",
-                obsErrorDetails: err.toString()
-            })
-        });
+            return;
+        }
+
+        var eligibleObsEntries = this.state.obsEntryMap[this.props.address].filter(entry => entry.getName() == this.state.obsEntry.getName());
+        for (var entry of eligibleObsEntries) {
+            setObsValue(this.props.contract, this.props.address, entry.getIndex(), this.state.obsValue).then(_ => {
+                this.setState({
+                    obsError: "",
+                    obsErrorDetails: ""
+                });
+
+                this.props.callback();
+            }, err => {
+                this.setState({
+                    obsError: "Error occurred while setting the observable value.",
+                    obsErrorDetails: err.toString()
+                })
+            });
+        }
     }
 
     /**
@@ -163,7 +179,7 @@ export default class ObsValueControls extends React.Component {
                 obsEntryMap[address] = [];
             }
 
-            obsEntryMap[address].push(i);
+            obsEntryMap[address].push(obsEntries[i]);
         }
 
         return obsEntryMap;
@@ -172,11 +188,11 @@ export default class ObsValueControls extends React.Component {
     /**
      * Handles the observable index input change event.
      */
-    handleObsIndexInputChange(event) {
+    handleObsEntryInputChange(event) {
         event.preventDefault();
 
         this.setState({
-            obsIndex: this.obsIndexInput.value
+            obsEntry: this.obsEntryInput.value
         });
     }
 

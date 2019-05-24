@@ -99,17 +99,17 @@ describe('Evaluator tests', function() {
         assert.equal(evaluator.getHorizon(), dateUnixMin);
 
         // Observables from deserialized definition
-        evaluator.setContract("scale obs <0x1> one");
+        evaluator.setContract("scale name <0x1> one");
         assert.equal(evaluator.getHorizon(), undefined);
 
-        evaluator.setContract("scale obs <0x1> truncate " + dateStringMin + " one");
+        evaluator.setContract("scale name <0x1> truncate " + dateStringMin + " one");
         assert.equal(evaluator.getHorizon(), dateUnixMin);
 
         // Observables from pre-serialized definition
-        evaluator.setContract("scale obs 0x1 one");
+        evaluator.setContract("scale name 0x1 one");
         assert.equal(evaluator.getHorizon(), undefined);
 
-        evaluator.setContract("scale obs 0x1 truncate " + dateStringMin + " one");
+        evaluator.setContract("scale name 0x1 truncate " + dateStringMin + " one");
         assert.equal(evaluator.getHorizon(), dateUnixMin);
     });
 
@@ -373,21 +373,21 @@ describe('Evaluator tests', function() {
     });
 
     it('Evaluates a contract with observables correctly', function() {
-        evaluator.setContract("scale obs 0x0 one");
+        evaluator.setContract("scale var 0x0 one");
 
-        assert.equal(evaluator.evaluate(), "obs_0 * 1");
+        assert.equal(evaluator.evaluate(), "var * 1");
     });
 
     it('Evaluates a scaled contract with observables correctly', function() {
-        evaluator.setContract("scale obs 0x0 scale 5 scale obs 0x1 scale 10 one");
+        evaluator.setContract("scale var0 0x0 scale 5 scale var1 0x1 scale 10 one");
 
-        assert.equal(evaluator.evaluate(), "obs_1 * obs_0 * 50");
+        assert.equal(evaluator.evaluate(), "var1 * var0 * 50");
     });
 
     it('Evaluates an and combinator with two scaled/observabled sub-contracts correctly', function() {
-        evaluator.setContract("scale obs 0x0 and scale obs 0x0 scale 5 one scale obs 0x0 scale 10 one");
+        evaluator.setContract("scale var0 0x0 and scale var1 0x0 scale 5 one scale var2 0x0 scale 10 one");
 
-        assert.equal(evaluator.evaluate(), "obs_0 * (obs_1 * 5) + (obs_2 * 10)");
+        assert.equal(evaluator.evaluate(), "var0 * (var1 * 5) + (var2 * 10)");
     });
 
     it('Evaluates a give combinator correctly', function() {
@@ -397,9 +397,9 @@ describe('Evaluator tests', function() {
     });
 
     it('Evaluates a scaled give combinator correctly', function() {
-        evaluator.setContract("scale 5 scale obs 0x0 give scale obs 0x0 scale 10 one");
+        evaluator.setContract("scale 5 scale var0 0x0 give scale var1 0x0 scale 10 one");
 
-        assert.equal(evaluator.evaluate(), "obs_1 * obs_0 * -50");
+        assert.equal(evaluator.evaluate(), "var1 * var0 * -50");
     });
 
     it('Evaluates a give in an and combinator correctly', function() {

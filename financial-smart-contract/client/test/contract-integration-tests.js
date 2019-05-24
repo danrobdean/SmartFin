@@ -1,6 +1,6 @@
 import assert from "assert";
 
-import { serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, deserializeAddress } from "../src/js/contract-utils.mjs";
+import { serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, deserializeAddress, deserializeName } from "../src/js/contract-utils.mjs";
 import { unlockAccounts, uninvolved, holder, counterParty, web3, getUnixTime, deploy } from "./common";
 
 describe('Contract integration tests', function() {
@@ -248,11 +248,13 @@ describe('Contract integration tests', function() {
     // Tests for a SCALE contract
     describe('SCALE contract tests', function() {
         it('Check serialization/deserialization of address for observable arbiter', function() {
-            return deploy("scale obs " + uninvolved.address + " one").then(function(contract) {
+            var name = "appropriateObsName";
+            return deploy(["scale", name, uninvolved.address, "one"].join(" ")).then(function(contract) {
                 return contract.methods.get_obs_entries().call({ from: holder.address }).then(function(res) {
                     let address_serialized = res.returnValue0.slice(0, 4);
                     assert.equal(deserializeAddress(address_serialized), uninvolved.address);
                     assert.equal(res.returnValue0[4], -1);
+                    assert.equal(deserializeName(res.returnValue0.slice(6, 6 + name.length)), name);
                 });
             });
         });
@@ -268,7 +270,7 @@ describe('Contract integration tests', function() {
         });
     
         it('Has the correct value when an observable value is provided', function() {
-            return deploy("scale obs " + uninvolved.address + " one").then(function(contract) {
+            return deploy("scale appropriateObsName " + uninvolved.address + " one").then(function(contract) {
                 return contract.methods.set_obs_value(0, 5).send({ from: uninvolved.address }).then(function() {
                     return contract.methods.acquire().send({ from: holder.address }).then(function() {
                         return contract.methods.get_balance(true).call({ from: holder.address }).then(function(res) {
@@ -356,14 +358,16 @@ describe('Contract integration tests', function() {
         });
 
         it('Returns the correct observable values', function() {
-            return deploy("scale obs " + uninvolved.address + " scale obs " + holder.address + " scale obs " + counterParty.address + " one").then(function(contract) {
+            var names = ["name0", "name1", "name2"];
+
+            return deploy(["scale", names[0], uninvolved.address, "scale", names[1], holder.address, "scale", names[2], counterParty.address, "one"].join(" ")).then(function(contract) {
                 return contract.methods.set_obs_value(0, 1).send({ from: uninvolved.address }).then(function() {
                     return contract.methods.set_obs_value(2, -1).send({ from: counterParty.address }).then(function() {
                         return contract.methods.get_obs_entries().call({ from: holder.address }).then(function(res) {
                             var expected = [
-                                new ObservableEntry(uninvolved.address, 1),
-                                new ObservableEntry(holder.address, undefined),
-                                new ObservableEntry(counterParty.address, -1)
+                                new ObservableEntry(uninvolved.address, 1, names[0], 0),
+                                new ObservableEntry(holder.address, undefined, names[1], 1),
+                                new ObservableEntry(counterParty.address, -1, names[2], 2)
                             ];
 
                             assert.deepEqual(deserializeObsEntries(res.returnValue0), expected);
@@ -371,6 +375,6 @@ describe('Contract integration tests', function() {
                     });
                 });
             });
-        });
+        }).timeout(5000);
     });
 });
