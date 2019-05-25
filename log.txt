@@ -1078,6 +1078,35 @@ Adding tests:
 
 Todo:
 	- Add API tests for contract-utils
+	- Add evaluation modal to monitoring view
+	- Test MetaMask with any blockchain (no deployment etc, just obtaining credentials)
+
+
+
+========== 25 May ==========
+
+Adding evaluation modal to monitoring view:
+	- Added button, with disabled modifier
+	- Modal with state
+	- Resets evaluator state on button press
+
+
+Modifications to evaluator:
+	- Added handling of ["<date", "time>"] time representation to step-through evaluation (was handled in _process(), not _stepThroughEvaluate())
+	- Acquisition of contract after expiration is allowed
+		- Always allow selection of top-level acquisition time (not auto-selected)
+		- After last time-slice, another option is added for the past-horizon slice (or the current time if no slices exist)
+		- Will always have at least 1 option, even with 1 option allow user to select/confirm (better for demo-ing)
+
+	- Acquisition of things in the past not allowed
+		- acquisition sets current time to selected time slice, and you can't select acquisition times (for anytime) before the selected time slice
+		- This means that only the top-level acquisition time needs adjusting
+		- As done with acquisition times, cut off any elements in the list before the current time
+		- Can do this now as we'll add the current time to the list if the contract has expired, so no chance of having 0 options
+
+	- Added checks in evaluator-controls for whether options have been set (was trying to render options after getting a contract in composition, but before setting options in monitoring)
+
+	- Fixed evaluator tests (added explicit acqusition time selection where needed)
 
 
 

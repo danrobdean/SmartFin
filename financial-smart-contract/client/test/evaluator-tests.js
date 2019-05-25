@@ -18,8 +18,8 @@ describe('Evaluator tests', function() {
     beforeEach(function() {
         evaluator = new Evaluator();
 
-        dateStringMin = "<01/01/01, 01:23:45>";
-        dateStringMax = "<02/02/02, 12:34:56>";
+        dateStringMin = "<01/01/2037, 12:34:56>";
+        dateStringMax = "<01/01/2038, 12:34:56>";
 
         dateUnixMin = evaluator._dateOrUnixToHorizon(dateStringMin);
         dateUnixMax = evaluator._dateOrUnixToHorizon(dateStringMax);
@@ -222,30 +222,36 @@ describe('Evaluator tests', function() {
     });
 
     it('Starts step through evaluation by returning the right acquisition time options', function() {
-        evaluator.setContract("or anytime truncate 1 one anytime truncate 2 one");
+        evaluator.setContract("or anytime truncate " + dateUnixMin + " one anytime truncate " + dateUnixMax + " one");
 
         var options = evaluator.getNextStepThroughOptions();
+        var expectedOptions = [dateUnixMin, dateUnixMax, dateUnixMax + 1];
 
         assert.equal(options.type, StepThroughOptions.TYPE_ACQUISITION_TIME);
         assert.equal(options.combinatorIndex, -1);
-        assert.deepEqual(options.options, evaluator.getTimeSlices().getSlices());
+        assert.deepEqual(options.options, expectedOptions);
     });
 
-    it('Does not have another step for a contract with no acquisition time-slices or or-choices', function() {
+    it('Does not have another step for a contract with no acquisition time-slices or or-choices after acquisition', function() {
         evaluator.setContract("one");
 
+        evaluator.setStepThroughOption(0);
         assert.equal(evaluator.hasNextStep(), false);
     });
 
-    it('Does not have another step for a contract with one acquisition time-slice and no or-choices', function() {
-        evaluator.setContract("truncate 2 one");
+    it('Has two options for a contract with one acquisition time-slice and no or-choices', function() {
+        evaluator.setContract("truncate " + dateUnixMin + " one");
 
-        assert.equal(evaluator.hasNextStep(), false);
+        var options = evaluator.getNextStepThroughOptions().options;
+        var expectedOptions = [dateUnixMin, dateUnixMin + 1];
+
+        assert.deepEqual(options, expectedOptions);
     });
 
     it('Returns the correct step-through options for an or-combinator', function() {
         evaluator.setContract("or one zero");
 
+        evaluator.setStepThroughOption(0);
         var options = evaluator.getNextStepThroughOptions();
 
         assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
@@ -256,19 +262,19 @@ describe('Evaluator tests', function() {
     it('Returns the correct acquisition-times for an anytime combinator', function() {
         evaluator.setContract("anytime then truncate 1 zero truncate 2 one");
 
-        var options = evaluator.getNextStepThroughOptions().options;
-        options.sort((a, b) => a - b);
-        evaluator.setStepThroughOption(options[0]);
+        evaluator.setStepThroughOption(0);
 
-        options = evaluator.getNextStepThroughOptions();
+        var options = evaluator.getNextStepThroughOptions();
 
-        assert.equal(options.type, StepThroughOptions.TYPE_ACQUISITION_TIME);
+        assert.equal(options.type, StepThroughOptions.TYPE_ANYTIME_ACQUISITION_TIME);
         assert.equal(options.combinatorIndex, 0);
         assert.deepEqual(options.options, [1, 2]);
     });
 
-    it('Returns no acquisition-times for an anytime combinator with no time-slices', function() {
+    it('Returns no acquisition-times for an anytime combinator with no time-slices after acquisition', function() {
         evaluator.setContract("anytime truncate 2 zero");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.hasNextStep(), false);
     });
@@ -276,6 +282,7 @@ describe('Evaluator tests', function() {
     it('Returns the correct options for an or-choice within an or-choice\'s first sub-contract', function() {
         evaluator.setContract("or or one zero zero");
 
+        evaluator.setStepThroughOption(0);
         evaluator.setStepThroughOption(true);
 
         var options = evaluator.getNextStepThroughOptions();
@@ -288,6 +295,7 @@ describe('Evaluator tests', function() {
     it('Returns the correct options for an or-choice within an or-choice\'s second sub-contract', function() {
         evaluator.setContract("or one or zero zero");
 
+        evaluator.setStepThroughOption(0);
         evaluator.setStepThroughOption(false);
 
         var options = evaluator.getNextStepThroughOptions();
@@ -300,6 +308,7 @@ describe('Evaluator tests', function() {
     it('Does not return options for an unused or-choice within an or-choice\'s first sub-contract', function() {
         evaluator.setContract("or or one zero zero");
 
+        evaluator.setStepThroughOption(0);
         evaluator.setStepThroughOption(false);
 
         assert.equal(evaluator.hasNextStep(), false);
@@ -308,6 +317,7 @@ describe('Evaluator tests', function() {
     it('Does not return options for an unused or-choice within an or-choice\'s second sub-contract', function() {
         evaluator.setContract("or one or zero zero");
 
+        evaluator.setStepThroughOption(0);
         evaluator.setStepThroughOption(true);
 
         assert.equal(evaluator.hasNextStep(), false);
@@ -316,6 +326,7 @@ describe('Evaluator tests', function() {
     it('Returns correct options for an or-choice as a sub-contract of another combinator', function() {
         evaluator.setContract("scale 5 or zero one");
 
+        evaluator.setStepThroughOption(0);
         var options = evaluator.getNextStepThroughOptions();
 
         assert.equal(options.type, StepThroughOptions.TYPE_OR_CHOICE);
@@ -325,6 +336,8 @@ describe('Evaluator tests', function() {
 
     it('Returns correct options for an and combinator', function() {
         evaluator.setContract("and or one zero or zero one");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.hasNextStep(), true);
 
@@ -359,9 +372,13 @@ describe('Evaluator tests', function() {
     it('Evaluates a basic contract correctly', function() {
         evaluator.setContract("one");
 
+        evaluator.setStepThroughOption(0);
+
         assert.equal(evaluator.evaluate(), "1");
 
         evaluator.setContract("zero");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.evaluate(), "0");
     });
@@ -369,11 +386,15 @@ describe('Evaluator tests', function() {
     it('Evaluates a scaled contract correctly', function() {
         evaluator.setContract("scale 5 one");
 
+        evaluator.setStepThroughOption(0);
+
         assert.equal(evaluator.evaluate(), "5");
     });
 
     it('Evaluates a contract with observables correctly', function() {
         evaluator.setContract("scale var 0x0 one");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.evaluate(), "var * 1");
     });
@@ -381,11 +402,15 @@ describe('Evaluator tests', function() {
     it('Evaluates a scaled contract with observables correctly', function() {
         evaluator.setContract("scale var0 0x0 scale 5 scale var1 0x1 scale 10 one");
 
+        evaluator.setStepThroughOption(0);
+
         assert.equal(evaluator.evaluate(), "var1 * var0 * 50");
     });
 
     it('Evaluates an and combinator with two scaled/observabled sub-contracts correctly', function() {
         evaluator.setContract("scale var0 0x0 and scale var1 0x0 scale 5 one scale var2 0x0 scale 10 one");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.evaluate(), "var0 * (var1 * 5) + (var2 * 10)");
     });
@@ -393,11 +418,15 @@ describe('Evaluator tests', function() {
     it('Evaluates a give combinator correctly', function() {
         evaluator.setContract("give one");
 
+        evaluator.setStepThroughOption(0);
+
         assert.equal(evaluator.evaluate(), "-1");
     });
 
     it('Evaluates a scaled give combinator correctly', function() {
         evaluator.setContract("scale 5 scale var0 0x0 give scale var1 0x0 scale 10 one");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.evaluate(), "var1 * var0 * -50");
     });
@@ -405,11 +434,15 @@ describe('Evaluator tests', function() {
     it('Evaluates a give in an and combinator correctly', function() {
         evaluator.setContract("and give scale 5 one one");
 
+        evaluator.setStepThroughOption(0);
+
         assert.equal(evaluator.evaluate(), "-4");
     });
 
     it('Evaluates a truncate contract correctly', function() {
         evaluator.setContract("truncate 10 one");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.evaluate(), "1");
     });
@@ -417,8 +450,13 @@ describe('Evaluator tests', function() {
     it('Evaluates a get contract correctly', function() {
         evaluator.setContract("get truncate 10 then truncate 5 one scale 10 one");
 
+        evaluator.setStepThroughOption(0);
+
         assert.equal(evaluator.evaluate(), "10");
+
         evaluator.setContract("get truncate 1 then truncate 5 one scale 10 one");
+
+        evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.evaluate(), "1");
     });
@@ -439,6 +477,7 @@ describe('Evaluator tests', function() {
     it('Evaluates an or contract correctly', function() {
         evaluator.setContract("or one zero");
 
+        evaluator.setStepThroughOption(0);
         evaluator.setStepThroughOption(true);
 
         assert.equal(evaluator.evaluate(), "1");
@@ -452,6 +491,7 @@ describe('Evaluator tests', function() {
     it('Evaluates an anytime contract correctly', function() {
         evaluator.setContract("get truncate 0 anytime then truncate 1 one truncate 2 zero");
 
+        evaluator.setStepThroughOption(0);
         evaluator.setStepThroughOption(0);
 
         assert.equal(evaluator.evaluate(), "1");

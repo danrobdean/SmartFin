@@ -3,13 +3,14 @@ import React from "react";
 import AcquireSubContractControls from "./acquire-sub-contract-controls.jsx";
 import DropDown from "./drop-down.jsx";
 import LoadContractControls from "./load-contract-controls.jsx";
+import EvaluateControls from "./evaluate-controls.jsx";
 import Message from "./message.jsx";
 import Modal from "./modal.jsx";
 import ObsValueControls from "./obs-value-controls.jsx";
 import OrChoiceControls from "./or-choice-controls.jsx";
+import StakeWithdrawControls from "./stake-withdraw-controls.jsx";
 
 import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getUseGas, getLastUpdated, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, unixTimestampToDateString } from "./../js/contract-utils.mjs";
-import StakeWithdrawControls from "./stake-withdraw-controls.jsx";
 
 /**
  * The contract monitoring component.
@@ -31,11 +32,17 @@ export default class Monitoring extends React.Component {
     reloadStateTimeout;
 
     /**
+     * Reference to the evaluation controls.
+     */
+    evaluateControls;
+
+    /**
      * Initialises a new instance of this class.
      * @param props.web3 The web3 instance.
      * @param props.address The unlocked account address.
      * @param props.setContract Function to set the current contract instance.
      * @param props.contract The current contract instance.
+     * @param props.evaluator The evaluator instance.
      */
     constructor(props) {
         super(props);
@@ -49,6 +56,7 @@ export default class Monitoring extends React.Component {
             acquireOpen: false,
             stakeOpen: false,
             withdrawOpen: false,
+            evaluateOpen: false,
             contractInteractionError: "",
             contractInteractionErrorDetails: "",
             holder: "N/A",
@@ -69,6 +77,8 @@ export default class Monitoring extends React.Component {
      * Returns the element representing this component.
      */
     render() {
+        var evaluateDisabled = !this.state.combinatorContract || this.state.combinatorContract == "N/A";
+
         var orChoicesDisabled = this.state.holder !== this.props.address
             || this.state.concluded
             || !(this.state.orChoices && this.state.orChoices.length > 0)
@@ -153,6 +163,10 @@ export default class Monitoring extends React.Component {
                         contract={this.props.contract}
                         address={this.props.address}
                         callback={() => this.setValueModalCallback()} />
+                </Modal>
+
+                <Modal title="Evaluate Contract" closeModal={() => this.closeModals()} visible={this.state.evaluateOpen}>
+                    <EvaluateControls evaluator={this.props.evaluator} contract={this.state.combinatorContract} ref={r => this.evaluateControls = r}/>
                 </Modal>
 
                 <div className={Monitoring.blockName + "__size-container"}>
@@ -258,6 +272,13 @@ export default class Monitoring extends React.Component {
                                 className={Monitoring.blockName + "__contract-button"}
                                 onClick={() => this.openLoadContractModal()}>
                                 Load Contract
+                            </button>
+
+                            <button
+                                className={Monitoring.blockName + "__contract-button"}
+                                onClick={() => this.openEvaluateModal()}
+                                disabled={evaluateDisabled}>
+                                Evaluate Contract
                             </button>
 
                             <button
@@ -671,6 +692,19 @@ export default class Monitoring extends React.Component {
     }
 
     /**
+     * Opens the evaluate modal.
+     */
+    openEvaluateModal() {
+        if (this.state.combinatorContract && this.state.combinatorContract != "N/A") {
+            this.evaluateControls.resetContract();
+
+            this.setState({
+                evaluateOpen: true
+            });
+        }
+    }
+
+    /**
      * Closes all modals.
      */
     closeModals() {
@@ -680,7 +714,8 @@ export default class Monitoring extends React.Component {
             obsValueOpen: false,
             acquireOpen: false,
             stakeOpen: false,
-            withdrawOpen: false
+            withdrawOpen: false,
+            evaluateOpen: false
         });
     }
 

@@ -5,6 +5,7 @@ import DropDown from "./drop-down.jsx";
 import Message from "./message.jsx";
 import StepThroughOptions from "./../js/step-through-options.mjs";
 import StepThroughValue from "./../js/step-through-value.mjs";
+import { dateToUnixTimestamp } from "../js/contract-utils.mjs";
 
 /**
  * Represents the controls for evaluating a contract.
@@ -93,19 +94,24 @@ export default class EvaluateControls extends React.Component {
      * Renders the options for the current step's value.
      */
     renderOptions() {
-        if (!this.props.evaluator.hasNextStep()) {
-            return;
+        if (!this.props.evaluator.hasNextStep() || !this.state.options) {
+            return null;
         }
 
         var optionElements = [];
         var options = this.state.options.options;
-        var label = this.getLabel(this.state.options.index, this.state.options.type == StepThroughOptions.TYPE_ACQUISITION_TIME);
+        var label = this.getLabel(this.state.options.index, this.state.options.type, true);
 
         for (var i = 0; i < options.length; i++) {
             var option = options[i];
-            var text = (this.state.options.type == StepThroughOptions.TYPE_ACQUISITION_TIME)
-                ? unixTimestampToDateString(option)
-                : ((option) ? "First" : "Second") + " sub-contract";
+
+            var text = (this.state.options.type == StepThroughOptions.TYPE_OR_CHOICE)
+                ? ((option) ? "First" : "Second") + " sub-contract"
+                : unixTimestampToDateString(option);
+
+            if (this.state.options.type == StepThroughOptions.TYPE_ACQUISITION_TIME && i == options.length - 1) {
+                text += "...";
+            }
 
             optionElements.push(
                 <option key={i} value={option}>{text}</option>
@@ -138,37 +144,16 @@ export default class EvaluateControls extends React.Component {
      */
     renderPrevValues() {
         if (!this.state.prevValues || this.state.prevValues.length == 0) {
-            return;
+            return null;
         }
         var prevValueElements = [];
 
         for (var i = 0; i < this.state.prevValues.length; i++) {
             var prevValue = this.state.prevValues[i];
             var prevValueElement;
-            var label = this.getLabel(prevValue.index, prevValue.type == StepThroughValue.TYPE_ACQUISITION_TIME);
+            var label = this.getLabel(prevValue.index, prevValue.type, false);
 
-            if (prevValue.type == StepThroughValue.TYPE_ACQUISITION_TIME) {
-                // Acquisition time
-                prevValueElement = (
-                    <div
-                        className={EvaluateControls.blockName + "__prev-value-container"}
-                        key={i}>
-                        <span className={EvaluateControls.blockName + "__prev-value-label"}>
-                            {label}
-                        </span>
-
-                        <span className={EvaluateControls.blockName + "__prev-value"}>
-                            <em>{unixTimestampToDateString(prevValue.value)}</em>
-                        </span>
-
-                        <button
-                            className={EvaluateControls.blockName + "__reset-value-button"}
-                            onClick={this.deleteValue.bind(this, prevValue.combinatorIndex)}>
-                            Delete
-                        </button>
-                    </div>
-                );
-            } else {
+            if (prevValue.type == StepThroughValue.TYPE_OR_CHOICE) {
                 // Or-choice
                 prevValueElement = (
                     <div
@@ -180,6 +165,27 @@ export default class EvaluateControls extends React.Component {
 
                         <span className={EvaluateControls.blockName + "__prev-value"}>
                             <em>{((prevValue.value) ? "First" : "Second") + " sub-contract"}</em>
+                        </span>
+
+                        <button
+                            className={EvaluateControls.blockName + "__reset-value-button"}
+                            onClick={this.deleteValue.bind(this, prevValue.combinatorIndex)}>
+                            Delete
+                        </button>
+                    </div>
+                );
+            } else {
+                // Acquisition time
+                prevValueElement = (
+                    <div
+                        className={EvaluateControls.blockName + "__prev-value-container"}
+                        key={i}>
+                        <span className={EvaluateControls.blockName + "__prev-value-label"}>
+                            {label}
+                        </span>
+
+                        <span className={EvaluateControls.blockName + "__prev-value"}>
+                            <em>{unixTimestampToDateString(prevValue.value)}</em>
                         </span>
 
                         <button
@@ -201,10 +207,14 @@ export default class EvaluateControls extends React.Component {
      * Sets the value for the option of the current step.
      */
     setOption() {
+        this.resetError();
+
         var option = this.optionSelect.value;
+
         if (this.state.options.type === StepThroughOptions.TYPE_OR_CHOICE) {
             option = option == "true";
         }
+
         this.props.evaluator.setStepThroughOption(option);
 
         this.setState({
@@ -235,19 +245,22 @@ export default class EvaluateControls extends React.Component {
     /**
      * Gets the label for a step-through option or value.
      * @param index The option's associated index.
-     * @param isAcquisitionTime Whether or not the option is an acquisition-time option (false is or-choice)
+     * @param type The type of step-through option or value.
      */
-    getLabel(index, isAcquisitionTime) {
+    getLabel(index, type, isOption) {
         var label;
+        var acquisitionTimeType = (isOption) ? StepThroughOptions.TYPE_ACQUISITION_TIME : StepThroughValue.TYPE_ACQUISITION_TIME;
+        var anytimeAcquisitionTimeType = (isOption) ? StepThroughOptions.TYPE_ANYTIME_ACQUISITION_TIME : StepThroughValue.TYPE_ANYTIME_ACQUISITION_TIME;
+        var orChoiceType = (isOption) ? StepThroughOptions.TYPE_OR_CHOICE : StepThroughValue.TYPE_OR_CHOICE;
 
-        if (isAcquisitionTime) {
-            if (index == -1) {
-                label = "Contract Acquisition-Time:";
-            } else {
-                label = "Anytime " + index + " Acquisition Time:";
-            }
-        } else {
+        if (type == acquisitionTimeType) {
+            label = "Contract Acquisition-Time:";
+        } else if (type == anytimeAcquisitionTimeType) {
+            label = "Anytime " + index + " Acquisition Time:";
+        } else if (type == orChoiceType) {
             label = "Or " + index + " Choice:";
+        } else {
+            throw "Unexpected option/value type: " + type;
         }
 
         return label;

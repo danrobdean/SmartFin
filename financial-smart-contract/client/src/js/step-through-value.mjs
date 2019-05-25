@@ -8,6 +8,11 @@ export default class StepThroughValue {
     static TYPE_ACQUISITION_TIME = "acquisition-time";
 
     /**
+     * The acquisition time type value.
+     */
+    static TYPE_ANYTIME_ACQUISITION_TIME = "anytime-acquisition-time";
+
+    /**
      * The or-choice type value.
      */
     static TYPE_OR_CHOICE = "or-choice";
