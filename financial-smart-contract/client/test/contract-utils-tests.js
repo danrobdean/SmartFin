@@ -6,10 +6,6 @@ import * as Utils from "../src/js/contract-utils.mjs";
 
 describe('Contract utility tests', function() {
     describe('Utility function tests', function() {
-        it('Unlocks accounts without error', function() {
-            return Utils.unlockAccount(holder.address, holder.password);
-        });
-
         it('Correctly serializates/deserializes address', function() {
             var address = uninvolved.address;
             var serialized = Utils.serializeAddress(address);
@@ -287,69 +283,249 @@ describe('Contract utility tests', function() {
         });
     });
 
-    describe.skip('Contract interaction tests', function() {
-        it('Correctly gets the holder of the given contract', function() {
-            assert.fail();
+    describe('Contract interaction tests', function() {
+        describe('Simple contract interactions', function() {
+            var contract;
+            var contractDefinition = "one";
+            var contractValue = 1;
+
+            beforeEach(function() {
+                return deploy(contractDefinition, false).then(res => {
+                    contract = res;
+                });
+            });
+
+            it('Correctly gets the holder of the given contract', function() {
+                return Utils.getHolder(contract, uninvolved.address).then(function(res) {
+                    assert.equal(res, holder.address);
+                });
+            });
+    
+            it('Correctly gets the counter-party of the given contract', function() {
+                return Utils.getCounterParty(contract, uninvolved.address).then(function(res) {
+                    assert.equal(res, counterParty.address);
+                });
+            });
+
+            it('Correctly gets the balance of the holder from the given contract', function() {
+                return Utils.getBalance(contract, holder.address, true).then(function(res) {
+                    assert.equal(res, 0);
+
+                    return Utils.acquireContract(contract, holder.address).then(function() {
+                        return Utils.getBalance(contract, holder.address, true).then(function(res) {
+                            assert.equal(res, contractValue);
+                        });
+                    });
+                });
+            });
+
+            it('Correctly gets the balance of the counter-party from the given contract', function() {
+                return Utils.getBalance(contract, counterParty.address, false).then(function(res) {
+                    assert.equal(res, 0);
+
+                    return Utils.acquireContract(contract, holder.address).then(function() {
+                        return Utils.getBalance(contract, counterParty.address, false).then(function(res) {
+                            assert.equal(res, -contractValue);
+                        });
+                    });
+                });
+            });
+    
+            it('Correctly gets the combinator contract from the given contract', function() {
+                return Utils.getCombinatorContract(contract, holder.address).then(function(res) {
+                    assert.equal(res, contractDefinition);
+                });
+            });  
+    
+            it('Correctly gets whether the given contract is concluded', function() {
+                return Utils.getConcluded(contract, holder.address).then(function(res) {
+                    assert.equal(res, false);
+
+                    return Utils.acquireContract(contract, holder.address).then(function() {
+                        return Utils.getConcluded(contract, holder.address).then(function(res) {
+                            assert.equal(res, true);
+                        });
+                    });
+                });
+            });
+    
+            it('Correctly gets whether the given contract is using gas', function() {
+                return Utils.getUseGas(contract, uninvolved.address).then(function(res) {
+                    assert.strictEqual(res, false);
+                });
+            });
+    
+            it('Correctly gets the last-updated time on the given contract', function() {
+                return Utils.getLastUpdated(contract, holder.address).then(function(res) {
+                    assert.equal(Utils.dateToUnixTimestamp(new Date()) - res < 2, true);
+                });
+            });
+
+            it('Correctly acquires the given contract', function() {
+                return Utils.acquireContract(contract, holder.address).then(function() {
+                    return Utils.getBalance(contract, holder.address, true).then(function(res) {
+                        assert.equal(res, contractValue);
+                    });
+                });
+            });
+
+            it('Correctly stakes Ether in the given contract', function() {
+                var stake = 100;
+
+                return Utils.stake(contract, holder.address, stake).then(function() {
+                    return Utils.getBalance(contract, holder.address, true).then(function(res) {
+                        assert.equal(res, stake);
+                    });
+                });
+            });
+    
+            it('Correctly withdraws Ether from the given contract', function() {
+                var stake = 100;
+                var withdrawal = 50;
+
+                return Utils.stake(contract, holder.address, stake).then(function() {
+                    return Utils.withdraw(contract, holder.address, withdrawal).then(function() {
+                        return Utils.getBalance(contract, holder.address, true).then(function(res) {
+                            assert.equal(res, stake - withdrawal);
+                        });
+                    });
+                });
+            });  
         });
 
-        it('Correctly gets the counter-party of the given contract', function() {
-            assert.fail();
+        describe('Or-choice interaction', function() {
+            var contract;
+
+            beforeEach(function() {
+                return deploy("or or or zero one zero zero").then(function(res) {
+                    contract = res;
+                });
+            });
+
+            it('Correctly gets the or-choices from the given contract', function() {
+                return Utils.setOrChoice(contract, holder.address, 0, true).then(function() {
+                    return Utils.setOrChoice(contract, holder.address, 1, false).then(function() {
+                        return Utils.getOrChoices(contract, holder.address).then(function(res) {
+                            var expectedOrChoices = [
+                                new Utils.Option(true),
+                                new Utils.Option(false),
+                                new Utils.Option(undefined)
+                            ];
+
+                            assert.deepEqual(res, expectedOrChoices);
+                        });
+                    });
+                });
+            });
+    
+            it('Correctly sets or-choices on the given contract', function() {
+                return Utils.setOrChoice(contract, holder.address, 0, true).then(function() {
+                    return Utils.setOrChoice(contract, holder.address, 1, true).then(function() {
+                        return Utils.setOrChoice(contract, holder.address, 2, false).then(function() {
+                            return Utils.acquireContract(contract, holder.address).then(function() {
+                                return Utils.getBalance(contract, holder.address, true).then(function(res) {
+                                    assert.equal(res, 1);
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+
+            it('Correctly updates the given contract', function() {
+                return Utils.acquireContract(contract, holder.address).then(function(res) {
+                    return Utils.setOrChoice(contract, holder.address, 0, false).then(function() {
+                        return Utils.updateContract(contract, holder.address).then(function() {
+                            return Utils.getConcluded(contract, holder.address).then(function(res) {
+                                assert.equal(res, true);
+                            });
+                        });
+                    });
+                });
+            });
         });
 
-        it('Correctly gets whether the given contract is concluded', function() {
-            assert.fail();
+        describe('Obs-entry interaction', function() {
+            var contract;
+            var names = [
+                "name0",
+                "naMe1"
+            ];
+
+            beforeEach(function() {
+                return deploy(["scale", names[0], uninvolved.address , "scale", names[1], holder.address, "one"].join(" ")).then(function(res) {
+                    contract = res;
+                });
+            });
+
+            it('Correctly gets the obs-entries from the given contract', function() {
+                return Utils.getObsEntries(contract, holder.address).then(function(res) {
+                    var expectedObsEntries = [
+                        new Utils.ObservableEntry(uninvolved.address, undefined, names[0], 0),
+                        new Utils.ObservableEntry(holder.address, undefined, names[1], 1)
+                    ];
+
+                    assert.deepEqual(res, expectedObsEntries);
+                });
+            });
+
+            it('Correctly sets obs-entries on the given contract', function() {
+                var obsValues = [
+                    10,
+                    -25
+                ];
+
+                return Utils.setObsValue(contract, uninvolved.address, 0, obsValues[0]).then(function() {
+                    return Utils.setObsValue(contract, holder.address, 1, obsValues[1]).then(function() {
+                        return Utils.getObsEntries(contract, holder.address).then(function(res) {
+                            var expectedObsEntries = [
+                                new Utils.ObservableEntry(uninvolved.address, obsValues[0], names[0], 0),
+                                new Utils.ObservableEntry(holder.address, obsValues[1], names[1], 1)
+                            ];
+
+                            assert.deepEqual(res, expectedObsEntries);
+                        });
+                    });
+                });
+            });
         });
 
-        it('Correctly gets whether the given contract is using gas', function() {
-            assert.fail();
-        });
+        describe('Acquisition time interaction', function() {
+            var contract;
 
-        it('Correctly gets the last-updatred time on the given contract', function() {
-            assert.fail();
-        });
+            beforeEach(function() {
+                return deploy("anytime anytime one").then(function(res) {
+                    contract = res;
+                });
+            });
 
-        it('Correctly gets the or-choices from the given contract', function() {
-            assert.fail();
-        });
+            it('Correctly gets the acquisition-times from the given contract', function() {
+                return Utils.getAcquisitionTimes(contract, holder.address).then(function(res) {
+                    var expectedAcquisitionTimes = [
+                        new Utils.Option(undefined),
+                        new Utils.Option(undefined),
+                        new Utils.Option(undefined)
+                    ];
 
-        it('Correctly gets the obs-entries from the given contract', function() {
-            assert.fail();
-        });
+                    assert.deepEqual(res, expectedAcquisitionTimes);
+                });
+            });
 
-        it('Correctly gets the acquisition-times from the given contract', function() {
-            assert.fail();
-        });
+            it('Correctly acquires the given contract\'s sub-contract', function() {
+                return Utils.acquireContract(contract, holder.address).then(function() {
+                    return Utils.acquireSubContract(contract, holder.address, 0).then(function() {
+                        return Utils.acquireSubContract(contract, holder.address, 1).then(function() {
+                            return Utils.getAcquisitionTimes(contract, holder.address).then(function(res) {
+                                var unixTime = Utils.dateToUnixTimestamp(new Date());
+                                var dateDifferences = res.map(elem => unixTime - elem.getValue());
 
-        it('Correctly sets or-choices on the given contract', function() {
-            assert.fail();
-        });
-
-        it('Correctly acquires the given contract', function() {
-            assert.fail();
-        });
-
-        it('Correctly acquires the given contract\'s sub-contract', function() {
-            assert.fail();
-        });
-
-        it('Correctly updates the given contract', function() {
-            assert.fail();
-        });
-
-        it('Correctly gets the balance from the given contract', function() {
-            assert.fail();
-        });
-
-        it('Correctly stakes Ether in the given contract', function() {
-            assert.fail();
-        });
-
-        it('Correctly withdraws Ether from the given contract', function() {
-            assert.fail();
-        });
-
-        it('Correctly gets the combinator contract from the given contract', function() {
-            assert.fail();
+                                assert.equal(res.every(elem => elem.isDefined()), true);
+                                assert.equal(dateDifferences.every(elem => elem < 2), true);
+                            });
+                        });
+                    });
+                });
+            });
         });
     });
 });

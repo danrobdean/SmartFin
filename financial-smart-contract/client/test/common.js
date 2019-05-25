@@ -50,3 +50,8 @@ export function unlockAccounts() {
         });
     });
 }
+
+// Unlock accounts before all tests.
+before(function() {
+    unlockAccounts();
+});

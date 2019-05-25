@@ -1,14 +1,9 @@
 import assert from "assert";
 
 import { serializeCombinatorContract, ObservableEntry, Option, deserializeAcquisitionTimes, deserializeOrChoices, deserializeObsEntries, deserializeAddress, deserializeName } from "../src/js/contract-utils.mjs";
-import { unlockAccounts, uninvolved, holder, counterParty, web3, getUnixTime, deploy } from "./common";
+import { uninvolved, holder, counterParty, web3, getUnixTime, deploy } from "./common";
 
 describe('Contract integration tests', function() {
-    // Unlock accounts before all tests
-    before(function() {
-        return unlockAccounts();
-    });
-
     // Tests for a simple "one" contract
     describe('Simple contract tests', function() {
         var contract;

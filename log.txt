@@ -1110,6 +1110,9 @@ Modifications to evaluator:
 
 Modified test scripts (run-client.sh, test.sh) so that a clean blockchain is run upon executing (can both be disabled by passing "-nc" as an option)
 
+Added tests for contract-utils contract interactions
+	- Tests mainly just check that all of the functions interact with a live contract correctly, with expected results on the contract
+
 
 
 
