@@ -1108,6 +1108,8 @@ Modifications to evaluator:
 
 	- Fixed evaluator tests (added explicit acqusition time selection where needed)
 
+Modified test scripts (run-client.sh, test.sh) so that a clean blockchain is run upon executing (can both be disabled by passing "-nc" as an option)
+
 
 
 
