@@ -1123,6 +1123,24 @@ TODO:
 	- Setup final build, and bundle with a mini-server (python etc), to run the client standalone
 	- Test metamask with other blockchains
 
+Found new bug, apparently if the combinator contract has 26-29 (range may not be exact?) bytes in the serialized definition, then get_combinator_contract() will fail due to a wasm runtime error.
+This doesn't happen when testing with pwasm_test, but does happen when testing by interacting with a deployed blockchain, suggesting that the issue is with parity. Also it makes no sense so i don't see how it could be my fault.
+
+Have run 240 test contracts ("one one one..."), each with a different number of bytes (1-240) in the contract. The contracts with 27-29 bytes failed with the wasm runtime error, all others succeeded. This suggests that the error can be worked around by just adding 3 extra bytes to the end of the contract (can be anything as it'll be extraneous) when deploying if it has 27-29 bytes. To be doubly sure, we'll add enough bytes to have at least 32 from 25.
+
+Problem doesn't just happen when writing contract to storage, but any value with 27-29 bytes seems to fail when being read from storage, including observable names.
+Also, seems like Stores is a bit busted. Stores<Option<T>> only takes 1 slot when value is None, but more than 1 when value is Some(v). This means that it grows in storage from taking 1 slot to 2+, so it probably overwrites whatever's next to it (will now be the length of the ObsName, which is important).
+
+Changes for storage overwriting other items:
+	- Noted that objects stored by Stores<T> should never change in size
+	- Option<T> now only takes Stores<T> + StoresOne<T>, where the StoresOne trait is implemented for i64, u32, and bool (to show that they are stored in one storage slot)
+	- Option<T> now always "takes up" 2 slots, even when storing None (to prevent storing None in 1 slot, then growing to 2 and overwriting a slot)
+
+Plan for debugging the weird issue with 28-30 byte arrays being stored:
+	- Write a minimal smart contract (use that github repo)
+	- Implement a function to store 30 bytes of stuff
+	- See if it bugs, if so then it's a parity issue and not me (i think this is the case), if not then cry
+
 
 
 

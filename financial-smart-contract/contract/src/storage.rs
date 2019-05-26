@@ -30,7 +30,7 @@ pub struct Storage {
     table: Vec<Entry>
 }
 
-// The implementing struct can store values of the given type (passed/returned by value).
+// The implementing struct can store values of the given type (passed/returned by value). These values must never change size.
 pub trait Stores<T> {
     // Reads a value of the given type from storage, returns the value and the last used address (storage is done sequentially)
     fn read(&mut self, key: &H256) -> (T, H256);
@@ -39,7 +39,7 @@ pub trait Stores<T> {
     fn write(&mut self, key: &H256, value: T) -> H256;
 }
 
-// The implementing struct can store values of the given type (passed by reference).
+// The implementing struct can store values of the given type (passed by reference). These values can change size.
 pub trait StoresRef<T> {
     // Reads a value of the given type from storage, returns the value and the last used address (storage is done sequentially)
     fn read_ref(&mut self, key: &H256) -> (T, H256);
@@ -47,6 +47,9 @@ pub trait StoresRef<T> {
     // Writes a value of the given type to storage (from reference), returns the last used address (storage is done sequentially)
     fn write_ref(&mut self, key: &H256, value: &T) -> H256;
 }
+
+// Trait signalling that the implementing struct can be stored in 1 storage slot.
+pub trait StoresOne<T> { }
 
 // Storage method implementation
 impl Storage {
@@ -229,6 +232,11 @@ impl Stores<bool> for Storage {
     }
 }
 
+// Signal that i64, u32, and bool can all be stored in 1 storage slot
+impl StoresOne<i64> for Storage { }
+impl StoresOne<u32> for Storage { }
+impl StoresOne<bool> for Storage { }
+
 // Vectors are stored sequentially
 impl<T> StoresRef<Vec<T>> for Storage where Storage: Stores<T>, Vec<T>: core::clone::Clone {
     // Reads vector sequentially from storage
@@ -262,14 +270,14 @@ impl<T> StoresRef<Vec<T>> for Storage where Storage: Stores<T>, Vec<T>: core::cl
     }
 }
 
-impl<T> Stores<Option<T>> for Storage where Storage: Stores<T> {
+impl<T> Stores<Option<T>> for Storage where Storage: Stores<T> + StoresOne<T> {
     fn read(&mut self, key: &H256) -> (Option<T>, H256) {
         let some: bool = self.read_some(key);
         if some {
             let (value, last_used) = self.read(&add_to_key(*key, 1));
             (Some(value), last_used)
         } else {
-            (None, *key)
+            (None, add_to_key(*key, 1))
         }
     }
 
@@ -281,7 +289,8 @@ impl<T> Stores<Option<T>> for Storage where Storage: Stores<T> {
             },
             None => {
                 self.write_some(key, false);
-                return *key
+                // Cannot have variable-length elements in Stores, so always save 2 slots even if no value to write
+                add_to_key(*key, 1)
             }
         }
     }
@@ -316,7 +325,7 @@ impl<T, U, V> Stores<(T, U, V)> for Storage where Storage: Stores<T> + Stores<U>
     }
 }
 
-// ObsName implementation
+// ObsName implementation (can store normally as name never changes, so size never changes)
 impl Stores<ObsName> for Storage where Storage: StoresRef<Vec<i64>> {
     fn read(&mut self, key: &H256) -> (ObsName, H256) {
         let (name, key) = self.read_ref(key);
@@ -447,7 +456,7 @@ mod tests {
 
         let value1: Option<i64> = None;
         storage.write(&H256::zero(), value1);
-        assert_eq!(storage.read(&H256::zero()), (value1, H256::zero()));
+        assert_eq!(storage.read(&H256::zero()), (value1, add_to_key(H256::zero(), 1)));
     }
 
     // Storage of a tuple works correctly
@@ -478,7 +487,7 @@ mod tests {
 
         let value: Vec<Option<i64>> = vec![Some(15425), None, Some(1346134), Some(123093), None];
         storage.write_ref(&H256::zero(), &value);
-        assert_eq!(storage.read_ref(&H256::zero()), (value, add_to_key(H256::zero(), 8)));
+        assert_eq!(storage.read_ref(&H256::zero()), (value, add_to_key(H256::zero(), 10)));
     }
 
     // Conversion between Address and i64 works correctly
