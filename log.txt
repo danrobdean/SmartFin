@@ -1115,4 +1115,14 @@ Added tests for contract-utils contract interactions
 
 
 
+========== 26 May ==========
+
+Working on the report (evaluation)
+
+TODO:
+	- Setup final build, and bundle with a mini-server (python etc), to run the client standalone
+	- Test metamask with other blockchains
+
+
+
 
