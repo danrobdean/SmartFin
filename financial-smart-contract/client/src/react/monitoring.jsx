@@ -1,3 +1,4 @@
+import moment from "moment";
 import React from "react";
 
 import AcquireSubContractControls from "./acquire-sub-contract-controls.jsx";
@@ -10,7 +11,7 @@ import ObsValueControls from "./obs-value-controls.jsx";
 import OrChoiceControls from "./or-choice-controls.jsx";
 import StakeWithdrawControls from "./stake-withdraw-controls.jsx";
 
-import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getUseGas, getLastUpdated, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import { acquireContract, updateContract, getHolder, getCounterParty, getConcluded, getUseGas, getLastUpdated, getBalance, getOrChoices, getObsEntries, getAcquisitionTimes, getCombinatorContract, UNIX_FORMAT, DATE_STRING_FORMAT } from "./../js/contract-utils.mjs";
 
 /**
  * The contract monitoring component.
@@ -115,7 +116,7 @@ export default class Monitoring extends React.Component {
             ? this.state.acquisitionTimes[0].getValue()
             : "N/A";
         if (!isNaN(acquisitionTime)) {
-            acquisitionTime = unixTimestampToDateString(acquisitionTime);
+            acquisitionTime = moment.utc(acquisitionTime, UNIX_FORMAT, true).format(DATE_STRING_FORMAT);
         }
 
         return (
@@ -233,7 +234,7 @@ export default class Monitoring extends React.Component {
                                                 {this.state.useGas.toString()}
                                             </span>
                                             <span className={Monitoring.blockName + "__detail"}>
-                                                {(isNaN(this.state.lastUpdated)) ? this.state.lastUpdated : unixTimestampToDateString(this.state.lastUpdated)}
+                                                {(isNaN(this.state.lastUpdated)) ? this.state.lastUpdated : moment.utc(this.state.lastUpdated, UNIX_FORMAT, true).format(DATE_STRING_FORMAT)}
                                             </span>
                                         </div>
                                     </div>
@@ -534,7 +535,7 @@ export default class Monitoring extends React.Component {
         for (var i = 1; i < this.state.acquisitionTimes.length; i++) {
             var acquisitionTime = this.state.acquisitionTimes[i].getValue();
             if (!isNaN(acquisitionTime)) {
-                acquisitionTime = unixTimestampToDateString(acquisitionTime);
+                acquisitionTime = moment.utc(acquisitionTime, UNIX_FORMAT, true).format(DATE_STRING_FORMAT);
             }
 
             acquisitionTimeLabels.push(

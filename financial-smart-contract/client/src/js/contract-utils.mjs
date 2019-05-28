@@ -1,4 +1,5 @@
 import Web3 from "web3";
+import moment from "moment";
 
 import { ABI, CODE_HEX } from "./../../resources/resources.mjs";
 
@@ -33,6 +34,9 @@ const combinatorDict = {
 };
 
 const serializedCombinatorDict = invert(combinatorDict);
+
+export const DATE_STRING_FORMAT = "DD/MM/YYYY HH:mm:ss";
+export const UNIX_FORMAT = "X";
 
 // The Option class
 export class Option {
@@ -160,6 +164,14 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender, use
         return Promise.reject("Expected arguments are contractBytes, contractHolder, and sender. At least one argument was not supplied!");
     }
 
+    // Mitigation of WASM runtime error when getting contract definition with a 27-29 byte contract
+    // Add enough bytes so that no contract has 25-31 bytes.
+    if (contractBytes.length >= 25 && contractBytes.length < 32) {
+        for (var i = contractBytes.length; i < 32; i++) {
+            contractBytes.push(-1);
+        }
+    }
+
     if (!web3) {
         setupWeb3();
     }
@@ -180,10 +192,10 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender, use
                     resolve(contract);
                 },
                 err => {
-                    reject(err);
+                    reject("Deployment failed: " + err.toString());
                 })
             } else {
-                reject(err)
+                reject("Deployment failed: " + err.toString())
             }
         });
     })
@@ -201,7 +213,7 @@ export function serializeCombinatorContract(combinatorContract) {
     for (var i = 0; i < combinators.length; i++) {
         // Lookup value of combinator when serialized
         var combinator = combinatorDict[combinators[i]];
-        if (combinator == undefined) {
+        if (combinator === undefined) {
             throw "Combinator " + combinators[i] + " not recognized.";
         }
 
@@ -209,8 +221,23 @@ export function serializeCombinatorContract(combinatorContract) {
         switch (combinators[i].toLowerCase()) {
             case "truncate": {
                 result.push(combinator);
-                result.push(parseInt(combinators[i + 1]));
-                i++;
+                var date;
+                if (isNaN(combinators[i + 1]) && combinators[i + 1].indexOf("<") != -1) {
+                    // Time is pretty date string, find closing bracket
+                    var closeIndex = combinators.slice(i + 1).findIndex(elem => elem.indexOf(">") != -1) + i + 1;
+
+                    // Format time
+                    var time = combinators.slice(i + 1, closeIndex + 1).join(" ");
+                    time = time.slice(1, -1);
+                    date = moment.utc(time, DATE_STRING_FORMAT, true);
+
+                    // Convert time and push
+                    i = closeIndex;
+                } else {
+                    date = moment.utc(combinators[i + 1], UNIX_FORMAT, true);
+                    i++;
+                }
+                result.push(date.unix());
                 break;
             }
             case "scale": {
@@ -344,16 +371,41 @@ function verifyCombinator(combinators, i) {
 
 
             // Check timestamp
-            var time = combinators[i + 1];
+            var time = parseInt(combinators[i + 1]);
+            var nextCombinator = i + 2;
+
             if (isNaN(time)) {
-                return new VerificationError("Expected a valid unix timestamp, found: '" + time + "'.", errDesc(i));
-            } else if (combinators[i + 1] < 0 || combinators[i + 1] > Math.pow(2, 32) - 1) {
+                // Date provided in < [date] > format
+                if (combinators[i + 1].indexOf("<") != -1) {
+                    // Time is pretty date string, find closing bracket
+                    var closeIndex = combinators.slice(i + 1).findIndex(elem => elem.indexOf(">") != -1) + i + 1;
+
+                    if (closeIndex < i + 1) {
+                        return new VerificationError("Angle-brackets surrounding date not closed.", errDesc(i));
+                    }
+
+                    var dateString = combinators.slice(i + 1, closeIndex + 1).join(" ").slice(1, -1);
+                    var date = moment.utc(dateString, DATE_STRING_FORMAT, true);
+                    
+                    if (!date.isValid()) {
+                        // Date is invalid
+                        return new VerificationError("Expected date in the form of a UNIX Epoch timestamp, or a date in the format <" + DATE_STRING_FORMAT + ">, found: '" + dateString + "'.", errDesc(i));
+                    }
+
+                    time = date.unix();
+                    nextCombinator = closeIndex + 1;
+                } else {
+                    return new VerificationError("Expected date in the form of a UNIX Epoch timestamp, or a date in the format <" + DATE_STRING_FORMAT + ">, found: '" + time + "'.", errDesc(i));
+                }
+            }
+
+            if (time < 0 || time > Math.pow(2, 32) - 1) {
                 // Timestamp is outside of u32 range
                 return new VerificationError("Expected unsigned 32-bit unix timestamp, found: '" + time + "'.", errDesc(i));
             }
 
             // Check sub-combinator
-            var res = verifyCombinator(combinators, i + 2);
+            var res = verifyCombinator(combinators, nextCombinator);
             if (res.error) {
                 return addToErrStack(res, i);
             } else {
@@ -509,26 +561,6 @@ export function deserializeName(nameSerialized) {
     return String.fromCharCode(...nameSerialized);
 }
 
-// Converts the given date object to a Unix timestamp
-export function dateToUnixTimestamp(date) {
-    return date.getTime() / 1000 | 0;
-}
-
-// Converts the given unix timestamp to a date string.
-export function unixTimestampToDateString(timestamp) {
-    var date = new Date(timestamp * 1000);
-    var options = {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-    }
-    
-    return Intl.DateTimeFormat("en-GB", options).format(date);
-}
-
 // Checks whether or not the given address is valid.
 export function isValidAddress(address) {
     if (!web3) {
@@ -569,7 +601,7 @@ export async function getHolder(contract, caller) {
     return contract.methods.get_holder().call({ from: caller }).then(res => {
         return res.returnValue0;
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting holder failed: " + err.toString());
     });
 }
 
@@ -582,7 +614,7 @@ export async function getCounterParty(contract, caller) {
     return contract.methods.get_counter_party().call({ from: caller }).then(res => {
         return res.returnValue0;
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting counter-party failed: " + err.toString());
     });
 }
 
@@ -595,7 +627,7 @@ export async function getConcluded(contract, caller) {
     return contract.methods.get_concluded().call({ from: caller }).then(res => {
         return res.returnValue0;
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting concluded failed: " + err.toString());
     });
 }
 
@@ -608,7 +640,7 @@ export async function getUseGas(contract, caller) {
     return contract.methods.get_use_gas().call({ from: caller }).then(res => {
         return res.returnValue0;
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting use-gas failed: " + err.toString());
     });
 }
 
@@ -621,7 +653,7 @@ export async function getLastUpdated(contract, caller) {
     return contract.methods.get_last_updated().call({ from: caller }).then(res => {
         return res.returnValue0;
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting last-updated failed: " + err.toString());
     });
 }
 
@@ -634,7 +666,7 @@ export async function getOrChoices(contract, caller) {
     return contract.methods.get_or_choices().call({ from: caller }).then(res => {
         return deserializeOrChoices(res.returnValue0);
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting or-choices failed: " + err.toString());
     });
 }
 
@@ -647,7 +679,7 @@ export async function getObsEntries(contract, caller) {
     return contract.methods.get_obs_entries().call({ from: caller }).then(res => {
         return deserializeObsEntries(res.returnValue0);
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting observable-entries failed: " + err.toString());
     });
 }
 
@@ -660,7 +692,7 @@ export async function getAcquisitionTimes(contract, caller) {
     return contract.methods.get_acquisition_times().call({ from: caller }).then(res => {
         return deserializeAcquisitionTimes(res.returnValue0);
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting acquisition-times failed: " + err.toString());
     });
 }
 
@@ -671,7 +703,7 @@ export async function setOrChoice(contract, caller, index, choice) {
     }
 
     return contract.methods.set_or_choice(index, choice).send({ from: caller }).catch(err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting or-choices failed: " + err.toString());
     });
 }
 
@@ -686,7 +718,7 @@ export async function setObsValue(contract, caller, index, value) {
     }
 
     return contract.methods.set_obs_value(index, value).send({ from: caller }).catch(err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting observable-values failed: " + err.toString());
     });
 }
 
@@ -697,7 +729,7 @@ export async function acquireContract(contract, caller) {
     }
 
     return contract.methods.acquire().send({ from: caller }).catch(err => {
-        return Promise.reject(err);
+        return Promise.reject("Acquiring contract failed: " + err.toString());
     });
 }
 
@@ -708,7 +740,7 @@ export async function acquireSubContract(contract, caller, index) {
     }
 
     return contract.methods.acquire_anytime_sub_contract(index).send({ from: caller }).catch(err => {
-        return Promise.reject(err);
+        return Promise.reject("Acquiring sub-contract failed: " + err.toString());
     });
 }
 
@@ -719,7 +751,7 @@ export async function updateContract(contract, caller) {
     }
 
     return contract.methods.update().send({ from: caller }).catch(err => {
-        return Promise.reject(err);
+        return Promise.reject("Updating contract failed: " + err.toString());
     });
 }
 
@@ -732,7 +764,7 @@ export async function getBalance(contract, caller, holderBalance) {
     return contract.methods.get_balance(holderBalance).call({ from: caller }).then(res => {
         return res.returnValue0;
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting balance failed: " + err.toString());
     });
 }
 
@@ -743,7 +775,7 @@ export async function stake(contract, caller, amount) {
     }
 
     return contract.methods.stake().send({ from: caller, value: amount }).catch(err => {
-        return Promise.reject(err);
+        return Promise.reject("Staking failed: " + err.toString());
     });
 }
 
@@ -754,7 +786,7 @@ export async function withdraw(contract, caller, amount) {
     }
 
     return contract.methods.withdraw(amount).send({ from: caller }).catch(err => {
-        return Promise.reject(err);
+        return Promise.reject("Withdrawing failed: " + err.toString());
     });
 }
 
@@ -797,7 +829,7 @@ export function deserializeCombinatorContract(i, serializedCombinatorContract) {
 
         case "truncate": {
             let contract = combinator + " <";
-            contract += unixTimestampToDateString(serializedCombinatorContract[i + 1]) + "> ";
+            contract += moment.utc(serializedCombinatorContract[i + 1], UNIX_FORMAT, true).format(DATE_STRING_FORMAT) + "> ";
 
             let subRes = deserializeCombinatorContract(i + 2, serializedCombinatorContract);
 
@@ -839,14 +871,14 @@ export async function getCombinatorContract(contract, caller) {
         setupWeb3();
     }
 
-    return contract.methods.get_contract_definition().call({ from: caller}).then(res => {
+    return contract.methods.get_contract_definition().call({ from: caller }).then(res => {
         try {
             return deserializeCombinatorContract(0, res.returnValue0).getContract();
         } catch (err) {
-            return Promise.reject(err);
+            return Promise.reject("Getting combinator-contract failed: " + err.toString());
         }
     }, err => {
-        return Promise.reject(err);
+        return Promise.reject("Getting combinator-contract failed: " + err.toString());
     });
 }
 
@@ -863,6 +895,17 @@ export function isValidScaleValue(value) {
     var valueBN = web3.utils.toBN(value);
     // Check is number and in bounds
     return !(valueBN.gt(maxValue.sub(web3.utils.toBN(1))) || valueBN.lt(maxValue.neg()));
+}
+
+// Compare two horizons numerically, where undefined is greater than any numeric value.
+export function compareTime(a, b) {
+    if (a === undefined) {
+        return (b === undefined) ? 0 : 1;
+    } else if (b === undefined) {
+        return -1;
+    } else {
+        return a - b;
+    }
 }
 
 // Converts an array of bytes to an address

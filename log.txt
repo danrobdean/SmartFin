@@ -1143,4 +1143,56 @@ Plan for debugging the weird issue with 28-30 byte arrays being stored:
 
 
 
+========== 27 May ==========
+
+Writing the user manual and survey
+
+TODO:
+	- Should allow acquisition times to be selected in the past for evaluation of contract in the monitoring view, to evaluate contracts which have already been acquired.
+	- Display acquisition times as an inclusive range (options[i - 1] + 1 to options[i]), not just a single time (it's easy but much more obvious)
+	- Maybe show automatic acquisition times in prevvalues, and allow deleting/reselecting of it? (shouldn't be too hard, remove the automatic member, and don't go to next combinator in delete (which may already be the case))
+	- Evaluation by time-slice? (e.g. (obs_1 * 1 at 12:00) + (obs_2 * 1 at 16:00) Wei), would make estimating value of observables significantly easier
+	- Could display "current" evaluation time in prevvalues/current option
+
+
+
+========== 28 May ==========
+
+Was going to go to the project fair for feedback, but left as it was lifeless and also i dont think the "numbers from random people" approach to evaluation is really worthwhile, discussing with vaguely knowledgeable individuals is probably more useful (if less quantitative).
+
+Today:
+	- Show automatic acquisition times
+	- Show acquisition times as range of times
+	- Display current evaluation time on each prev value
+	- Evaluation by time slice
+	- Input date by shorthand in composition
+	- Sort out prod build
+
+Implemented:
+	- Automatic acquisition times shown and deletable/resettable (not that there's much point to doing that)
+		- Just removing the setAutomatically field of StepThroughValue, and the filter on the field in getPrevValues
+
+	- Input date by shorthand in composition
+		- Evaluator, make < [date] > detection more rigorous (detects number of elements between brackets, not relying on 2 elements only)
+		- Serializer in JS will detect pretty date in angle-brackets and convert it to a UNIX Epoch timestamp
+		- Use moment.js to ensure
+
+	- Found bug with anytime
+		- If anytime combinator has no horizon, does not allow acquisition after last time slice (e.g. anytime then truncate <01/01/2020 00:00:00> zero one, can never acquire one)
+		- Added undefined to TimeSlices to represent an infinite slice, e.g. truncate <01/01/2020 00:00:00> zero one has [01/01/2020 00:00:00, undefined] as its time slices.
+
+	- Show range of times for acquisition times, show current eval time on prev/current value/option, value by time slice
+		- Implementing a specific time-range class, which has a start and an end time (where applicable)
+		- Updated time-slices and evaluator to use time-ranges
+		- Updated time-slices tests
+		- Need to update evaluator tests and front-end (mainly just displaying the time-ranges)
+
+
+TODO:
+	- Finish updating times to time-ranges (evaluation tests and front-end)
+	- Update user manual screenshots (composition shorthand date)
+	- evaluation value by time slice
+
+
+
 

@@ -1,10 +1,11 @@
 import assert from "assert";
+import moment from "moment";
 
-import { dateToUnixTimestamp } from "./../src/js/contract-utils.mjs";
+import { DATE_STRING_FORMAT } from "./../src/js/contract-utils.mjs";
 import Evaluator from "./../src/js/evaluator.mjs";
 import StepThroughOptions from "./../src/js/step-through-options.mjs";
 
-describe('Evaluator tests', function() {
+describe.only('Evaluator tests', function() {
     const OR_CHOICE_OPTIONS = [true, false];
 
     var evaluator;
@@ -18,17 +19,17 @@ describe('Evaluator tests', function() {
     beforeEach(function() {
         evaluator = new Evaluator();
 
-        dateStringMin = "<01/01/2037, 12:34:56>";
-        dateStringMax = "<01/01/2038, 12:34:56>";
+        dateStringMin = "<01/01/2037 12:34:56>";
+        dateStringMax = "<01/01/2038 12:34:56>";
 
         dateUnixMin = evaluator._dateOrUnixToHorizon(dateStringMin);
         dateUnixMax = evaluator._dateOrUnixToHorizon(dateStringMax);
     });
 
     it('Converts a date string to a unix timestamp correctly', function() {
-        var dateString = "10/11/12, 01:23:45";
+        var dateString = "10/11/2012 01:23:45";
         var prettyDateString = "<" + dateString + ">";
-        var unix = dateToUnixTimestamp(new Date(dateString));
+        var unix = moment.utc(dateString, DATE_STRING_FORMAT, true).unix();
 
         assert.equal(evaluator._dateOrUnixToHorizon(prettyDateString), unix);
         assert.equal(evaluator._dateOrUnixToHorizon(unix), unix);
@@ -172,10 +173,10 @@ describe('Evaluator tests', function() {
         assert.notEqual(timeSlices, evaluator.getTimeSlices());
     });
 
-    it('No time slices for a contract not involving truncate', function() {
+    it('No time slices (besides infinite horizon) for a contract not involving truncate', function() {
         evaluator.setContract("anytime give get or one and scale 10 one then zero one");
 
-        assert.deepEqual(evaluator.getTimeSlices().getSlices(), []);
+        assert.deepEqual(evaluator.getTimeSlices().getSlices(), [undefined]);
     });
 
     it('Time slices for truncate are split in the correct place', function() {

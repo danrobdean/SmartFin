@@ -1,8 +1,7 @@
+import moment from "moment";
 import React from "react";
 
 import Message from "./message.jsx";
-
-import { dateToUnixTimestamp } from "./../js/contract-utils.mjs";
 
 
 /**
@@ -99,7 +98,7 @@ export default class TimeSelect extends React.Component {
         this.setState({
             timeErrorMsg: ""
         });
-        var dateTime = dateToUnixTimestamp(new Date([date, time].join(" ")));
+        var dateTime = moment.utc(date + " " + time).unix();
 
         this.props.returnTime(dateTime);
     }

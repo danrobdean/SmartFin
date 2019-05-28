@@ -1,17 +1,57 @@
+import TimeRange from "./time-range.mjs";
+
 /**
  * Represents a set of time slices, with several operations.
  */
 export default class TimeSlices {
     /**
-     * The set of time slices. Must remain sorted. Each time slice lasts up to and including the slice's value.
+     * The set of time slices. Must remain sorted, distinct, and start at 0.
      */
-    _slices = [];
+    _slices = [new TimeRange(0, undefined)];
 
     /**
      * Gets the set of time slices.
      */
     getSlices() {
         return this._slices.slice();
+    }
+
+    /**
+     * Gets the end time of the time slices set.
+     */
+    getEndTime() {
+        return this._slices[this._slices.length - 1].getEnd();
+    }
+
+    /**
+     * Splits a time slice at the given time.
+     * @param time The time to split a slice at.
+     */
+    split(time) {
+        var index = this._slices.findIndex(elem => elem.includes(time));
+        var oldRange;
+        if (index == -1) {
+            var endTime = this.getEndTime();
+            this._slices.push(new TimeRange(endTime + 1, time));
+        } else {
+            if (time === undefined) {
+                // undefined = non-finite time, cannot be split
+                return;
+            }
+
+            var oldRange = this._slices[index];
+
+            if (oldRange.getEnd() == time) {
+                // Already split at this time, so nothing more to do.
+                return;
+            }
+            var range0 = new TimeRange(oldRange.getStart(), time);
+            var range1 = new TimeRange(time + 1, oldRange.getEnd());
+    
+            this._slices.splice(index, 1);
+            this._slices.push(range0, range1);
+            this._slices.sort(TimeRange.compareRangeEnds);
+        }
     }
 
     /**
@@ -25,45 +65,30 @@ export default class TimeSlices {
             return;
         }
 
-        var index = this._slices.findIndex(elem => elem >= time);
-        if (index != -1) {
-            this._slices = this._slices.slice(0, index);
-        }
-
         this.split(time);
+        var index = this._slices.findIndex(elem => elem.includes(time));
+        this._slices = this._slices.slice(0, index + 1);
     }
 
     /**
-     * Cuts off the time slice set at the given time, removing all preceding slices, and splitting at the given time.
+     * Concatenates the time slice set up to the given time, combining all preceding slices, and splitting at the given time.
      * @param time 
      */
-    cutHead(time) {
+    concatHead(time) {
         // Undefined time is equivalent to an "infinite" horizon, so everything should be removed.
-        // For example, get truncate infinity c can only be acquired at infinity, so it should only have one time slice.
+        // For example, get one can only be acquired at infinity, so it should only have one time slice.
         if (time === undefined) {
             this._slices = [];
-            return;
-        }
-
-        var index = this._slices.findIndex(elem => elem >= time);
-        if (index != -1) {
-            this._slices.splice(0, index);
         } else {
-            this._slices = [];
+            // Split and remove preceding slices
+            this.split(time);
+    
+            var index = this._slices.findIndex(elem => elem.includes(time));
+            this._slices.splice(0, index + 1);
         }
 
-        this.split(time);
-    }
-
-    /**
-     * Splits a time slice at the given time.
-     * @param time The time to split a slice at.
-     */
-    split(time) {
-        if (!this._slices.includes(time)) {
-            this._slices.push(time);
-            this._slices.sort((a, b) => a - b);
-        }
+        // Add new concatenated slice
+        this._slices.unshift(new TimeRange(0, time));
     }
 
     /**
@@ -72,7 +97,7 @@ export default class TimeSlices {
      */
     merge(other) {
         for (var time of other.getSlices()) {
-            this.split(time);
+            this.split(time.getEnd());
         }
     }
 
@@ -81,20 +106,27 @@ export default class TimeSlices {
      * @param other The TimeSlices object to merge.
      */
     mergeAfter(other) {
-        var otherSlices = other.getSlices();
-
-        var startIndex;
-        if (this._slices.length > 0) {
-            startIndex = otherSlices.findIndex(elem => elem > this._slices[this._slices.length - 1])
-
-            if (startIndex == -1) {
-                return;
-            }
-        } else {
-            startIndex = 0;
+        var endTime = this.getEndTime();
+        if (other.getEndTime() < endTime) {
+            // Our time slices end after theirs, nothing to merge
+            return;
         }
 
-        for (var i = startIndex; i < otherSlices.length; i++) {
+        // Split other slices at our end time
+        var otherClone = other.clone();
+        otherClone.split(endTime);
+        var otherSlices = otherClone.getSlices();
+
+        // Delete every slice up to our end time in otherSlices
+        var startIndex;
+        startIndex = otherSlices.findIndex(elem => elem.includes(endTime));
+
+        if (startIndex == -1) {
+            // Time slices must start from 0, so their last time slice is before our last time slice
+            return;
+        }
+
+        for (var i = startIndex + 1; i < otherSlices.length; i++) {
             this._slices.push(otherSlices[i]);
         }
     }
@@ -106,5 +138,20 @@ export default class TimeSlices {
         var result = new TimeSlices();
         result._slices = this.getSlices();
         return result;
+    }
+
+    /**
+     * Gets the list of time slices that are valid at the given time (i.e. remove slices before this time).
+     * @param currentTime The current time.
+     */
+    getValidSlices(currentTime) {
+        var clone = this.clone();
+
+        // Split just before current time
+        clone.split(currentTime - 1);
+
+        // Remove ranges before current time
+        var nowIndex = clone._slices.findIndex(elem => elem.includes(currentTime));
+        return clone._slices.slice(nowIndex);
     }
 }

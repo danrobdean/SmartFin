@@ -1,4 +1,5 @@
 import assert from "assert";
+import moment from "moment";
 
 import { holder, uninvolved, counterParty, deploy, unlockAccounts } from "./common";
 import * as Utils from "../src/js/contract-utils.mjs";
@@ -6,7 +7,7 @@ import * as Utils from "../src/js/contract-utils.mjs";
 
 describe('Contract utility tests', function() {
     describe('Utility function tests', function() {
-        it('Correctly serializates/deserializes address', function() {
+        it('Correctly serializes/deserializes address', function() {
             var address = uninvolved.address;
             var serialized = Utils.serializeAddress(address);
             var deserialized = Utils.deserializeAddress(serialized);
@@ -65,26 +66,6 @@ describe('Contract utility tests', function() {
             nameDeserialized.shift();
 
             assert.equal(Utils.deserializeName(nameDeserialized), name);
-        });
-
-        it('Correctly converts a date to/from a unix timestamp', function() {
-            var testDates = [
-                new Date("1973-11-29 21:33:09 GMT"),
-                new Date("2001-04-19 04:25:21 GMT"),
-                new Date("2001-09-09 01:46:40 GMT"),
-                new Date("2038-01-19 00:00:00 GMT")
-            ];
-            var testUnix = [
-                123456789,
-                987654321,
-                1000000000,
-                2147472000
-            ];
-
-            for (var i = 0; i < testDates.length; i++) {
-                assert.equal(Utils.dateToUnixTimestamp(testDates[i]), testUnix[i]);
-                assert.equal(new Date(Utils.unixTimestampToDateString(testUnix[i])).toString(), testDates[i].toString());
-            }
         });
         
         it('Correctly validates an address', function() {
@@ -159,6 +140,13 @@ describe('Contract utility tests', function() {
             assert.deepEqual(contractSerialized, expectedSerialized);
         });
 
+        it('Correctly serializes a truncate combinator with a shorthand date', function() {
+            var time = "01/02/2003 12:34:56";
+            var contractSerialized = Utils.serializeCombinatorContract("truncate <" + time + "> one");
+            var expectedSerialized = [4, moment.utc(time, Utils.DATE_STRING_FORMAT, true).unix(), 1];
+            assert.deepEqual(contractSerialized, expectedSerialized);
+        });
+
         it('Correctly serializes an anytime combinator', function() {
             assert.deepEqual(Utils.serializeCombinatorContract("anytime one"), [9, 1]);
         });
@@ -216,7 +204,7 @@ describe('Contract utility tests', function() {
 
             assert.equal(
                 Utils.deserializeCombinatorContract(0, serialized).getContract(),
-                "truncate <" + Utils.unixTimestampToDateString(123456789) + "> one"
+                "truncate <" + moment.utc(123456789, Utils.UNIX_FORMAT, true).format(Utils.DATE_STRING_FORMAT) + "> one"
             );
         });
 
@@ -270,9 +258,37 @@ describe('Contract utility tests', function() {
             assert.notEqual(res.error, undefined);
         });
 
-        it('Does not verify a contract with an invalid date', function() {
+        it('Does not verify a contract with an invalid unix time', function() {
             var res = Utils.verifyContract("truncate -1 one");
 
+            assert.notEqual(res.error, undefined);
+        });
+
+        it('Does not verify a contract with a date with no angle-brackets', function() {
+            var time = "01/02/03 12:34:56";
+            var res = Utils.verifyContract("truncate " + time + " one");
+            
+            assert.notEqual(res.error, undefined);
+        });
+
+        it('Does not verify a contract with a date with no opening angle-bracket', function() {
+            var time = "01/02/03 12:34:56";
+            var res = Utils.verifyContract("truncate " + time + "> one");
+            
+            assert.notEqual(res.error, undefined);
+        });
+
+        it('Does not verify a contract with a date with no closing angle-bracket', function() {
+            var time = "01/02/03 12:34:56";
+            var res = Utils.verifyContract("truncate <" + time + " one");
+            
+            assert.notEqual(res.error, undefined);
+        });
+
+        it('Does not verify a contract with an invalid date string', function() {
+            var time = "date";
+            var res = Utils.verifyContract("truncate <" + time + "> one");
+            
             assert.notEqual(res.error, undefined);
         });
 
@@ -357,7 +373,7 @@ describe('Contract utility tests', function() {
     
             it('Correctly gets the last-updated time on the given contract', function() {
                 return Utils.getLastUpdated(contract, holder.address).then(function(res) {
-                    assert.equal(Utils.dateToUnixTimestamp(new Date()) - res < 2, true);
+                    assert.equal(moment.utc().unix() - res < 2, true);
                 });
             });
 
@@ -516,7 +532,7 @@ describe('Contract utility tests', function() {
                     return Utils.acquireSubContract(contract, holder.address, 0).then(function() {
                         return Utils.acquireSubContract(contract, holder.address, 1).then(function() {
                             return Utils.getAcquisitionTimes(contract, holder.address).then(function(res) {
-                                var unixTime = Utils.dateToUnixTimestamp(new Date());
+                                var unixTime = moment().utc().unix();
                                 var dateDifferences = res.map(elem => unixTime - elem.getValue());
 
                                 assert.equal(res.every(elem => elem.isDefined()), true);

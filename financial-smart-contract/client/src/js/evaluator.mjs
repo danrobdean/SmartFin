@@ -1,7 +1,10 @@
-import { dateToUnixTimestamp } from "./contract-utils.mjs";
+import moment from "moment";
+
+import { DATE_STRING_FORMAT, compareTime } from "./contract-utils.mjs";
 import NextMap from "./next-map.mjs";
 import StepThroughOptions from "./step-through-options.mjs";
 import StepThroughValue from "./step-through-value.mjs";
+import TimeRange from "./time-range.mjs";
 import TimeSlices from "./time-slices.mjs";
 
 /**
@@ -105,14 +108,6 @@ export default class Evaluator {
         this.horizon = result.horizon;
         this.timeSlices = result.timeSlices;
         this.anytimeTimeSlices = result.anytimeTimeSlices;
-
-        // // Set initial acquisition time to now if it makes no difference
-        // var timeSlices = this.timeSlices.getSlices();
-        // if (timeSlices.length == 0) {
-        //     this.setStepThroughOption(dateToUnixTimestamp(new Date()), true);
-        // } else if (timeSlices.length == 1) {
-        //     this.setStepThroughOption(timeSlices[0], true);
-        // }
     }
 
     /**
@@ -151,16 +146,15 @@ export default class Evaluator {
      */
     getPrevValues() {
         if (this.stepThroughValues) {
-            return this.stepThroughValues.filter(elem => !elem.setAutomatically);
+            return this.stepThroughValues;
         }
     }
 
     /**
      * Sets the current step-through evaluation option.
      * @param option The input option for the current input-reliant combinator.
-     * @param automatic Whether or not this value is being set automatically or manually.
      */
-    setStepThroughOption(option, automatic=false) {
+    setStepThroughOption(option) {
         if (!this.contract) {
             throw "Can't evaluate with no defined contract.";
         }
@@ -168,7 +162,7 @@ export default class Evaluator {
         // Set the step through option and increment the combinator-index to the start of the next contract
         if (this.stepThroughIndex == 0) {
             // Set the top-level acquisition time
-            this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex, -1, automatic));
+            this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex, -1));
 
             this.stepThroughCombinatorIndex += 1;
             this.stepThroughAcquisitionTimeIndex += 1;
@@ -176,7 +170,7 @@ export default class Evaluator {
         } else {
             switch (this.combinators[this.stepThroughCombinatorIndex].toLowerCase()) {
                 case "or":
-                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_OR_CHOICE, option, this.stepThroughCombinatorIndex, this.stepThroughOrIndex, automatic));
+                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_OR_CHOICE, option, this.stepThroughCombinatorIndex, this.stepThroughOrIndex));
 
                     this.stepThroughCombinatorIndex += 1;
 
@@ -189,7 +183,7 @@ export default class Evaluator {
                     break;
 
                 case "anytime":
-                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ANYTIME_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex, this.stepThroughAcquisitionTimeIndex - 1, automatic));
+                    this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_ANYTIME_ACQUISITION_TIME, option, this.stepThroughCombinatorIndex, this.stepThroughAcquisitionTimeIndex - 1));
 
                     // Move on to sub-combinator.
                     this.stepThroughCombinatorIndex += 1;
@@ -260,22 +254,15 @@ export default class Evaluator {
         }
 
         if (this.stepThroughIndex == 0) {
-            var slices = this.timeSlices.getSlices();
+            var unixNow = moment.utc().unix();
+            var horizon = this.timeSlices.getEndTime();
+            var slices = this.timeSlices.getValidSlices(unixNow);
 
-            // Remove time slices before the current time
-            var unixNow = dateToUnixTimestamp(new Date());
-            var index = slices.findIndex(elem => elem >= unixNow);
-            if (index == -1) {
-                slices = [];
+            // Add option after horizon (if one exists), or for current time if no slices
+            if (slices.length != 0 && horizon !== undefined) {
+                slices.push(new TimeRange(horizon, undefined));
             } else {
-                slices = slices.slice(index);
-            }
-
-            // Add option after horizon, orfor current time if no slices
-            if (slices.length != 0) {
-                slices.push(slices[slices.length - 1] + 1);
-            } else {
-                slices.push(unixNow);
+                slices.push(new TimeRange(unixNow, undefined));
             }
 
             return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, slices, this.stepThroughCombinatorIndex, -1);
@@ -287,14 +274,7 @@ export default class Evaluator {
 
             case "anytime":
                 // Cut off the time-slice options by the current sub-contract's acquisition time
-                var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getSlices();
-                var index = timeSlices.findIndex(elem => elem >= this.stepThroughTime);
-                if (index == -1) {
-                    // No time slices, so either expired (not possible here) or makes no difference
-                    timeSlices = [];
-                } else {
-                    timeSlices = timeSlices.slice(index);
-                }
+                var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getValidSlices(this.stepThroughTime);
 
                 return new StepThroughOptions(StepThroughOptions.TYPE_ANYTIME_ACQUISITION_TIME, timeSlices, this.stepThroughCombinatorIndex, this.stepThroughAcquisitionTimeIndex - 1);
 
@@ -361,9 +341,11 @@ export default class Evaluator {
                 var subHorizonRes;
 
                 if (this.combinators[i + 1].indexOf("<") != -1) {
-                    // Time is pretty date string, will be split up into 2 elements
-                    horizon = this._dateOrUnixToHorizon(this.combinators.slice(i + 1, i + 3).join(", "));
-                    subHorizonRes = this._processCombinators(i + 3);
+                    // Time is pretty date string, find closing bracket
+                    var closeIndex = this.combinators.slice(i + 1).findIndex(elem => elem.indexOf(">") != -1) + i + 1;
+
+                    horizon = this._dateOrUnixToHorizon(this.combinators.slice(i + 1, closeIndex + 1).join(" "));
+                    subHorizonRes = this._processCombinators(closeIndex + 1);
                 } else {
                     // Time is unix
                     horizon = this._dateOrUnixToHorizon(this.combinators[i + 1]);
@@ -479,10 +461,10 @@ export default class Evaluator {
 
                             if (this._horizonLaterThan(this.stepThroughTime, subHorizon0)) {
                                 // First sub-contract expired, make choice for second sub-combinator
-                                return this.setStepThroughOption(false, true);
+                                return this.setStepThroughOption(false);
                             } else if (this._horizonLaterThan(this.stepThroughTime, subHorizon1)) {
                                 // Second sub-contract expired, make choice for first sub-combinator
-                                return this.setStepThroughOption(true, true);
+                                return this.setStepThroughOption(true);
                             }
                         } else {
                             // ANYTIME combinator, check if only one acquisition time, in which case make choice
@@ -497,9 +479,9 @@ export default class Evaluator {
 
                             if (timeSlices.length == 0) {
                                 // No choices to be made, make choice and move on
-                                return this.setStepThroughOption(this.stepThroughTime, true);
+                                return this.setStepThroughOption(this.stepThroughTime);
                             } else if (timeSlices.length == 1) {
-                                return this.setStepThroughOption(timeSlices[0], true);
+                                return this.setStepThroughOption(timeSlices[0]);
                             }
                         }
                         foundValidInputReliantCombinator = true;
@@ -589,8 +571,10 @@ export default class Evaluator {
 
             case "truncate":
                 // Already checked for horizon, so can just return sub-result
-                if (this.combinators[i + 1].indexOf('<') != -1) {
-                    return this._stepThroughEvaluate(i + 3, time, values);
+                if (this.combinators[i + 1].indexOf("<") != -1) {
+                    var closeIndex = this.combinators.slice(i + 1).findIndex(elem => elem.indexOf(">") != -1) + i + 1;
+                    
+                    return this._stepThroughEvaluate(closeIndex + 1, time, values);
                 } else {
                     return this._stepThroughEvaluate(i + 2, time, values);
                 }
@@ -676,13 +660,7 @@ export default class Evaluator {
      * @param h1 The second horizon.
      */
     _horizonLaterThan(h0, h1) {
-        if (h1 === undefined) {
-            return false;
-        } else if (h0 === undefined) {
-            return true;
-        } else {
-            return h0 > h1;
-        }
+        return compareTime(h0, h1) > 0;
     }
 
     /**
@@ -722,7 +700,7 @@ export default class Evaluator {
         if (typeof date == "string") {
             // If date is angle-bracketed, remove them
             if (date.indexOf("<") != -1) {
-                date = dateToUnixTimestamp(new Date(date.slice(1, -1)));
+                date = moment.utc(date.slice(1, -1), DATE_STRING_FORMAT, true).unix();
             }
 
             // Return date as int, not string

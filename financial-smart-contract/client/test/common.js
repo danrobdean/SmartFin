@@ -1,4 +1,6 @@
-import { setupWeb3, loadAndDeployContract, serializeCombinatorContract, dateToUnixTimestamp, unlockAccount } from "./../src/js/contract-utils.mjs";
+import moment from "moment";
+
+import { setupWeb3, loadAndDeployContract, serializeCombinatorContract, unlockAccount } from "./../src/js/contract-utils.mjs";
 
 // The deployed smart contract instance
 export var web3 = setupWeb3();
@@ -38,7 +40,7 @@ export function deploy(contractDefinition, useGas=true) {
 
 // Get the current UNIX time
 export function getUnixTime() {
-    return dateToUnixTimestamp(new Date());
+    return moment.utc().unix();
 }
 
 // Unlock accounts before all tests

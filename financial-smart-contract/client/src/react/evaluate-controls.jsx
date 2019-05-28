@@ -1,11 +1,11 @@
+import moment from "moment";
 import React from "react";
 
-import { unixTimestampToDateString } from "./../js/contract-utils.mjs";
+import { UNIX_FORMAT, DATE_STRING_FORMAT } from "./../js/contract-utils.mjs";
 import DropDown from "./drop-down.jsx";
 import Message from "./message.jsx";
 import StepThroughOptions from "./../js/step-through-options.mjs";
 import StepThroughValue from "./../js/step-through-value.mjs";
-import { dateToUnixTimestamp } from "../js/contract-utils.mjs";
 
 /**
  * Represents the controls for evaluating a contract.
@@ -107,7 +107,7 @@ export default class EvaluateControls extends React.Component {
 
             var text = (this.state.options.type == StepThroughOptions.TYPE_OR_CHOICE)
                 ? ((option) ? "First" : "Second") + " sub-contract"
-                : unixTimestampToDateString(option);
+                : moment.utc(option, UNIX_FORMAT, true).format(DATE_STRING_FORMAT);
 
             if (this.state.options.type == StepThroughOptions.TYPE_ACQUISITION_TIME && i == options.length - 1) {
                 text += "...";
@@ -185,7 +185,7 @@ export default class EvaluateControls extends React.Component {
                         </span>
 
                         <span className={EvaluateControls.blockName + "__prev-value"}>
-                            <em>{unixTimestampToDateString(prevValue.value)}</em>
+                            <em>{moment.utc(prevValue.value, UNIX_FORMAT, true).format(DATE_STRING_FORMAT)}</em>
                         </span>
 
                         <button
