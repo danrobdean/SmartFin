@@ -1163,7 +1163,6 @@ Was going to go to the project fair for feedback, but left as it was lifeless an
 Today:
 	- Show automatic acquisition times
 	- Show acquisition times as range of times
-	- Display current evaluation time on each prev value
 	- Evaluation by time slice
 	- Input date by shorthand in composition
 	- Sort out prod build
@@ -1193,6 +1192,35 @@ TODO:
 	- Update user manual screenshots (composition shorthand date)
 	- evaluation value by time slice
 
+
+
+
+========== 29 May ==========
+
+Finishing the time-range implementation of time-slices:
+	- Updated rest of evaluator to make everything use time-range
+	- Renamed TimeRange to TimeSlice
+	- Updated evaluate-controls
+
+Evaluation value by time slice:
+	- Observable values, need to know what time they are acquired (the scale combinator) to know what time to estimate
+	- Scale values, don't need to know what time they are acquired as they don't change over time, and only multiply the one combinator
+	- One combinators, need to know when acquired bc that will be the time the payment actually occurs (or occurs retroactively after this time)
+
+Implementing:
+	- Moved StepThroughEvaluationResult into own file
+	- Refactored StepThroughEvaluationResult to do a recursive stack-based evaluation (much cleaner and better designed), wei output string is slightly different (better order, different (correct) bracketing)
+	- Adding time-slice info to step through evaluation result
+	- Updated evaluate-controls
+
+Allow setting of acquisition times in past on monitoring evaluate screen
+	- Added includePast prop to evaluate-controls, and includePast param to getNextStepThroughOptions
+
+Fixed timezone issue, now allow specification of timezone (parser tries with and without), all times are represented as UTC (including passed-in times by default).
+
+TODO:
+	- Update user manual
+	- Figure out build stuff 
 
 
 

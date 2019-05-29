@@ -40,7 +40,7 @@ export function deploy(contractDefinition, useGas=true) {
 
 // Get the current UNIX time
 export function getUnixTime() {
-    return moment.utc().unix();
+    return moment().unix();
 }
 
 // Unlock accounts before all tests

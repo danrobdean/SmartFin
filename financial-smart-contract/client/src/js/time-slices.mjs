@@ -1,4 +1,4 @@
-import TimeRange from "./time-range.mjs";
+import TimeSlice from "./time-slice.mjs";
 
 /**
  * Represents a set of time slices, with several operations.
@@ -7,7 +7,7 @@ export default class TimeSlices {
     /**
      * The set of time slices. Must remain sorted, distinct, and start at 0.
      */
-    _slices = [new TimeRange(0, undefined)];
+    _slices = [new TimeSlice(0, undefined)];
 
     /**
      * Gets the set of time slices.
@@ -32,7 +32,7 @@ export default class TimeSlices {
         var oldRange;
         if (index == -1) {
             var endTime = this.getEndTime();
-            this._slices.push(new TimeRange(endTime + 1, time));
+            this._slices.push(new TimeSlice(endTime + 1, time));
         } else {
             if (time === undefined) {
                 // undefined = non-finite time, cannot be split
@@ -45,12 +45,12 @@ export default class TimeSlices {
                 // Already split at this time, so nothing more to do.
                 return;
             }
-            var range0 = new TimeRange(oldRange.getStart(), time);
-            var range1 = new TimeRange(time + 1, oldRange.getEnd());
+            var range0 = new TimeSlice(oldRange.getStart(), time);
+            var range1 = new TimeSlice(time + 1, oldRange.getEnd());
     
             this._slices.splice(index, 1);
             this._slices.push(range0, range1);
-            this._slices.sort(TimeRange.compareRangeEnds);
+            this._slices.sort(TimeSlice.compareRangeEnds);
         }
     }
 
@@ -88,7 +88,7 @@ export default class TimeSlices {
         }
 
         // Add new concatenated slice
-        this._slices.unshift(new TimeRange(0, time));
+        this._slices.unshift(new TimeSlice(0, time));
     }
 
     /**
@@ -148,6 +148,9 @@ export default class TimeSlices {
         var clone = this.clone();
 
         // Split just before current time
+        if (this.getEndTime() < currentTime) {
+            return [];
+        }
         clone.split(currentTime - 1);
 
         // Remove ranges before current time

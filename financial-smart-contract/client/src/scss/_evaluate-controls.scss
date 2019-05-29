@@ -29,6 +29,8 @@
 
 .evaluate-controls__options-input {
     font-size: 1.2em;
+    min-width: 27em;
+    margin: 0 1em;
 }
 
 .evaluate-controls__prev-value-label,
@@ -48,6 +50,11 @@
     align-items: center;
     justify-content: space-between;
 
+    width: 100%;
+    margin-bottom: 1em;
+}
+
+.evaluate-controls__show-times-input {
     width: 100%;
     margin-bottom: 1em;
 }

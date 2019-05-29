@@ -143,6 +143,13 @@ describe('Contract utility tests', function() {
         it('Correctly serializes a truncate combinator with a shorthand date', function() {
             var time = "01/02/2003 12:34:56";
             var contractSerialized = Utils.serializeCombinatorContract("truncate <" + time + "> one");
+            var expectedSerialized = [4, moment.utc(time, Utils.DATE_STRING_NO_ZONE_FORMAT, true).unix(), 1];
+            assert.deepEqual(contractSerialized, expectedSerialized);
+        });
+
+        it('Correctly serializes a truncate combinator with a shorthand date and timezone', function() {
+            var time = "01/02/2003 12:34:56 +00:00";
+            var contractSerialized = Utils.serializeCombinatorContract("truncate <" + time + "> one");
             var expectedSerialized = [4, moment.utc(time, Utils.DATE_STRING_FORMAT, true).unix(), 1];
             assert.deepEqual(contractSerialized, expectedSerialized);
         });
@@ -373,7 +380,7 @@ describe('Contract utility tests', function() {
     
             it('Correctly gets the last-updated time on the given contract', function() {
                 return Utils.getLastUpdated(contract, holder.address).then(function(res) {
-                    assert.equal(moment.utc().unix() - res < 2, true);
+                    assert.equal(moment().unix() - res < 2, true);
                 });
             });
 
@@ -532,7 +539,7 @@ describe('Contract utility tests', function() {
                     return Utils.acquireSubContract(contract, holder.address, 0).then(function() {
                         return Utils.acquireSubContract(contract, holder.address, 1).then(function() {
                             return Utils.getAcquisitionTimes(contract, holder.address).then(function(res) {
-                                var unixTime = moment().utc().unix();
+                                var unixTime = moment.utc().utc().unix();
                                 var dateDifferences = res.map(elem => unixTime - elem.getValue());
 
                                 assert.equal(res.every(elem => elem.isDefined()), true);

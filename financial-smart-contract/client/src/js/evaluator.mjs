@@ -1,10 +1,11 @@
 import moment from "moment";
 
-import { DATE_STRING_FORMAT, compareTime } from "./contract-utils.mjs";
+import { UNIX_FORMAT, DATE_STRING_FORMAT, DATE_STRING_NO_ZONE_FORMAT, compareTime } from "./contract-utils.mjs";
 import NextMap from "./next-map.mjs";
+import StepThroughEvaluationResult from "./step-through-evaluation-result.mjs";
 import StepThroughOptions from "./step-through-options.mjs";
 import StepThroughValue from "./step-through-value.mjs";
-import TimeRange from "./time-range.mjs";
+import TimeSlice from "./time-slice.mjs";
 import TimeSlices from "./time-slices.mjs";
 
 /**
@@ -112,8 +113,9 @@ export default class Evaluator {
 
     /**
      * If the step-through of the contract is concluded, evaluate the value based on the options provided.
+     * @param showTimes Whether or not to show acquisition times in the result string.
      */
-    evaluate() {
+    evaluate(showTimes) {
         if (!this.contract) {
             throw "Can't evaluate with no defined contract.";
         }
@@ -131,7 +133,7 @@ export default class Evaluator {
         var time = options.shift().value;
         var res = this._stepThroughEvaluate(0, time, options);
 
-        return res.getValue();
+        return res.getValue(showTimes);
     }
 
     /**
@@ -243,8 +245,9 @@ export default class Evaluator {
 
     /**
      * Gets the options for the next step of evaluating the financial contract.
+     * @param includePast Whether or not to return acquisition time options in the past.
      */
-    getNextStepThroughOptions() {
+    getNextStepThroughOptions(includePast) {
         if (!this.contract) {
             throw "Can't evaluate with no defined contract.";
         }
@@ -254,15 +257,15 @@ export default class Evaluator {
         }
 
         if (this.stepThroughIndex == 0) {
-            var unixNow = moment.utc().unix();
+            var unixNow = moment().unix();
+            var slices = (includePast) ? this.timeSlices.getSlices() : this.timeSlices.getValidSlices(unixNow);
             var horizon = this.timeSlices.getEndTime();
-            var slices = this.timeSlices.getValidSlices(unixNow);
 
-            // Add option after horizon (if one exists), or for current time if no slices
-            if (slices.length != 0 && horizon !== undefined) {
-                slices.push(new TimeRange(horizon, undefined));
-            } else {
-                slices.push(new TimeRange(unixNow, undefined));
+            // Add option at current time/after horizon (if one exists)
+            if (!includePast && this._horizonLaterThan(unixNow, horizon)) {
+                slices.push(new TimeSlice(unixNow, undefined));
+            } else if (horizon !== undefined) {
+                slices.push(new TimeSlice(horizon + 1, undefined));
             }
 
             return new StepThroughOptions(StepThroughOptions.TYPE_ACQUISITION_TIME, slices, this.stepThroughCombinatorIndex, -1);
@@ -274,7 +277,7 @@ export default class Evaluator {
 
             case "anytime":
                 // Cut off the time-slice options by the current sub-contract's acquisition time
-                var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getValidSlices(this.stepThroughTime);
+                var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getValidSlices(this.stepThroughTime.getStart());
 
                 return new StepThroughOptions(StepThroughOptions.TYPE_ANYTIME_ACQUISITION_TIME, timeSlices, this.stepThroughCombinatorIndex, this.stepThroughAcquisitionTimeIndex - 1);
 
@@ -344,11 +347,11 @@ export default class Evaluator {
                     // Time is pretty date string, find closing bracket
                     var closeIndex = this.combinators.slice(i + 1).findIndex(elem => elem.indexOf(">") != -1) + i + 1;
 
-                    horizon = this._dateOrUnixToHorizon(this.combinators.slice(i + 1, closeIndex + 1).join(" "));
+                    horizon = this._dateToUnix(this.combinators.slice(i + 1, closeIndex + 1).join(" "));
                     subHorizonRes = this._processCombinators(closeIndex + 1);
                 } else {
                     // Time is unix
-                    horizon = this._dateOrUnixToHorizon(this.combinators[i + 1]);
+                    horizon = moment.utc(this.combinators[i + 1], UNIX_FORMAT, true).unix();
                     subHorizonRes = this._processCombinators(i + 2);
                 }
 
@@ -371,7 +374,7 @@ export default class Evaluator {
 
                 // Cut off time slice before horizon, as acquiring get c before H(c)
                 // will acquire c at H(c), so the time c is acquired makes no difference.
-                subHorizonRes.timeSlices.cutHead(subHorizonRes.horizon);
+                subHorizonRes.timeSlices.concatHead(subHorizonRes.horizon);
 
                 return subHorizonRes;
 
@@ -438,7 +441,7 @@ export default class Evaluator {
                     break;
 
                 case "then":
-                    if (this._horizonLaterThan(this.stepThroughTime, this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex + 1))) {
+                    if (this._horizonLaterThan(this.stepThroughTime.getStart(), this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex + 1))) {
                         this.stepThroughCombinatorIndex = this.combinatorTailIndexMap.getNextValue(this.stepThroughCombinatorIndex + 1);
                     } else {
                         this.stepThroughCombinatorIndex += 1;
@@ -448,7 +451,7 @@ export default class Evaluator {
                 
                 case "or":
                 case "anytime":
-                    if (this._horizonLaterThan(this.stepThroughTime, this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex))) {
+                    if (this._horizonLaterThan(this.stepThroughTime.getStart(), this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex))) {
                         // Combinator has expired, don't bother setting it and move on
                         this._tryRevisitOrEndStepThrough();
                     } else {
@@ -459,17 +462,17 @@ export default class Evaluator {
 
                             var subHorizon1 = this.combinatorHorizonMap.tryGetNextValue(tail0);
 
-                            if (this._horizonLaterThan(this.stepThroughTime, subHorizon0)) {
+                            if (this._horizonLaterThan(this.stepThroughTime.getStart(), subHorizon0)) {
                                 // First sub-contract expired, make choice for second sub-combinator
                                 return this.setStepThroughOption(false);
-                            } else if (this._horizonLaterThan(this.stepThroughTime, subHorizon1)) {
+                            } else if (this._horizonLaterThan(this.stepThroughTime.getStart(), subHorizon1)) {
                                 // Second sub-contract expired, make choice for first sub-combinator
                                 return this.setStepThroughOption(true);
                             }
                         } else {
                             // ANYTIME combinator, check if only one acquisition time, in which case make choice
                             var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getSlices();
-                            var index = timeSlices.findIndex(elem => elem >= this.stepThroughTime);
+                            var index = timeSlices.findIndex(elem => elem.getEnd() >= this.stepThroughTime.getStart());
 
                             if (index == -1) {
                                 timeSlices = [];
@@ -490,13 +493,14 @@ export default class Evaluator {
                     break;
 
                 case "get":
-                    // Update time to horizon of GET if it's greater than the current time, then fall through
+                    // Update time to horizon of GET if it's greater than the current time
                     var horizon = this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex);
-                    if (horizon === undefined) {
+                    if (horizon === undefined || this._horizonLaterThan(this.stepThroughTime.getStart(), horizon)) {
                         // Get combinator will never be acquired, so no need to continue setting options
                         this._tryRevisitOrEndStepThrough();
                     } else {
-                        this.stepThroughTime = this._getMaxHorizon(this.stepThroughTime, horizon);
+                        // Set current time slice to instant at horizon
+                        this.stepThroughTime = new TimeSlice(horizon, horizon)
                         this.stepThroughCombinatorIndex += 1;
                     }
 
@@ -514,7 +518,7 @@ export default class Evaluator {
                     // passed and the sub-contract is worthless, the sub-contract has ended
                     var subContractEnd =
                         ["zero", "one"].includes(this.combinators[this.stepThroughCombinatorIndex].toLowerCase())
-                        || this._horizonLaterThan(this.stepThroughTime, this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex));
+                        || this._horizonLaterThan(this.stepThroughTime.getStart(), this.combinatorHorizonMap.tryGetNextValue(this.stepThroughCombinatorIndex));
 
                     if (!subContractEnd) {
                         this.stepThroughCombinatorIndex += 1;
@@ -550,16 +554,16 @@ export default class Evaluator {
      */
     _stepThroughEvaluate(i, time, values) {
         // If this contract has expired, return 0.
-        if (this._horizonLaterThan(time, this.combinatorHorizonMap.tryGetNextValue(i))) {
-            return new StepThroughEvaluationResult(0);
+        if (this._horizonLaterThan(time.getStart(), this.combinatorHorizonMap.tryGetNextValue(i))) {
+            return new StepThroughEvaluationResult(0, time);
         }
 
         switch (this.combinators[i].toLowerCase()) {
             case "zero":
-                return new StepThroughEvaluationResult(0);
+                return new StepThroughEvaluationResult(0, time);
 
             case "one":
-                return new StepThroughEvaluationResult(1);
+                return new StepThroughEvaluationResult(1, time);
 
             case "give":
                 var subRes = this._stepThroughEvaluate(i + 1, time, values);
@@ -585,7 +589,7 @@ export default class Evaluator {
                 if (isNaN(this.combinators[i + 1])) {
                     // Combinator has observable value
                     subRes = this._stepThroughEvaluate(i + 3, time, values);
-                    subRes.addObservable(this.combinators[i + 1]);
+                    subRes.addObservable(this.combinators[i + 1], time);
                 } else {
                     subRes = this._stepThroughEvaluate(i + 2, time, values);
 
@@ -601,7 +605,7 @@ export default class Evaluator {
                 if (horizon === undefined) {
                     return new StepThroughEvaluationResult(0);
                 } else {
-                    return this._stepThroughEvaluate(i + 1, horizon, values);
+                    return this._stepThroughEvaluate(i + 1, new TimeSlice(horizon, horizon), values);
                 }
 
             case "anytime":
@@ -643,7 +647,7 @@ export default class Evaluator {
                 var nextI = i + 1;
 
                 // If first sub-contract expired, check second sub-contract
-                if (this._horizonLaterThan(time, this.combinatorHorizonMap.tryGetNextValue(nextI))) {
+                if (this._horizonLaterThan(time.getStart(), this.combinatorHorizonMap.tryGetNextValue(nextI))) {
                     nextI = this.combinatorTailIndexMap.getNextValue(nextI);
                 }
 
@@ -695,21 +699,17 @@ export default class Evaluator {
      * Converts a pretty-printed date or a unix timestamp to a horizon number.
      * @param date The pretty-printed date or unix timestamp.
      */
-    _dateOrUnixToHorizon(date) {
-        // If date is a pretty string or unix timestring, process it into a unix timestamp
-        if (typeof date == "string") {
-            // If date is angle-bracketed, remove them
-            if (date.indexOf("<") != -1) {
-                date = moment.utc(date.slice(1, -1), DATE_STRING_FORMAT, true).unix();
-            }
-
-            // Return date as int, not string
-            date = parseInt(date);
+    _dateToUnix(date) {
+        // If date is angle-bracketed, remove them
+        if (date.indexOf("<") != -1) {
+            date = date.slice(1, -1);
         }
 
-        // If date is `undefined`, or a number, just return it
+        // Validate and format to unix time
+        date = moment.utc(date, [DATE_STRING_FORMAT, DATE_STRING_NO_ZONE_FORMAT], true);
 
-        return date;
+        // Return date as int, not string
+        return date.unix();
     }
 
     /**
@@ -795,113 +795,5 @@ class StepThroughRevisitAndEntry {
     constructor(combinatorIndex, time) {
         this.combinatorIndex = combinatorIndex;
         this.time = time;
-    }
-}
-
-/**
- * Class representing the intermediate result of a step-through evaluation.
- */
-class StepThroughEvaluationResult {
-    /**
-     * The concrete value of this result, before multiplication by observable values.
-     */
-    value;
-
-    /**
-     * The prefix for observable values.
-     */
-    obsPrefixes = [];
-
-    /**
-     * The current scalar by which the value is multiplied.
-     */
-    scalar = 1;
-
-    /**
-     * Initialises a new instance of this class.
-     * @param value The concrete value of evaluation before multiplication by observable values.
-     */
-    constructor(value) {
-        this.value = value;
-    }
-
-    /**
-     * Gets the value of this result.
-     */
-    getValue() {
-        var valueString;
-        if (!isNaN(this.value)) {
-            valueString = this.getNumericValue();
-        } else {
-            var prefix;
-
-            if (this.scalar == 1) {
-                prefix = "";
-            } else {
-                prefix = this.scalar.toString() + " * ";
-            }
-
-            valueString = prefix + this.value;
-        }
-
-        return this.obsPrefixes.join("") + valueString;
-    }
-
-    /**
-     * Gets the value of this result with brackets if appropriate.
-     */
-    getBracketedValue() {
-        var value = this.getValue();
-        
-        if (isNaN(value)) {
-            value = "(" + value + ")";
-        }
-
-        return value;
-    }
-
-    /**
-     * Returns the concrete value multiplied by the scalar.
-     */
-    getNumericValue() {
-        return this.value * this.scalar;
-    }
-
-    /**
-     * Multiply the concrete value by a scalar.
-     * @param scalar The scalar to multiply the concrete value by.
-     */
-    multiplyByScalar(scalar) {
-        this.scalar *= scalar;
-    }
-
-    /**
-     * Add an observable index to the list of observables which are factors in the final result.
-     * @param obsName The observable name.
-     */
-    addObservable(obsName) {
-        this.obsPrefixes.push(obsName + " * ");
-    }
-
-    /**
-     * Adds another step-through evaluation result to this one.
-     */
-    add(other) {
-        if (!isNaN(this.getValue()) && !isNaN(other.getValue())) {
-            // Can add two numeric values directly
-            var value = this.getNumericValue();
-            var otherValue = other.getNumericValue();
-
-            this.value = value + otherValue;
-            this.scalar = 1;
-        } else {
-            // At least one has observable factors, bracket them
-            var value = this.getBracketedValue();
-            var otherValue = other.getBracketedValue();
-
-            this.value = value + " + " + otherValue;
-            this.scalar = 1;
-            this.obsPrefixes = [];
-        }
     }
 }

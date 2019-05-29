@@ -167,7 +167,11 @@ export default class Monitoring extends React.Component {
                 </Modal>
 
                 <Modal title="Evaluate Contract" closeModal={() => this.closeModals()} visible={this.state.evaluateOpen}>
-                    <EvaluateControls evaluator={this.props.evaluator} contract={this.state.combinatorContract} ref={r => this.evaluateControls = r}/>
+                    <EvaluateControls
+                        evaluator={this.props.evaluator}
+                        contract={this.state.combinatorContract}
+                        ref={r => this.evaluateControls = r}
+                        includePast={true}/>
                 </Modal>
 
                 <div className={Monitoring.blockName + "__size-container"}>

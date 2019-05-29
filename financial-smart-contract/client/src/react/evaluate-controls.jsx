@@ -22,9 +22,15 @@ export default class EvaluateControls extends React.Component {
     optionSelect;
 
     /**
+     * The show times checkbox.
+     */
+    showTimesInput;
+
+    /**
      * Initialises a new instance of this class.
      * @param props.contract The contract definition string.
      * @param props.evaluator The evaluator instance.
+     * @param props.includePast Whether or not to allow selection of acquisition times in the past.
      */
     constructor(props) {
         super(props);
@@ -33,9 +39,34 @@ export default class EvaluateControls extends React.Component {
             options: undefined,
             prevValues: undefined,
             value: undefined,
+            showTimes: false,
             contractEvaluationError: "",
             contractEvaluationErrorDetails: ""
         };
+    }
+
+    /**
+     * Gets the label for a step-through option or value.
+     * @param index The option's associated index.
+     * @param type The type of step-through option or value.
+     */
+    static getLabel(index, type, isOption) {
+        var label;
+        var acquisitionTimeType = (isOption) ? StepThroughOptions.TYPE_ACQUISITION_TIME : StepThroughValue.TYPE_ACQUISITION_TIME;
+        var anytimeAcquisitionTimeType = (isOption) ? StepThroughOptions.TYPE_ANYTIME_ACQUISITION_TIME : StepThroughValue.TYPE_ANYTIME_ACQUISITION_TIME;
+        var orChoiceType = (isOption) ? StepThroughOptions.TYPE_OR_CHOICE : StepThroughValue.TYPE_OR_CHOICE;
+
+        if (type == acquisitionTimeType) {
+            label = "Contract Acquisition-Time:";
+        } else if (type == anytimeAcquisitionTimeType) {
+            label = "Anytime " + index + " Acquisition Time:";
+        } else if (type == orChoiceType) {
+            label = "Or " + index + " Choice:";
+        } else {
+            throw "Unexpected option/value type: " + type;
+        }
+
+        return label;
     }
 
     /**
@@ -73,6 +104,19 @@ export default class EvaluateControls extends React.Component {
                     {noInputMessage}
                 </div>
 
+                <div className={EvaluateControls.blockName + "__show-times-input"}>
+                    <label>
+                        <input
+                            className={EvaluateControls.blockName + "__show-times-checkbox"}
+                            type="checkbox"
+                            ref={r => this.showTimesInput = r}
+                            checked={this.state.showTimes}
+                            onChange={() => this.handleShowTimesChange()}/>
+
+                        Show acquisition times for observables and payments.
+                    </label>
+                </div>
+
                 <button
                     className={EvaluateControls.blockName + "__evaluate-button"}
                     onClick={() => this.evaluate()}
@@ -82,7 +126,7 @@ export default class EvaluateControls extends React.Component {
 
                 {Message.renderError(this.state.contractEvaluationError, this.state.contractEvaluationErrorDetails, messageClassName)}
                 {Message.renderSuccess(
-                    (this.state.value) ? "Contract Value: " + this.state.value.toString() + " Wei" : "",
+                    (this.state.value) ? "Contract Value: " + this.state.value.toString() : "",
                     undefined,
                     messageClassName
                 )}
@@ -100,21 +144,17 @@ export default class EvaluateControls extends React.Component {
 
         var optionElements = [];
         var options = this.state.options.options;
-        var label = this.getLabel(this.state.options.index, this.state.options.type, true);
+        var label = EvaluateControls.getLabel(this.state.options.index, this.state.options.type, true);
 
         for (var i = 0; i < options.length; i++) {
             var option = options[i];
 
             var text = (this.state.options.type == StepThroughOptions.TYPE_OR_CHOICE)
                 ? ((option) ? "First" : "Second") + " sub-contract"
-                : moment.utc(option, UNIX_FORMAT, true).format(DATE_STRING_FORMAT);
-
-            if (this.state.options.type == StepThroughOptions.TYPE_ACQUISITION_TIME && i == options.length - 1) {
-                text += "...";
-            }
+                : option.toDateRangeString();
 
             optionElements.push(
-                <option key={i} value={option}>{text}</option>
+                <option key={i} value={i}>{text}</option>
             );
         }
 
@@ -151,7 +191,7 @@ export default class EvaluateControls extends React.Component {
         for (var i = 0; i < this.state.prevValues.length; i++) {
             var prevValue = this.state.prevValues[i];
             var prevValueElement;
-            var label = this.getLabel(prevValue.index, prevValue.type, false);
+            var label = EvaluateControls.getLabel(prevValue.index, prevValue.type, false);
 
             if (prevValue.type == StepThroughValue.TYPE_OR_CHOICE) {
                 // Or-choice
@@ -185,7 +225,7 @@ export default class EvaluateControls extends React.Component {
                         </span>
 
                         <span className={EvaluateControls.blockName + "__prev-value"}>
-                            <em>{moment.utc(prevValue.value, UNIX_FORMAT, true).format(DATE_STRING_FORMAT)}</em>
+                            <em>{prevValue.value.toDateRangeString()}</em>
                         </span>
 
                         <button
@@ -209,16 +249,16 @@ export default class EvaluateControls extends React.Component {
     setOption() {
         this.resetError();
 
-        var option = this.optionSelect.value;
+        var option = this.state.options.options[this.optionSelect.value];
 
-        if (this.state.options.type === StepThroughOptions.TYPE_OR_CHOICE) {
-            option = option == "true";
+        if (this.state.options.type === StepThroughOptions.TYPE_OR_CHOICE && typeof option === "string") {
+            option = (option === "true");
         }
 
         this.props.evaluator.setStepThroughOption(option);
 
         this.setState({
-            options: this.props.evaluator.getNextStepThroughOptions(),
+            options: this.props.evaluator.getNextStepThroughOptions(this.props.includePast),
             prevValues: this.props.evaluator.getPrevValues()
         });
     }
@@ -227,7 +267,7 @@ export default class EvaluateControls extends React.Component {
      * Evaluate the contract.
      */
     evaluate() {
-        var value = this.props.evaluator.evaluate();
+        var value = this.props.evaluator.evaluate(this.state.showTimes);
 
         if (value) {
             this.resetError();
@@ -240,30 +280,6 @@ export default class EvaluateControls extends React.Component {
                 contractEvaluationError: "Please complete stepping through the contract before evaluating."
             });
         }
-    }
-
-    /**
-     * Gets the label for a step-through option or value.
-     * @param index The option's associated index.
-     * @param type The type of step-through option or value.
-     */
-    getLabel(index, type, isOption) {
-        var label;
-        var acquisitionTimeType = (isOption) ? StepThroughOptions.TYPE_ACQUISITION_TIME : StepThroughValue.TYPE_ACQUISITION_TIME;
-        var anytimeAcquisitionTimeType = (isOption) ? StepThroughOptions.TYPE_ANYTIME_ACQUISITION_TIME : StepThroughValue.TYPE_ANYTIME_ACQUISITION_TIME;
-        var orChoiceType = (isOption) ? StepThroughOptions.TYPE_OR_CHOICE : StepThroughValue.TYPE_OR_CHOICE;
-
-        if (type == acquisitionTimeType) {
-            label = "Contract Acquisition-Time:";
-        } else if (type == anytimeAcquisitionTimeType) {
-            label = "Anytime " + index + " Acquisition Time:";
-        } else if (type == orChoiceType) {
-            label = "Or " + index + " Choice:";
-        } else {
-            throw "Unexpected option/value type: " + type;
-        }
-
-        return label;
     }
 
     /**
@@ -283,7 +299,7 @@ export default class EvaluateControls extends React.Component {
 
         if (this.props.evaluator.hasNextStep()) {
             this.setState({
-                options: this.props.evaluator.getNextStepThroughOptions(),
+                options: this.props.evaluator.getNextStepThroughOptions(this.props.includePast),
                 prevValues: this.props.evaluator.getPrevValues()
             });
         }
@@ -298,7 +314,7 @@ export default class EvaluateControls extends React.Component {
         this.props.evaluator.deleteStepThroughOption(combinatorIndex);
 
         this.setState({
-            options: this.props.evaluator.getNextStepThroughOptions(),
+            options: this.props.evaluator.getNextStepThroughOptions(this.props.includePast),
             prevValues: this.props.evaluator.getPrevValues()
         });
     }
@@ -310,6 +326,15 @@ export default class EvaluateControls extends React.Component {
         this.setState({
             contractEvaluationError: "",
             contractEvaluationErrorDetails: ""
+        });
+    }
+
+    /**
+     * Inverts the checked status of the show times checkbox.
+     */
+    handleShowTimesChange() {
+        this.setState({
+            showTimes: !this.state.showTimes
         });
     }
 }

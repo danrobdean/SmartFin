@@ -46,7 +46,7 @@ export default class StepThroughValue {
      */
     constructor(type, value, combinatorIndex, index) {
         this.type = type;
-        this.value = (type === StepThroughValue.TYPE_ACQUISITION_TIME) ? parseInt(value) : value;
+        this.value = value;
         this.combinatorIndex = combinatorIndex;
         this.index = index;
     }

@@ -74,7 +74,11 @@ export default class Composition extends React.Component {
                 </Modal>
 
                 <Modal title="Evaluate Contract" closeModal={() => this.closeModals()} visible={this.state.evaluateOpen}>
-                    <EvaluateControls evaluator={this.props.evaluator} contract={this.state.contract} ref={r => this.evaluateControls = r}/>
+                    <EvaluateControls
+                        evaluator={this.props.evaluator}
+                        contract={this.state.contract}
+                        ref={r => this.evaluateControls = r}
+                        includePast={false}/>
                 </Modal>
 
                 <div className={Composition.blockName + "__size-container"}>

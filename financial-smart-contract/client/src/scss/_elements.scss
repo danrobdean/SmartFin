@@ -43,6 +43,11 @@ textarea {
     font-size: 1.5em;
 }
 
+// Set cursor to hover on all labels (all used for checkboxes)
+label {
+    cursor: pointer;
+}
+
 // Set default font
 * {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

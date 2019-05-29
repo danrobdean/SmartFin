@@ -1,7 +1,7 @@
 import assert from "assert";
 
 import TimeSlices from "./../src/js/time-slices.mjs";
-import TimeRange from "./../src/js/time-range.mjs";
+import TimeSlice from "./../src/js/time-slice.mjs";
 
 describe('TimeSlices tests', function() {
     var timeSlices;
@@ -11,7 +11,7 @@ describe('TimeSlices tests', function() {
     });
 
     it('Has one complete slice initially', function() {
-        assert.deepEqual(timeSlices.getSlices(), [new TimeRange(0, undefined)]);
+        assert.deepEqual(timeSlices.getSlices(), [new TimeSlice(0, undefined)]);
     });
 
     it('Splits time slices correctly', function() {
@@ -19,7 +19,7 @@ describe('TimeSlices tests', function() {
         timeSlices.split(3);
         timeSlices.split(2);
 
-        assert.deepEqual(timeSlices.getSlices(), [new TimeRange(0, 1), new TimeRange(2, 2), new TimeRange(3, 3), new TimeRange(4, undefined)]);
+        assert.deepEqual(timeSlices.getSlices(), [new TimeSlice(0, 1), new TimeSlice(2, 2), new TimeSlice(3, 3), new TimeSlice(4, undefined)]);
     });
 
     it('Cuts off time slices correctly', function() {
@@ -27,7 +27,7 @@ describe('TimeSlices tests', function() {
         timeSlices.split(3);
         timeSlices.cutTail(2);
 
-        assert.deepEqual(timeSlices.getSlices(), [new TimeRange(0, 1), new TimeRange(2, 2)]);
+        assert.deepEqual(timeSlices.getSlices(), [new TimeSlice(0, 1), new TimeSlice(2, 2)]);
     });
 
     it('Concatenates initial time slices correctly', function() {
@@ -37,7 +37,7 @@ describe('TimeSlices tests', function() {
         timeSlices.split(4);
         timeSlices.concatHead(3);
 
-        assert.deepEqual(timeSlices.getSlices(), [new TimeRange(0, 3), new TimeRange(4, 4), new TimeRange(5, undefined)]);
+        assert.deepEqual(timeSlices.getSlices(), [new TimeSlice(0, 3), new TimeSlice(4, 4), new TimeSlice(5, undefined)]);
     });
 
     it('Gets valid time slices correctly', function() {
@@ -46,7 +46,7 @@ describe('TimeSlices tests', function() {
         timeSlices.split(3);
         timeSlices.split(4);
 
-        assert.deepEqual(timeSlices.getValidSlices(3), [new TimeRange(3, 3), new TimeRange(4, 4), new TimeRange(5, undefined)]);
+        assert.deepEqual(timeSlices.getValidSlices(3), [new TimeSlice(3, 3), new TimeSlice(4, 4), new TimeSlice(5, undefined)]);
     });
 
     it('Merges time slices correctly', function() {
@@ -62,7 +62,7 @@ describe('TimeSlices tests', function() {
 
         timeSlices.merge(otherTimeSlices);
 
-        assert.deepEqual(timeSlices.getSlices(), [new TimeRange(0, 1), new TimeRange(2, 2), new TimeRange(3, 3), new TimeRange(4, 4), new TimeRange(5, 5), new TimeRange(6, 6), new TimeRange(7, undefined)]);
+        assert.deepEqual(timeSlices.getSlices(), [new TimeSlice(0, 1), new TimeSlice(2, 2), new TimeSlice(3, 3), new TimeSlice(4, 4), new TimeSlice(5, 5), new TimeSlice(6, 6), new TimeSlice(7, undefined)]);
     });
 
     it('Merge after merges time slices correctly', function() {
@@ -79,6 +79,6 @@ describe('TimeSlices tests', function() {
 
         timeSlices.mergeAfter(otherTimeSlices);
 
-        assert.deepEqual(timeSlices.getSlices(), [new TimeRange(0, 1), new TimeRange(2, 3), new TimeRange(4, 5), new TimeRange(6, 6), new TimeRange(7, 7), new TimeRange(8, undefined)]);
+        assert.deepEqual(timeSlices.getSlices(), [new TimeSlice(0, 1), new TimeSlice(2, 3), new TimeSlice(4, 5), new TimeSlice(6, 6), new TimeSlice(7, 7), new TimeSlice(8, undefined)]);
     });
 });

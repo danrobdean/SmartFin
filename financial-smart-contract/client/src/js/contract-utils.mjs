@@ -35,7 +35,8 @@ const combinatorDict = {
 
 const serializedCombinatorDict = invert(combinatorDict);
 
-export const DATE_STRING_FORMAT = "DD/MM/YYYY HH:mm:ss";
+export const DATE_STRING_NO_ZONE_FORMAT = "DD/MM/YYYY HH:mm:ss";
+export const DATE_STRING_FORMAT = "DD/MM/YYYY HH:mm:ss ZZ";
 export const UNIX_FORMAT = "X";
 
 // The Option class
@@ -229,7 +230,7 @@ export function serializeCombinatorContract(combinatorContract) {
                     // Format time
                     var time = combinators.slice(i + 1, closeIndex + 1).join(" ");
                     time = time.slice(1, -1);
-                    date = moment.utc(time, DATE_STRING_FORMAT, true);
+                    date = moment.utc(time, [DATE_STRING_FORMAT, DATE_STRING_NO_ZONE_FORMAT], true);
 
                     // Convert time and push
                     i = closeIndex;
@@ -385,17 +386,17 @@ function verifyCombinator(combinators, i) {
                     }
 
                     var dateString = combinators.slice(i + 1, closeIndex + 1).join(" ").slice(1, -1);
-                    var date = moment.utc(dateString, DATE_STRING_FORMAT, true);
+                    var date = moment.utc(dateString, [DATE_STRING_FORMAT, DATE_STRING_NO_ZONE_FORMAT], true);
                     
                     if (!date.isValid()) {
                         // Date is invalid
-                        return new VerificationError("Expected date in the form of a UNIX Epoch timestamp, or a date in the format <" + DATE_STRING_FORMAT + ">, found: '" + dateString + "'.", errDesc(i));
+                        return new VerificationError("Expected date in the form of a UNIX Epoch timestamp, or a date in the format <" + DATE_STRING_FORMAT + "> or <" + DATE_STRING_NO_ZONE_FORMAT + "> (ZZ is a timezone offset), found: '" + dateString + "'.", errDesc(i));
                     }
 
                     time = date.unix();
                     nextCombinator = closeIndex + 1;
                 } else {
-                    return new VerificationError("Expected date in the form of a UNIX Epoch timestamp, or a date in the format <" + DATE_STRING_FORMAT + ">, found: '" + time + "'.", errDesc(i));
+                    return new VerificationError("Expected date in the form of a UNIX Epoch timestamp, or a date in the format <" + DATE_STRING_FORMAT + "> or <" + DATE_STRING_NO_ZONE_FORMAT + "> (ZZ is a timezone offset), found: '" + time + "'.", errDesc(i));
                 }
             }
 
