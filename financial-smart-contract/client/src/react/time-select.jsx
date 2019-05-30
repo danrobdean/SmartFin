@@ -67,7 +67,7 @@ export default class TimeSelect extends React.Component {
                         <button
                             className={TimeSelect.blockName + "__select-time-button"}
                             onClick={() => this.selectTime()}>
-                            Select Time
+                            Input UNIX Time
                         </button>
                     </div>
                 </div>

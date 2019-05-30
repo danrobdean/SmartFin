@@ -1240,5 +1240,8 @@ Renamed "Select Time" to "Insert UNIX Time"
 
 Updated readme.md
 
+TODO:
+	- Test metamask with other blockchain
+
 
 

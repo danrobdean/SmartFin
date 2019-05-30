@@ -61,7 +61,7 @@ export default class Composition extends React.Component {
                     <Help/>
                 </Modal>
 
-                <Modal title="Select Time" closeModal={() => this.closeModals()} visible={this.state.timePickerOpen}>
+                <Modal title="Input UNIX Time" closeModal={() => this.closeModals()} visible={this.state.timePickerOpen}>
                     <TimeSelect returnTime={unixTime => this.insertTime(unixTime)}/>
                 </Modal>
 
