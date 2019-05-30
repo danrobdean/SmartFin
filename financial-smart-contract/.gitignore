@@ -1,4 +1,5 @@
 **/contract/target
 **/client/resources
+**/dist
 
 **/node_modules

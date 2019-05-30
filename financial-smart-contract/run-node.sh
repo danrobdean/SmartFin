@@ -28,6 +28,8 @@ init-test-accounts() {
     echo "Account 3 initialised."
 }
 
+cd "$(dirname "$0")"
+
 # Print help if requested
 if [ "$1" = "-h" ]; then
     echo "To run a clean node, pass --clean."
@@ -40,3 +42,5 @@ else
     # Initialise the account after a delay, and start the parity node
     init-account & init-test-accounts & start-node
 fi
+
+cd -

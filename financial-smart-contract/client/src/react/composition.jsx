@@ -103,7 +103,7 @@ export default class Composition extends React.Component {
                             <button
                                 className={Composition.blockName + "__control-button"}
                                 onClick={() => this.displayTimePicker()}>
-                                Select Time
+                                Input UNIX Time
                             </button>
                             <button
                                 className={Composition.blockName + "__control-button"}

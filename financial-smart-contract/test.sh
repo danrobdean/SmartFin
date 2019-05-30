@@ -3,7 +3,7 @@
 test-rs() {
     cd contract
     "./test.sh"
-    cd ..
+    cd -
 }
 
 test-js() {
@@ -12,6 +12,8 @@ test-js() {
     yarn test
     cd -
 }
+
+cd "$(dirname "$0")"
 
 RS_TEST=0
 JS_TEST=0
@@ -56,3 +58,5 @@ else
         kill -9 $(lsof -ti :8545)
     fi
 fi
+
+cd -

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd $PWD
+cd "$(dirname "$0")"
 
 cd contract
 

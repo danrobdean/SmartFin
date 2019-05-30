@@ -1220,7 +1220,23 @@ Fixed timezone issue, now allow specification of timezone (parser tries with and
 
 TODO:
 	- Update user manual
-	- Figure out build stuff 
+	- Figure out build stuff
+
+
+
+
+========== 30 May ==========
+
+Implemented basic build stuff:
+	- Separate webpack configs for dev and prod (removing dev stuff from prod)
+	- Move web3 to prod dependency from dev (as we use it in the browser by importing)
+	- Changed all scripts to cd into script's containing dir, obtained programmatically
+		- All cds are undone using cd - in each script, so that scripts can call cd current-dir...cd - around calls to other scripts without messing up the undo stack
+	- Very basic build implemented, just a script that runs a python simple server with the given prod files and opens chrome to the required address
+
+Updating user manual with new screenshots/functionality (time/date related mainly)
+
+Renamed "Select Time" to "Insert UNIX Time"
 
 
 
