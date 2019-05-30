@@ -1,7 +1,10 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
+./build.sh
+
 cd client
+yarn install
 yarn build
 cd -
 

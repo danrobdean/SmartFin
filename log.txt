@@ -1238,5 +1238,7 @@ Updating user manual with new screenshots/functionality (time/date related mainl
 
 Renamed "Select Time" to "Insert UNIX Time"
 
+Updated readme.md
+
 
 
