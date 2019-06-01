@@ -1240,12 +1240,38 @@ Renamed "Select Time" to "Insert UNIX Time"
 
 Updated readme.md
 
+
+
+
+========== 1st Jun ==========
+
+Wrote a bunch of the report over the last two days.
+
+Thoughts about storage:
+
+changing storage to give back size of each type in storage:
++ would allow constant-time writing/reading for single array elements, which is good for the setter functions
++ more explicit (as opposed to returning last-used key)
++ don't need multiple stores implementations
++ actually requires stores & storesref, whereas currently we dont need both...
+- more work
+- more methods need implementing
+
+Either change it to implement GetSize or something and individual vec elem update/read, or write in evaluation about how it would be good.
+
+If GetSize isnt implemented, at least rename from StoresRef, and probably use Stores<[u8; 32]> instead of StoresRef
+
+If implemented, instead of looking up vectors before combinator calls, should just read/write individual elements within the calls, and not pass vectors around. This is O(n), but n is number of relevant combinators (e.g. anytime combinators for acquisition times)
+
+
+no test for get_use_gas or get_concluded?
+
 TODO:
 	- Test metamask with other blockchain
 	- Write Help screen in composition view
 	- safe_add and assert_U256_can_be_i64 both check i64 max as 2^62 but it should be 2^62 + (2^62 - 1)
 	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned > 2^63 - 1
 	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
-
+	- Decide about the storage stuff	
 
 
