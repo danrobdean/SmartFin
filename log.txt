@@ -1278,6 +1278,8 @@ or combinator's acquire/update methods are wrong? seems like if a choice is made
 	- if no sub-combinator acquired but or-choice given, acquire that combinator (at old acquisition time) and update
 or combinator changed to implement this behaviour, new test written (was failing as expected but now passes)
 
+Changed get_combinator if statement to match, slightly cleaner/clearer/less words
+
 TODO:
 	- Test metamask with other blockchain
 	- Write Help screen in composition view

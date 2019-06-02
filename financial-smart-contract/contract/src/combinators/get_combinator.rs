@@ -60,11 +60,9 @@ impl ContractCombinator for GetCombinator {
         }
 
         // If sub-combinator will expire, set its acquisition time to its horizon, otherwise it can never be acquired
-        if self.sub_combinator.get_horizon() != None {
-            let horizon = self.sub_combinator.get_horizon().unwrap();
-            self.sub_combinator.acquire(horizon, or_choices, anytime_acquisition_times);
-        } else {
-            self.combinator_details.fully_updated = true;
+        match self.sub_combinator.get_horizon() {
+            Some(horizon) => self.sub_combinator.acquire(horizon, or_choices, anytime_acquisition_times),
+            None => self.combinator_details.fully_updated = true
         }
 
         self.combinator_details.acquisition_time = Some(time);
