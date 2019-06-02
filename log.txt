@@ -1287,6 +1287,11 @@ TODO:
 	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned > 2^63 - 1
 	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
 	- Decide about the storage stuff
-	- get_or_choice pattern matches on or_choice, and then returns the matched value always. Just return the or_choice without matching.
+	- could extract the checks for update/acquire into ContractCombinator methods (since these are always the same, and just use the combinator details)
+		- The update method is especially egregious, as combinators (get) act as if it's a given that these checks will occur in the sub-combinator
+		- Should have some try_update method, which has these checks and then calls an update method implemented per-combinator, to ensure the checks occur
+		- Can technically get away with this as each combinator should handle updating correctly based on current and acquisition times, but its a bit iffy
+	- change serialize/deserialize to serialise/deserialise, to stop changing back and forth in report
+	- Don't allow two observables with same name and arbiter, no way to differentiate but if acquired at different times their values may differ
 
 
