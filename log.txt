@@ -1270,6 +1270,13 @@ no test for get_use_gas or get_concluded?
 
 
 ========== 2nd Jun ==========
+or combinator's acquire/update methods are wrong? seems like if a choice is made but then the sub-combinator expires, will switch to the other one. Should do:
+	- in acquire, if either sub-combinator is expired, choose the other
+	- in acquire, if both sub-combinators are non-expired, choose based on or choice
+	- if no or choice or expired sub-combinator, wait until or choice and do not acquire anything
+	- in update, if either sub-combinator acquired then update that
+	- if no sub-combinator acquired but or-choice given, acquire that combinator (at old acquisition time) and update
+or combinator changed to implement this behaviour, new test written (was failing as expected but now passes)
 
 TODO:
 	- Test metamask with other blockchain
@@ -1279,11 +1286,5 @@ TODO:
 	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
 	- Decide about the storage stuff
 	- get_or_choice pattern matches on or_choice, and then returns the matched value always. Just return the or_choice without matching.
-	- or combinator's acquire/update methods are wrong? seems like if a choice is made but then the sub-combinator expires, will switch to the other one. Should do:
-		- in acquire, if either sub-combinator is expired, choose the other
-		- in acquire, if both sub-combinators are non-expired, choose based on or choice
-		- if no or choice or expired sub-combinator, wait until or choice and do not acquire anything
-		- in update, if either sub-combinator acquired then update that
-		- if no sub-combinator acquired but or-choice given, acquire that combinator (at old acquisition time) and update
 
 

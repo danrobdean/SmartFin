@@ -33,11 +33,7 @@ impl OrCombinator {
         } else if self.sub_combinator1.past_horizon(time) {
             Some(true)
         } else {
-            match or_choices[self.or_index] {
-                Some(true) => Some(true),
-                Some(false) => Some(false),
-                None => None
-            }
+            or_choices[self.or_index]
         }
     }
 
@@ -86,13 +82,10 @@ impl ContractCombinator for OrCombinator {
         }
 
         // Check which sub-combinator to acquire. If ambiguous, acquire both branches.
-        if self.get_or_choice(time, or_choices) == Some(true) {
-            self.sub_combinator0.acquire(time, or_choices, anytime_acquisition_times);
-        } else if self.get_or_choice(time, or_choices) == Some(false) {
-            self.sub_combinator1.acquire(time, or_choices, anytime_acquisition_times);
-        } else {
-            self.sub_combinator0.acquire(time, or_choices, anytime_acquisition_times);
-            self.sub_combinator1.acquire(time, or_choices, anytime_acquisition_times);
+        match self.get_or_choice(time, or_choices) {
+            Some(true) => self.sub_combinator0.acquire(time, or_choices, anytime_acquisition_times),
+            Some(false) => self.sub_combinator1.acquire(time, or_choices, anytime_acquisition_times),
+            None => { }
         }
 
         self.combinator_details.acquisition_time = Some(time);
@@ -100,22 +93,26 @@ impl ContractCombinator for OrCombinator {
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
     fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
-        let or_choice = self.get_or_choice(time, or_choices);
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
-            || self.combinator_details.fully_updated
-            // If ambiguous or choice, don't update
-            || or_choice == None {
+            || self.combinator_details.fully_updated {
             return 0;
         }
 
+        let or_choice = self.get_or_choice(self.combinator_details.acquisition_time.unwrap(), or_choices);
+
         let sub_combinator;
-        if or_choice.unwrap() {
-            sub_combinator = &mut self.sub_combinator0;
-        } else {
-            sub_combinator = &mut self.sub_combinator1;
+        match or_choice {
+            Some(true) => sub_combinator = &mut self.sub_combinator0,
+            Some(false) => sub_combinator = &mut self.sub_combinator1,
+            None => return 0
         }
+
+        if sub_combinator.get_combinator_details().acquisition_time == None {
+            sub_combinator.acquire(self.combinator_details.acquisition_time.unwrap(), or_choices, anytime_acquisition_times);
+        }
+
         let sub_value = sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
         self.combinator_details.fully_updated = sub_combinator.get_combinator_details().fully_updated;
         sub_value
@@ -134,7 +131,7 @@ impl ContractCombinator for OrCombinator {
 // Unit tests
 #[cfg(test)]
 mod tests {
-    use super::super::{ ContractCombinator, Combinator, OrCombinator, OneCombinator, ZeroCombinator, TruncateCombinator };
+    use super::super::{ ContractCombinator, Combinator, OrCombinator, OneCombinator, ZeroCombinator, TruncateCombinator, GetCombinator };
     use super::super::contract_combinator::{ Box, vec };
 
     // Combinator number is correct
@@ -276,6 +273,60 @@ mod tests {
             value,
             0,
             "Second update value of or zero one is not equal to 0: {}",
+            value
+        );
+    }
+
+    // Acquiring and updating combinator after the acquired sub-combinator expires returns the correct value
+    #[test]
+    fn acquiring_and_updating_after_acquired_sub_contract_expires_returns_correct_value() {
+        // Create combinator or get truncate 2 one zero
+        let mut combinator = OrCombinator::new(
+            Box::from(GetCombinator::new(
+                Box::from(TruncateCombinator::new(
+                    Box::from(OneCombinator::new()),
+                    2
+                ))
+            )),
+            Box::from(ZeroCombinator::new()),
+            0
+        );
+
+        // Acquire, update and check value
+        combinator.acquire(0, &vec![Some(true)], &mut vec![]);
+        let value = combinator.update(3, &vec![Some(true)], &vec![], &mut vec![]);
+
+        assert_eq!(
+            value,
+            1,
+            "Second update value of or get truncate 2 one zero is not equal to 1: {}",
+            value
+        );
+    }
+
+    // Acquiring and updating combinator after the acquired sub-combinator expires returns the correct value
+    #[test]
+    fn acquiring_and_updating_after_unacquired_sub_contract_expires_returns_correct_value() {
+        // Create combinator or get truncate 2 one zero
+        let mut combinator = OrCombinator::new(
+            Box::from(GetCombinator::new(
+                Box::from(TruncateCombinator::new(
+                    Box::from(OneCombinator::new()),
+                    2
+                ))
+            )),
+            Box::from(ZeroCombinator::new()),
+            0
+        );
+
+        // Acquire, update and check value
+        combinator.acquire(0, &vec![None], &mut vec![]);
+        let value = combinator.update(3, &vec![Some(true)], &vec![], &mut vec![]);
+
+        assert_eq!(
+            value,
+            1,
+            "Second update value of or get truncate 2 one zero is not equal to 1: {}",
             value
         );
     }
