@@ -1292,6 +1292,15 @@ TODO:
 		- Should have some try_update method, which has these checks and then calls an update method implemented per-combinator, to ensure the checks occur
 		- Can technically get away with this as each combinator should handle updating correctly based on current and acquisition times, but its a bit iffy
 	- change serialize/deserialize to serialise/deserialise, to stop changing back and forth in report
-	- Don't allow two observables with same name and arbiter, no way to differentiate but if acquired at different times their values may differ
+	- Don't allow two observables with same name and arbiter, no way to differentiate but if acquired at different times their values may differ.
+	- change contract_utils functions to just throw an error if no web3, instead of trying the default web3 connection
+	- rename contract in contract_utils loadAndDeployContract function (currently called TestContract)
+	- delete isValidAddress (not used)
+	- In evaluator, check that the horizon of combinators doesn't spill over, e.g. for and one truncate 2 zero, the "one" should have undefined horizon but the nextmap may point to 2
+
+Meeting questions:
+	- cite technologies being mentioned? (like react, web3)
+	- changes to storage
+	- UML/other ABI representation diagram? Or give full ABI in appendix non-diagrammed?
 
 
