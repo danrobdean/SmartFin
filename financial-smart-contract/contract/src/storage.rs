@@ -3,7 +3,6 @@ extern crate pwasm_std;
 
 use pwasm_std::{ Vec, types::{ H256, Address } };
 
-
 // An entry in the storage table
 struct Entry {
     key: H256,
@@ -12,6 +11,8 @@ struct Entry {
 
 // Struct for storing an observable value's name
 #[derive(Clone)]
+#[derive(Debug)]
+#[derive(PartialEq)]
 pub struct ObsName {
     pub name: Vec<i64>
 }
@@ -30,8 +31,16 @@ pub struct Storage {
     table: Vec<Entry>
 }
 
+// Trait to indicate that an object has a fixed size in smart contract storage.
+pub trait StorageSized {
+    // Returns the size of a type in smart contract storage.
+    fn storageSize() -> u64 {
+        1
+    }
+}
+
 // The implementing struct can store values of the given type (passed/returned by value). These values must never change size.
-pub trait Stores<T> {
+pub trait StoresFixed<T> where T: StorageSized {
     // Reads a value of the given type from storage, returns the value and the last used address (storage is done sequentially)
     fn read(&mut self, key: &H256) -> (T, H256);
 
@@ -39,17 +48,36 @@ pub trait Stores<T> {
     fn write(&mut self, key: &H256, value: T) -> H256;
 }
 
-// The implementing struct can store values of the given type (passed by reference). These values can change size.
-pub trait StoresRef<T> {
-    // Reads a value of the given type from storage, returns the value and the last used address (storage is done sequentially)
-    fn read_ref(&mut self, key: &H256) -> (T, H256);
+// The implementing struct can store a vector of values of the given type (passed/returned by value). These values must never change size.
+pub trait StoresFixedVec<T> where Self: StoresFixed<T>, T: StorageSized {
+    // Reads a set of values of the given type from storage, returns the value and the last used address (storage is done sequentially)
+    fn read_vec(&mut self, key: &H256) -> (Vec<T>, H256);
 
-    // Writes a value of the given type to storage (from reference), returns the last used address (storage is done sequentially)
-    fn write_ref(&mut self, key: &H256, value: &T) -> H256;
+    // Writes a set of values of the given type to storage, returns the last used address (storage is done sequentially)
+    fn write_vec(&mut self, key: &H256, value: &Vec<T>) -> H256;
+
+    // Gets a single element of the given type from storage.
+    fn get(&mut self, key: &H256, index: usize) -> T;
+
+    // Sets a single element of the given type in storage.
+    fn set(&mut self, key: &H256, index: usize, value: T);
+
+    // Adds an element to the end of the stored vector.
+    fn push(&mut self, key: &H256, value: T);
+
+    // Gets the length of the vector
+    fn length(&mut self, key: &H256) -> usize;
 }
 
-// Trait signalling that the implementing struct can be stored in 1 storage slot.
-pub trait StoresOne<T> { }
+// The implementing struct can store values of the given type (passed by reference). These values can change size.
+pub trait StoresVariable<T> {
+    // Reads a value of the given type from storage, returns the value and the last used address (storage is done sequentially)
+    fn read_var(&mut self, key: &H256) -> (T, H256);
+
+    // Writes a value of the given type to storage (from reference), returns the last used address (storage is done sequentially)
+    fn write_var(&mut self, key: &H256, value: &T) -> H256;
+}
+
 
 // Storage method implementation
 impl Storage {
@@ -59,13 +87,13 @@ impl Storage {
     }
 
     // Read the length of a vector from storage
-    fn read_len(&mut self, key: &H256) -> i64 {
-        Storage::to_i64(&pwasm_ethereum::read(key))
+    fn read_len(&mut self, key: &H256) -> usize {
+        Storage::to_i64(&pwasm_ethereum::read(key)) as usize
     }
 
     // Write the length of a vector to storage, uses 1 slot in storage
-    fn write_len(&mut self, key: &H256, len: i64) {
-        pwasm_ethereum::write(key, &Storage::from_i64(len));
+    fn write_len(&mut self, key: &H256, len: usize) {
+        pwasm_ethereum::write(key, &Storage::from_i64(len as i64));
     }
 
     // Read whether an Option has Some or None
@@ -147,9 +175,12 @@ impl Storage {
     }
 }
 
-impl StoresRef<[u8; 32]> for Storage {
+
+impl StorageSized for [u8; 32] { }
+
+impl StoresFixed<[u8; 32]> for Storage {
     // Read a value from storage, store locally if not already
-    fn read_ref(&mut self, key: &H256) -> ([u8; 32], H256) {
+    fn read(&mut self, key: &H256) -> ([u8; 32], H256) {
         for entry in &self.table {
             if entry.key == *key {
                 return (entry.value.clone(), *key);
@@ -165,7 +196,7 @@ impl StoresRef<[u8; 32]> for Storage {
     }
 
     // Write a value to storage and store locally
-    fn write_ref(&mut self, key: &H256, value: &[u8; 32]) -> H256 {
+    fn write(&mut self, key: &H256, value: [u8; 32]) -> H256 {
         pwasm_ethereum::write(key, &value);
 
         for entry in &mut self.table {
@@ -183,101 +214,83 @@ impl StoresRef<[u8; 32]> for Storage {
     }
 }
 
-impl Stores<Address> for Storage {
+
+impl StorageSized for Address { }
+
+impl StoresFixed<Address> for Storage {
     fn read(&mut self, key: &H256) -> (Address, H256) {
-        let (value, last_used): ([u8; 32], H256) = self.read_ref(key);
+        let (value, last_used): ([u8; 32], H256) = self.read(key);
         (Storage::to_address(&value), last_used)
     }
 
     fn write(&mut self, key: &H256, value: Address) -> H256 {
-        self.write_ref(key, &Storage::from_address(&value));
+        self.write(key, Storage::from_address(&value));
         *key
     }
 }
 
-impl Stores<i64> for Storage {
+
+impl StorageSized for i64 { }
+
+impl StoresFixed<i64> for Storage {
     fn read(&mut self, key: &H256) -> (i64, H256) {
-        let (value, last_used): ([u8; 32], H256) = self.read_ref(key);
+        let (value, last_used): ([u8; 32], H256) = self.read(key);
         (Storage::to_i64(&value), last_used)
     }
 
     fn write(&mut self, key: &H256, value: i64) -> H256 {
-        self.write_ref(key, &Storage::from_i64(value));
+        self.write(key, Storage::from_i64(value));
         *key
     }
 }
 
-impl Stores<u32> for Storage {
+
+impl StorageSized for u32 { }
+
+impl StoresFixed<u32> for Storage {
     fn read(&mut self, key: &H256) -> (u32, H256) {
-        let (value, last_used): ([u8; 32], H256) = self.read_ref(key);
+        let (value, last_used): ([u8; 32], H256) = self.read(key);
         // Converts from an i64, works as long as the stored value is actually a u32 (should always be the case)
         (Storage::to_i64(&value) as u32, last_used)
     }
 
     fn write(&mut self, key: &H256, value: u32) -> H256 {
-        // Converts to an i64, works as long as the value being stores is 0 < val < 2^63-1, we have 0 < val_u32 < 2^32-1
-        self.write_ref(key, &Storage::from_i64(value as i64));
+        // Converts to an i64, works as long as the value being stored is 0 < val < 2^63-1, we have 0 < val_u32 < 2^32-1
+        self.write(key, Storage::from_i64(value as i64));
         *key
     }
 }
 
-impl Stores<bool> for Storage {
+
+impl StorageSized for bool { }
+
+impl StoresFixed<bool> for Storage {
     fn read(&mut self, key: &H256) -> (bool, H256) {
-        let (value, last_used): ([u8; 32], H256) = self.read_ref(key);
+        let (value, last_used): ([u8; 32], H256) = self.read(key);
         (Storage::to_bool(&value), last_used)
     }
 
     fn write(&mut self, key: &H256, value: bool) -> H256 {
-        self.write_ref(key, &Storage::from_bool(value))
+        self.write(key, Storage::from_bool(value))
     }
 }
 
-// Signal that i64, u32, and bool can all be stored in 1 storage slot
-impl StoresOne<i64> for Storage { }
-impl StoresOne<u32> for Storage { }
-impl StoresOne<bool> for Storage { }
 
-// Vectors are stored sequentially
-impl<T> StoresRef<Vec<T>> for Storage where Storage: Stores<T>, Vec<T>: core::clone::Clone {
-    // Reads vector sequentially from storage
-    fn read_ref(&mut self, key: &H256) -> (Vec<T>, H256) {
-        let length: i64 = self.read_len(key);
-        let mut current = add_to_key(*key, 1);
-        let mut res: Vec<T> = Vec::new();        
-
-        let mut last_used: H256 = *key;
-        for _ in 0..length {
-            let (value, end): (T, H256) = self.read(&current);
-            last_used = end;
-            res.push(value);
-            current = add_to_key(end, 1);
-        }
-
-        (res, last_used)
-    }
-
-    fn write_ref(&mut self, key: &H256, value: &Vec<T>) -> H256 {
-        let length = value.len();
-        self.write_len(key, length as i64);
-        let mut last_used = *key;
-        let mut clone = value.clone();
-
-        // Consume list clone, writing each element to storage
-        for _ in 0..length {
-            last_used = self.write(&add_to_key(last_used, 1 as u64), clone.remove(0));
-        }
-        last_used
+impl<T> StorageSized for Option<T> where T: StorageSized {
+    // Returns the size of a type in smart contract storage.
+    fn storageSize() -> u64 {
+        T::storageSize() + 1
     }
 }
 
-impl<T> Stores<Option<T>> for Storage where Storage: Stores<T> + StoresOne<T> {
+impl<T> StoresFixed<Option<T>> for Storage where Storage: StoresFixed<T>, T: StorageSized {
     fn read(&mut self, key: &H256) -> (Option<T>, H256) {
         let some: bool = self.read_some(key);
         if some {
             let (value, last_used) = self.read(&add_to_key(*key, 1));
             (Some(value), last_used)
         } else {
-            (None, add_to_key(*key, 1))
+            (None, add_to_key(*key, T::storageSize() as u64))
         }
     }
 
@@ -285,19 +298,28 @@ impl<T> Stores<Option<T>> for Storage where Storage: Stores<T> + StoresOne<T> {
         match value {
             Some(v) => {
                 self.write_some(key, true);
-                self.write(&add_to_key(*key, 1), v)
+                self.write(&add_to_key(*key, T::storageSize() as u64), v)
             },
             None => {
                 self.write_some(key, false);
-                // Cannot have variable-length elements in Stores, so always save 2 slots even if no value to write
-                add_to_key(*key, 1)
+                // Cannot have variable-length elements in StoresFixed, so always save 2 slots even if no value to write
+                add_to_key(*key, T::storageSize() as u64)
             }
         }
     }
 }
 
+
+impl<T, U> StorageSized for (T, U) where T: StorageSized, U: StorageSized {
+    // Returns the size of a type in smart contract storage.
+    fn storageSize() -> u64 {
+        T::storageSize() + U::storageSize()
+    }
+}
+
 // Tuple implementation
-impl<T, U> Stores<(T, U)> for Storage where Storage: Stores<T> + Stores<U> {
+impl<T, U> StoresFixed<(T, U)> for Storage where Storage: StoresFixed<T> + StoresFixed<U>,
+                                                T: StorageSized, U: StorageSized {
     fn read(&mut self, key: &H256) -> ((T, U), H256) {
         let (first, key0): (T, H256) = self.read(key);
         let (second, key1): (U, H256) = self.read(&add_to_key(key0, 1));
@@ -310,7 +332,16 @@ impl<T, U> Stores<(T, U)> for Storage where Storage: Stores<T> + Stores<U> {
     }
 }
 
-impl<T, U, V> Stores<(T, U, V)> for Storage where Storage: Stores<T> + Stores<U> + Stores<V> {
+
+impl<T, U, V> StorageSized for (T, U, V) where T: StorageSized, U: StorageSized, V: StorageSized {
+    // Returns the size of a type in smart contract storage.
+    fn storageSize() -> u64 {
+        T::storageSize() + U::storageSize() + V::storageSize()
+    }
+}
+
+impl<T, U, V> StoresFixed<(T, U, V)> for Storage where Storage: StoresFixed<T> + StoresFixed<U> + StoresFixed<V>,
+                                                        T: StorageSized, U: StorageSized, V: StorageSized {
     fn read(&mut self, key: &H256) -> ((T, U, V), H256) {
         let (first, key0): (T, H256) = self.read(key);
         let (second, key1): (U, H256) = self.read(&add_to_key(key0, 1));
@@ -325,15 +356,125 @@ impl<T, U, V> Stores<(T, U, V)> for Storage where Storage: Stores<T> + Stores<U>
     }
 }
 
+
+impl<T> StoresFixedVec<T> for Storage where Storage: StoresFixed<T>, T: StorageSized, Vec<T>: core::clone::Clone {
+    // Reads a set of values of the given type from storage, returns the value and the last used address (storage is done sequentially)
+    fn read_vec(&mut self, key: &H256) -> (Vec<T>, H256) {
+        let length: usize = self.read_len(key);
+        let mut current = add_to_key(*key, 1);
+        let mut res: Vec<T> = Vec::new();
+
+        let mut last_used: H256 = *key;
+        for _ in 0..length {
+            let (value, end): (T, H256) = self.read(&current);
+            last_used = end;
+            res.push(value);
+            current = add_to_key(end, 1);
+        }
+
+        (res, last_used)
+    }
+
+    // Writes a set of values of the given type to storage, returns the last used address (storage is done sequentially)
+    fn write_vec(&mut self, key: &H256, value: &Vec<T>) -> H256 {
+        let length = value.len();
+        self.write_len(key, length);
+        let mut last_used = *key;
+        let mut clone = value.clone();
+
+        // Consume list clone, writing each element to storage
+        for _ in 0..length {
+            last_used = self.write(&add_to_key(last_used, 1 as u64), clone.remove(0));
+        }
+        last_used
+    }
+
+    // Gets a single element of the given type from storage.
+    fn get(&mut self, key: &H256, index: usize) -> T {
+        let length: usize = self.read_len(key);
+
+        if length <= index {
+            panic!("Stored vector index out of bounds.");
+        }
+
+        let size = T::storageSize();
+        let elem_key = &add_to_key(*key, 1 + size * (index as u64));
+        self.read(elem_key).0
+    }
+
+    // Sets a single element of the given type in storage.
+    fn set(&mut self, key: &H256, index: usize, value: T) {
+        let length: usize = self.read_len(key);
+
+        if length <= index {
+            panic!("Stored vector index out of bounds.");
+        }
+
+        let size = T::storageSize();
+        let elem_key = &add_to_key(*key, 1 + size * (index as u64));
+        self.write(elem_key, value);
+    }
+
+    // Adds an element to the end of the stored vector.
+    fn push(&mut self, key: &H256, value: T) {
+        let length: usize = self.read_len(key);
+
+        let size = T::storageSize();
+        let elem_key = &add_to_key(*key, 1 + size * (length as u64));
+        self.write(elem_key, value);
+
+        self.write_len(key, length + 1);
+    }
+
+    // Gets the length of the vector
+    fn length(&mut self, key: &H256) -> usize {
+        self.read_len(key)
+    }
+}
+
+
+// Vectors are stored sequentially
+impl<T> StoresVariable<Vec<T>> for Storage where Storage: StoresVariable<T>, Vec<T>: core::clone::Clone {
+    // Reads vector sequentially from storage
+    fn read_var(&mut self, key: &H256) -> (Vec<T>, H256) {
+        let length: usize = self.read_len(key);
+        let mut current = add_to_key(*key, 1);
+        let mut res: Vec<T> = Vec::new();        
+
+        let mut last_used: H256 = *key;
+        for _ in 0..length {
+            let (value, end): (T, H256) = self.read_var(&current);
+            last_used = end;
+            res.push(value);
+            current = add_to_key(end, 1);
+        }
+
+        (res, last_used)
+    }
+
+    fn write_var(&mut self, key: &H256, value: &Vec<T>) -> H256 {
+        let length = value.len();
+        self.write_len(key, length);
+        let mut last_used = *key;
+        let mut clone = value.clone();
+
+        // Consume list clone, writing each element to storage
+        for _ in 0..length {
+            last_used = self.write_var(&add_to_key(last_used, 1 as u64), &clone.remove(0));
+        }
+        last_used
+    }
+}
+
 // ObsName implementation (can store normally as name never changes, so size never changes)
-impl Stores<ObsName> for Storage where Storage: StoresRef<Vec<i64>> {
-    fn read(&mut self, key: &H256) -> (ObsName, H256) {
-        let (name, key) = self.read_ref(key);
+impl StoresVariable<ObsName> for Storage where Storage: StoresFixedVec<i64> {
+    fn read_var(&mut self, key: &H256) -> (ObsName, H256) {
+        let (name, key) = self.read_vec(key);
         (ObsName::new(&name), key)
     }
 
-    fn write(&mut self, key: &H256, value: ObsName) -> H256 {
-        self.write_ref(key, &value.name.clone())
+    fn write_var(&mut self, key: &H256, value: &ObsName) -> H256 {
+        self.write_vec(key, &value.name.clone())
     }
 }
 
@@ -400,6 +541,30 @@ fn add_to_key(key: H256, mut value: u64) -> H256 {
 mod tests {
     use super::*;
     use pwasm_std::{ vec };
+
+    // Storage size of types which can be stored in a single storage slot are correct.
+    #[test]
+    fn storage_size_single_correct() {
+        assert_eq!(<[u8; 32]>::storageSize(), 1);
+        assert_eq!(bool::storageSize(), 1);
+        assert_eq!(u32::storageSize(), 1);
+        assert_eq!(i64::storageSize(), 1);
+        assert_eq!(Address::storageSize(), 1);
+    }
+
+    // Storage size of Options are correct.
+    #[test]
+    fn storage_size_option_correct() {
+        assert_eq!(Option::<i64>::storageSize(), 2);
+        assert_eq!(Option::<Option<i64>>::storageSize(), 3);
+    }
+
+    // Storage size of Tuples are correct.
+    #[test]
+    fn storage_size_tuple_correct() {
+        assert_eq!(<(Option<i64>, u32)>::storageSize(), 3);
+        assert_eq!(<(Option<i64>, u32, (bool, Address))>::storageSize(), 5);
+    }
 
     // Storage of an i64 works correctly
     #[test]
@@ -470,24 +635,71 @@ mod tests {
         assert_eq!(storage.read(&H256::zero()), ((value0, value1), add_to_key(H256::zero(), 2)));
     }
 
-    // Storage of a multi-slot typed Vec works correctly
+    // Storage of a Vec of StoresFixed-able values works correctly
     #[test]
-    fn stores_and_retrieves_single_slot_type_vec_correctly() {
+    fn stores_and_retrieves_fixed_vec_correctly() {
         let mut storage: Storage = Storage::new();
 
         let value: Vec<i64> = vec![15425, 15436136, 1346134, 123093, 132523];
-        storage.write_ref(&H256::zero(), &value);
-        assert_eq!(storage.read_ref(&H256::zero()), (value, add_to_key(H256::zero(), 5)));
+        storage.write_vec(&H256::zero(), &value.clone());
+        assert_eq!(storage.read_vec(&H256::zero()), (value, add_to_key(H256::zero(), 5)));
     }
 
-    // Storage of a multi-slot typed Vec works correctly
+    // Setting and getting elements in a Vec of StoresFixed-able values works correctly
     #[test]
-    fn stores_and_retrieves_multi_slot_type_vec_correctly() {
+    fn sets_and_gets_fixed_vec_correctly() {
         let mut storage: Storage = Storage::new();
 
-        let value: Vec<Option<i64>> = vec![Some(15425), None, Some(1346134), Some(123093), None];
-        storage.write_ref(&H256::zero(), &value);
-        assert_eq!(storage.read_ref(&H256::zero()), (value, add_to_key(H256::zero(), 10)));
+        let value: Vec<i64> = vec![0, 1, 2, 3, 4];
+        storage.write_vec(&H256::zero(), &value.clone());
+
+        let mut gotten: i64 = storage.get(&H256::zero(), 2);
+        assert_eq!(gotten, 2);
+
+        storage.set(&H256::zero(), 2, 10 as i64);
+        gotten = storage.get(&H256::zero(), 2);
+        assert_eq!(gotten, 10);
+
+        let read: Vec<i64> = storage.read_vec(&H256::zero()).0;
+        assert_eq!(read, vec![0, 1, 10, 3, 4]);
+    }
+
+    // Pushing elements in a Vec of StoresFixed-able values works correctly
+    #[test]
+    fn pushes_fixed_vec_correctly() {
+        let mut storage: Storage = Storage::new();
+
+        let value: Vec<i64> = vec![0, 1];
+        storage.write_vec(&H256::zero(), &value.clone());
+        
+        storage.push(&H256::zero(), 2 as i64);
+        storage.push(&H256::zero(), 3 as i64);
+        storage.push(&H256::zero(), 4 as i64);
+        
+        let read: Vec<i64> = storage.read_vec(&H256::zero()).0;
+        assert_eq!(read, vec![0, 1, 2, 3, 4]);
+    }
+
+    // Storage of an ObsName works correctly
+    #[test]
+    fn stores_and_retrieves_observable_names_correctly() {
+        let mut storage: Storage = Storage::new();
+
+        let value: ObsName = ObsName::new(&vec![5, 4, 3, 2, 1, 0]);
+        storage.write_var(&H256::zero(), &value);
+
+        let read: ObsName = storage.read_var(&H256::zero()).0;
+        assert_eq!(read, value);
+    }
+
+    // Storage of a variable Vec works correctly
+    #[test]
+    fn stores_and_retrieves_variable_vec_correctly() {
+        let mut storage: Storage = Storage::new();
+
+        let value: Vec<ObsName> = vec![ObsName::new(&vec![0, 1, 2, 3])];
+        storage.write_var(&H256::zero(), &value);
+        assert_eq!(storage.read_var(&H256::zero()), (value, add_to_key(H256::zero(), 5)));
     }
 
     // Conversion between Address and i64 works correctly

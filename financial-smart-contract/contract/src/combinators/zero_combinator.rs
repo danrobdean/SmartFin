@@ -1,4 +1,5 @@
 use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, Vec, Box };
+use storage::Storage;
 
 // The zero combinator
 pub struct ZeroCombinator {
@@ -40,7 +41,7 @@ impl ContractCombinator for ZeroCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) {
+    fn acquire(&mut self, time: u32, _: &mut Storage) {
         if self.combinator_details.acquisition_time != None {
             panic!("Acquiring a previously-acquired zero combinator is not allowed.");
         }
@@ -49,7 +50,7 @@ impl ContractCombinator for ZeroCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
+    fn update(&mut self, time: u32, _: &mut Storage) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
@@ -66,7 +67,7 @@ impl ContractCombinator for ZeroCombinator {
 #[cfg(test)]
 mod tests {
     use super::super::{ ContractCombinator, Combinator, ZeroCombinator };
-    use super::super::contract_combinator::{ vec };
+    use storage::Storage;
 
     // Combinator number is correct
     #[test]
@@ -99,7 +100,7 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 5;
-        combinator.acquire(time, &vec![], &mut vec![]);
+        combinator.acquire(time, &mut Storage::new());
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -118,8 +119,8 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 5;
-        combinator.acquire(time, &vec![], &mut vec![]);
-        combinator.update(time, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(time, &mut Storage::new());
+        combinator.update(time, &mut Storage::new());
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -136,8 +137,8 @@ mod tests {
         let mut combinator = ZeroCombinator::new();
 
         // Acquire and check value
-        combinator.acquire(0, &vec![], &mut vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(0, &mut Storage::new());
+        let value = combinator.update(0, &mut Storage::new());
 
         assert_eq!(
             value,
@@ -154,7 +155,7 @@ mod tests {
         let mut combinator = ZeroCombinator::new();
 
         // Update check details
-        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
+        let value = combinator.update(0, &mut Storage::new());
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -178,8 +179,8 @@ mod tests {
         let mut combinator = ZeroCombinator::new();
 
         // Update check details
-        combinator.acquire(1, &vec![], &mut vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(1, &mut Storage::new());
+        let value = combinator.update(0, &mut Storage::new());
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -204,8 +205,8 @@ mod tests {
         let mut deserialized = ZeroCombinator::deserialize(1, &serialized).1;
         assert_eq!(deserialized.serialize(), serialized);
 
-        combinator.acquire(1, &vec![], &mut vec![]);
-        combinator.update(2, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(1, &mut Storage::new());
+        combinator.update(2, &mut Storage::new());
         serialized = combinator.serialize();
         deserialized = ZeroCombinator::deserialize(1, &serialized).1;
         assert_eq!(deserialized.serialize(), serialized)
@@ -219,7 +220,7 @@ mod tests {
         let mut combinator = ZeroCombinator::new();
 
         // Acquire twice
-        combinator.acquire(0, &vec![], &mut vec![]);
-        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.acquire(0, &mut Storage::new());
+        combinator.acquire(0, &mut Storage::new());
     }
 }

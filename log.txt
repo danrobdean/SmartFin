@@ -1270,6 +1270,7 @@ no test for get_use_gas or get_concluded?
 
 
 ========== 2nd Jun ==========
+
 or combinator's acquire/update methods are wrong? seems like if a choice is made but then the sub-combinator expires, will switch to the other one. Should do:
 	- in acquire, if either sub-combinator is expired, choose the other
 	- in acquire, if both sub-combinators are non-expired, choose based on or choice
@@ -1298,9 +1299,40 @@ TODO:
 	- delete isValidAddress (not used)
 	- In evaluator, check that the horizon of combinators doesn't spill over, e.g. for and one truncate 2 zero, the "one" should have undefined horizon but the nextmap may point to 2
 
+
+
+
+========== 4th Jun ==========
+
 Meeting questions:
 	- cite technologies being mentioned? (like react, web3)
 	- changes to storage
 	- UML/other ABI representation diagram? Or give full ABI in appendix non-diagrammed?
+
+Meeting notes:
+	- conclusion with what you've done, what extra can be done (future work), and what you would do differently
+	- use "serialize" everywhere
+	- evaluation conclusions and whole chapter conclusions
+	- block diagrams for modules/equiv., clearly show which parts are external (not by me)
+	- footnotes for links and versions of used technologies (like React)
+	- ABI in appendix
+
+Storage changes:
+	- Renamed stores/storesref to StoresFixed and StoresVariable, added StoresFixedVec
+	- Can't add size() method to StoresFixed as bug(?) with explicitly calling on trait with generic type (says bound isnt met despite the same bound in where clause)
+	- Instead add StorageSized trait to every storable type
+	- ObsName can't be treated as StoresFixed, as we can't jump to a location in a vector with ObsNames as they have differing lengths
+	- Instead have StoresFixedVec, which stores a vector of fixed-size elements (with set/get/push/length methods), and StoresVariable, which stores an object of variable size
+	- StoresFixedVec<T> where Storage: StoresFixed<T>
+	- StoresVariable<T> for Vec<T> with Storage: StoresVariable<T>, and StoresVariable<ObsName>
+	- replaced read_ref/write_ref with read_vec/write_vec or read_var/write_var throughout contract
+	- instead of passing down arrays to update/acquire, the relevant classes import their array keys and get/set values - only encountered and changed values need to be read/written
+	- obs_values and obs_names stored separately
+		- not a big deal as contract never touches obs_names except to return the obs_entries, and it already has to load the whole array(s) either way
+	- added unit tests for scale with observables (missing for some reason???)
+	- all tests pass with minimal work (although actually implementing/getting to compile was a giant pain...)
+
+
+
 
 

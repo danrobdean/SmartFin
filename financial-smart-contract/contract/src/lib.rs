@@ -69,34 +69,40 @@ fn last_updated_key() -> H256 {
     H256::from([5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
 }
 
-// The serialized combinator contract (obtained remotely) storage key (first slot is length, the following are elements)
+// The serialized combinator contract (obtained remotely) storage key
 fn serialized_remote_combinator_contract_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
     H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1])
 }
 
-// The or choices storage key (first slot is length, the following are elements)
-fn or_choices_key() -> H256 {
+// The or choices storage key
+pub fn or_choices_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
     H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2])
 }
 
-// The observable values storage key (first slot is length, the following are elements)
-fn obs_entries_key() -> H256 {
+// The observable values storage key
+pub fn obs_values_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
     H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3])
 }
 
-// The anytime acquisition times key storage key (first slot is length, the following are elements)
-fn anytime_acquisition_times_key() -> H256 {
+// The observable names storage key
+fn obs_names_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
     H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4])
 }
 
-// The serialized combinator contract (obtained locally) storage key (first slot is length, the following are elements)
-fn serialized_local_combinator_contract_key() -> H256 {
+// The anytime acquisition times key storage key
+pub fn anytime_acquisition_times_key() -> H256 {
     // Store in own memory namespace as Vec storage size is not constant
     H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5])
+}
+
+// The serialized combinator contract (obtained locally) storage key
+fn serialized_local_combinator_contract_key() -> H256 {
+    // Store in own memory namespace as Vec storage size is not constant
+    H256::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6])
 }
 
 // The financial smart contract interface
@@ -192,7 +198,7 @@ impl FinancialScInterface for FinancialScContract {
         self.storage.write(&counter_party_balance_key(), 0_i64);
         self.storage.write(&use_gas_key(), use_gas);
         self.storage.write(&last_updated_key(), pwasm_ethereum::timestamp() as i64);
-        self.storage.write_ref(&serialized_remote_combinator_contract_key() , &contract_definition);
+        self.storage.write_vec(&serialized_remote_combinator_contract_key() , &contract_definition);
 
         self.set_remote_combinator();
     }
@@ -209,7 +215,7 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the combinator contract definition (serialized)
     fn get_contract_definition(&mut self) -> Vec<i64> {
-        self.storage.read_ref(&serialized_remote_combinator_contract_key()).0
+        self.storage.read_vec(&serialized_remote_combinator_contract_key()).0
     }
 
     // Gets the total balance of the caller
@@ -242,7 +248,7 @@ impl FinancialScInterface for FinancialScContract {
     // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
     fn get_acquisition_times(&mut self) -> Vec<i64> {
         let acquisition_time: Option<u32> = self.get_combinator().get_combinator_details().acquisition_time;
-        let anytime_acquisition_times_full: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
+        let anytime_acquisition_times_full: Vec<(bool, Option<u32>)> = self.storage.read_vec(&anytime_acquisition_times_key()).0;
 
         let mut serialized_acquisition_times: Vec<i64> = Vec::new();
         serialized_acquisition_times.push(if acquisition_time == None { -1 } else { acquisition_time.unwrap() as i64 });
@@ -256,7 +262,7 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the or choices
     fn get_or_choices(&mut self) -> Vec<u8> {
-        let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
+        let or_choices: Vec<Option<bool>> = self.storage.read_vec(&or_choices_key()).0;
 
         // Convert None into 2, Some(true) into 1, Some(false) into 0
         or_choices.into_iter().map(|e|
@@ -272,30 +278,36 @@ impl FinancialScInterface for FinancialScContract {
 
     // Gets the concrete observable values
     fn get_obs_entries(&mut self) -> Vec<i64> {
-        let obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
+        let obs_values: Vec<(Address, Option<i64>)> = self.storage.read_vec(&obs_values_key()).0;
+        let obs_names: Vec<ObsName> = self.storage.read_var(&obs_names_key()).0;
         let mut serialized_obs_entries: Vec<i64> = Vec::new();
 
         // Serialize obs values
-        for value in obs_entries {
+        for i in 0..obs_values.len() {
+            let address = obs_values[i].0;
+            let value = obs_values[i].1;
+            let name = obs_names[i].clone().name;
+
             // Convert address to four i64s and then store
 
             // Convert to i64s
-            let address: [i64; 4] = address_to_i64(value.0);
+            let serialized_address: [i64; 4] = address_to_i64(address);
             for i in 0..4 {
-                serialized_obs_entries.push(address[i]);
+                serialized_obs_entries.push(serialized_address[i]);
             }
 
             // Push value
-            if value.1 == None {
-                serialized_obs_entries.push(-1);
-            } else {
-                serialized_obs_entries.push(0);
-                serialized_obs_entries.push(value.1.unwrap());
+            match value {
+                None => serialized_obs_entries.push(-1),
+                Some(v) => {
+                    serialized_obs_entries.push(0);
+                    serialized_obs_entries.push(v);
+                }
             }
 
             // Push name
-            serialized_obs_entries.push(value.2.name.len() as i64);
-            serialized_obs_entries.extend_from_slice(&value.2.name);
+            serialized_obs_entries.push(name.len() as i64);
+            serialized_obs_entries.extend_from_slice(&name);
         }
 
         serialized_obs_entries
@@ -309,46 +321,33 @@ impl FinancialScInterface for FinancialScContract {
         }
 
         let index = or_index as usize;
-        let mut or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-        if index >= or_choices.len() {
-            panic!("Given or-index does not exist.");
-        }
-
-        if or_choices[index] != None {
+        let choice: Option<bool> = self.storage.get(&or_choices_key(), index);
+        if choice != None {
             panic!("Or-choice has already been set.");
         }
 
-        or_choices[index] = Some(prefer_first);
-        self.storage.write_ref(&or_choices_key(), &or_choices);
+        self.storage.set(&or_choices_key(), index, Some(prefer_first));
     }
 
     // Sets the given observable's value
     fn set_obs_value(&mut self, obs_index: u64, value: i64) {
-        let mut obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
-
         // Check index in bounds
         let index: usize = obs_index as usize;
-        if index >= obs_entries.len() {
-            panic!("Given observable-index does not exist.");
-        }
 
         // Check not set yet
-        if obs_entries[index].1 != None {
+        let value_and_arbiter: (Address, Option<i64>) = self.storage.get(&obs_values_key(), index);
+        if value_and_arbiter.1 != None {
             panic!("Observable has already been set.");
         }
 
         // Check sender
-        let arbiter: Address = obs_entries[index].0;
         let sender: Address = pwasm_ethereum::sender();
-        if sender != arbiter {
+        if sender != value_and_arbiter.0 {
             panic!("Sender cannot set value for given observable-index.");
         }
 
-        let obsName = obs_entries[index].2.clone();
-
         // Set the value
-        obs_entries[index] = (arbiter, Some(value), obsName);
-        self.storage.write_ref(&obs_entries_key(), &obs_entries);
+        self.storage.set(&obs_values_key(), index, (value_and_arbiter.0, Some(value)));
     }
 
     // Acquires the combinator contract at the current block-time (when called by the holder)
@@ -362,13 +361,9 @@ impl FinancialScInterface for FinancialScContract {
             panic!("The combinator contract cannot be acquired more than once.");
         }
 
-        let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-        let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
-
-        combinator.acquire(pwasm_ethereum::timestamp() as u32, &or_choices, &mut anytime_acquisition_times);
+        combinator.acquire(pwasm_ethereum::timestamp() as u32, &mut self.storage);
 
         self.set_combinator(combinator);
-        self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
 
         self.update();
     }
@@ -385,14 +380,10 @@ impl FinancialScInterface for FinancialScContract {
 
         // Update combinators
         let mut combinator = self.get_combinator();
-        let or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-        let obs_values: Vec<Option<i64>> = self.get_obs_values();
-        let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
 
-        let difference = combinator.update(pwasm_ethereum::timestamp() as u32, &or_choices, &obs_values, &mut anytime_acquisition_times);
+        let difference = combinator.update(pwasm_ethereum::timestamp() as u32, &mut self.storage);
 
         self.set_combinator(combinator);
-        self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
 
         // Adjust balances
         let counter_party_balance = self.storage.read(&counter_party_balance_key()).0;
@@ -405,12 +396,9 @@ impl FinancialScInterface for FinancialScContract {
     // Acquires an anytime combinator's sub-contract
     fn acquire_anytime_sub_contract(&mut self, anytime_index: u64) {
         let index = anytime_index as usize;
-        let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
-        if index >= anytime_acquisition_times.len() {
-            panic!("Given anytime index does not exist.");
-        }
+        let anytime_state: (bool, Option<u32>) = self.storage.get(&anytime_acquisition_times_key(), index);
 
-        if !anytime_acquisition_times[index].0 {
+        if !anytime_state.0 {
             panic!("Given anytime combinator has not been acquired.");
         }
 
@@ -419,15 +407,14 @@ impl FinancialScInterface for FinancialScContract {
             panic!("Only the contract holder may acquire the combinator contract.");
         }
 
-        let prev_acquisition_time = anytime_acquisition_times[anytime_index as usize].1;
+        let prev_acquisition_time = anytime_state.1;
         let new_acquisition_time = pwasm_ethereum::timestamp() as u32;
 
         if prev_acquisition_time != None && prev_acquisition_time.unwrap() <= new_acquisition_time {
             panic!("Cannot acquire a sub-combinator contract which has already been acquired.");
         }
 
-        anytime_acquisition_times[anytime_index as usize] = (true, Some(new_acquisition_time));
-        self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
+        self.storage.set(&anytime_acquisition_times_key(), index, (true, Some(new_acquisition_time)));
 
         self.update();
     }
@@ -515,9 +502,10 @@ impl FinancialScContract {
 
     // Constructs the combinators from a serialized combinator contract
     fn set_remote_combinator(&mut self) {
-        self.storage.write_ref(&or_choices_key(), &Vec::<Option<bool>>::new());
-        self.storage.write_ref(&obs_entries_key(), &Vec::<(Address, Option<i64>, ObsName)>::new());
-        self.storage.write_ref(&anytime_acquisition_times_key(), &Vec::<Option<u32>>::new());
+        self.storage.write_vec(&or_choices_key(), &Vec::<Option<bool>>::new());
+        self.storage.write_vec(&obs_values_key(), &Vec::<(Address, Option<i64>)>::new());
+        self.storage.write_var(&obs_names_key(), &Vec::<ObsName>::new());
+        self.storage.write_vec(&anytime_acquisition_times_key(), &Vec::<Option<u32>>::new());
 
         let (_, combinator) = self.deserialize_remote_combinator(0);
 
@@ -526,7 +514,7 @@ impl FinancialScContract {
 
     // Deserializes a combinator from the given combinator byte vector (obtained remotely) and index, returns the following index and the boxed combinator
     fn deserialize_remote_combinator(&mut self, i: usize)-> (usize, Box<ContractCombinator>) {
-        let serialized_combinators: Vec<i64> = self.storage.read_ref(&serialized_remote_combinator_contract_key()).0;
+        let serialized_combinators: Vec<i64> = self.storage.read_vec(&serialized_remote_combinator_contract_key()).0;
         if i >= serialized_combinators.len() {
             panic!("Provided combinator contract not valid.");
         }
@@ -550,16 +538,14 @@ impl FinancialScContract {
             // or combinator
             Combinator::OR => {
                 // Keep track of or_index and or_choices
-                let mut or_choices: Vec<Option<bool>> = self.storage.read_ref(&or_choices_key()).0;
-                let or_index: usize = or_choices.len();
-                or_choices.push(None);
-                self.storage.write_ref(&or_choices_key(), &or_choices);
+                let length = StoresFixedVec::<Option<bool>>::length(&mut self.storage, &or_choices_key());
+                StoresFixedVec::<Option<bool>>::push(&mut self.storage, &or_choices_key(), None);
 
                 // Deserialize sub-combinators
                 let (i0, sub_combinator0) = self.deserialize_remote_combinator(i + 1);
                 let (i1, sub_combinator1) = self.deserialize_remote_combinator(i0);
 
-                (i1, Box::new(OrCombinator::new(sub_combinator0, sub_combinator1, or_index)))
+                (i1, Box::new(OrCombinator::new(sub_combinator0, sub_combinator1, length)))
             },
 
             // truncate combinator
@@ -586,13 +572,18 @@ impl FinancialScContract {
                     scale_value = Some(serialized_combinators[i0]);
                     i0 += 1;
                 } else {
-                    let mut obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
+                    let mut obs_names: Vec<ObsName> = self.storage.read_var(&obs_names_key()).0;
+                    obs_index = Some(obs_names.len());
+                    scale_value = None;
 
                     // Deserialize arbiter address
                     let mut serialized_address: [i64; 4] = [0; 4];
                     serialized_address.copy_from_slice(&serialized_combinators[(i0)..(i0 + 4)]);
                     let address = i64_to_address(serialized_address);
                     i0 += 4;
+
+                    // Store observable value/arbiter
+                    StoresFixedVec::<(Address, Option<i64>)>::push(&mut self.storage, &obs_values_key(), (address, None));
 
                     // Deserialize name
                     let name_len = serialized_combinators[(i0)] as usize;
@@ -601,11 +592,9 @@ impl FinancialScContract {
                     let mut obsName: ObsName = ObsName::new(&name);
                     i0 += 1 + name_len;
 
-                    obs_index = Some(obs_entries.len());
-                    obs_entries.push((address, None, obsName));
-
-                    self.storage.write_ref(&obs_entries_key(), &obs_entries);
-                    scale_value = None;
+                    // Store observable names
+                    obs_names.push(obsName);
+                    self.storage.write_var(&obs_names_key(), &obs_names);
                 }
 
                 // Deserialize sub-contract
@@ -642,10 +631,8 @@ impl FinancialScContract {
             // anytime combinator
             Combinator::ANYTIME => {
                 // Keep track of anytime_index and anytime_acquisition_times
-                let mut anytime_acquisition_times: Vec<(bool, Option<u32>)> = self.storage.read_ref(&anytime_acquisition_times_key()).0;
-                let anytime_index = anytime_acquisition_times.len();
-                anytime_acquisition_times.push((false, None));
-                self.storage.write_ref(&anytime_acquisition_times_key(), &anytime_acquisition_times);
+                let anytime_index = StoresFixedVec::<(bool, Option<u32>)>::length(&mut self.storage, &anytime_acquisition_times_key());
+                StoresFixedVec::<(bool, Option<u32>)>::push(&mut self.storage, &anytime_acquisition_times_key(), (false, None));
 
                 // Deserialize sub-combinator
                 let (i0, sub_combinator) = self.deserialize_remote_combinator(i + 1);
@@ -657,20 +644,20 @@ impl FinancialScContract {
 
     // Gets and deserializes the ContractCombinator from storage
     fn get_combinator(&mut self) -> Box<ContractCombinator> {
-        let serialized = self.storage.read_ref(&serialized_local_combinator_contract_key()).0;
+        let serialized = self.storage.read_vec(&serialized_local_combinator_contract_key()).0;
         deserialize_combinator(0, &serialized).1
     }
 
     // Serializes and stores the ContractCombinator
     fn set_combinator(&mut self, combinator: Box<ContractCombinator>) {
         let serialized = combinator.serialize();
-        self.storage.write_ref(&serialized_local_combinator_contract_key(), &serialized);
+        self.storage.write_vec(&serialized_local_combinator_contract_key(), &serialized);
     }
 
     // Gets the observable values
     fn get_obs_values(&mut self) -> Vec<Option<i64>> {
-        let obs_entries: Vec<(Address, Option<i64>, ObsName)> = self.storage.read_ref(&obs_entries_key()).0;
-        obs_entries.into_iter().map(|e| e.1).collect()
+        let obs_values: Vec<(Address, Option<i64>)> = self.storage.read_vec(&obs_values_key()).0;
+        obs_values.into_iter().map(|e| e.1).collect()
     }
 
     // Add numbers safely to avoid integer overflow/underflow
@@ -721,7 +708,7 @@ impl FinancialScContract {
 mod tests {
     extern crate pwasm_test;
 
-    use super::{ FinancialScContract, FinancialScInterface, Storage, Stores, StoresRef };
+    use super::{ FinancialScContract, FinancialScInterface, Storage, StoresFixed, StoresFixedVec, StoresVariable };
     use storage::{ address_to_i64, i64_to_address };
     use super::pwasm_std::{ Vec, vec, types::{ Address, U256, H256 } };
     use self::pwasm_test::{ ext_reset, ext_update };
@@ -1185,9 +1172,25 @@ mod tests {
         contract.set_or_choice(0, true);
     }
 
+    // Setting a non-existent or-choice is not allowed.
+    #[test]
+    #[should_panic(expected = "Stored vector index out of bounds.")]
+    fn should_panic_if_setting_non_existent_or_choice() {
+        let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            holder,
+            0,
+            vec![0]
+        );
+
+        ext_update(|e| e.sender(holder));
+        contract.set_or_choice(0, true);
+    }
+
     // Providing an or choice for a non-existent or combinator is not allowed
     #[test]
-    #[should_panic(expected = "Given or-index does not exist.")]
+    #[should_panic(expected = "Stored vector index out of bounds.")]
     fn should_panic_if_non_existent_or_choice_provided() {
         let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
         let mut contract = setup_contract(
@@ -1251,9 +1254,9 @@ mod tests {
         contract.acquire_anytime_sub_contract(0);
     }
 
-    // Non-holders acquiring anytime sub-contracts is not allowed
+    // Acquiring non-existent anytime sub-contracts is not allowed
     #[test]
-    #[should_panic(expected = "Given anytime index does not exist.")]
+    #[should_panic(expected = "Stored vector index out of bounds.")]
     fn should_panic_when_acquiring_non_existent_anytime_sub_contract() {
         let holder = "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap();
         let mut contract = setup_contract(

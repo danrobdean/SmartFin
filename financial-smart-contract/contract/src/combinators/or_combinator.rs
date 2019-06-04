@@ -1,4 +1,6 @@
 use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, latest_time, deserialize_combinator, Box, Vec };
+use { or_choices_key };
+use storage::*;
 
 // The or combinator
 pub struct OrCombinator {
@@ -27,13 +29,13 @@ impl OrCombinator {
     }
 
     // Returns whether the current or-choice is the first sub-combinator
-    fn get_or_choice(&self, time: u32, or_choices: &Vec<Option<bool>>) -> Option<bool> {
+    fn get_or_choice(&self, time: u32, storage: &mut Storage) -> Option<bool> {
         if self.sub_combinator0.past_horizon(time) {
             Some(false)
         } else if self.sub_combinator1.past_horizon(time) {
             Some(true)
         } else {
-            or_choices[self.or_index]
+            storage.get(&or_choices_key(), self.or_index)
         }
     }
 
@@ -73,7 +75,7 @@ impl ContractCombinator for OrCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) {
+    fn acquire(&mut self, time: u32, storage: &mut Storage) {
         if self.past_horizon(time) {
             panic!("Cannot acquire an expired contract.");
         }
@@ -82,9 +84,9 @@ impl ContractCombinator for OrCombinator {
         }
 
         // Check which sub-combinator to acquire. If ambiguous, acquire both branches.
-        match self.get_or_choice(time, or_choices) {
-            Some(true) => self.sub_combinator0.acquire(time, or_choices, anytime_acquisition_times),
-            Some(false) => self.sub_combinator1.acquire(time, or_choices, anytime_acquisition_times),
+        match self.get_or_choice(time, storage) {
+            Some(true) => self.sub_combinator0.acquire(time, storage),
+            Some(false) => self.sub_combinator1.acquire(time, storage),
             None => { }
         }
 
@@ -92,7 +94,7 @@ impl ContractCombinator for OrCombinator {
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
+    fn update(&mut self, time: u32, storage: &mut Storage) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
@@ -100,7 +102,7 @@ impl ContractCombinator for OrCombinator {
             return 0;
         }
 
-        let or_choice = self.get_or_choice(self.combinator_details.acquisition_time.unwrap(), or_choices);
+        let or_choice = self.get_or_choice(self.combinator_details.acquisition_time.unwrap(), storage);
 
         let sub_combinator;
         match or_choice {
@@ -110,10 +112,10 @@ impl ContractCombinator for OrCombinator {
         }
 
         if sub_combinator.get_combinator_details().acquisition_time == None {
-            sub_combinator.acquire(self.combinator_details.acquisition_time.unwrap(), or_choices, anytime_acquisition_times);
+            sub_combinator.acquire(self.combinator_details.acquisition_time.unwrap(), storage);
         }
 
-        let sub_value = sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
+        let sub_value = sub_combinator.update(time, storage);
         self.combinator_details.fully_updated = sub_combinator.get_combinator_details().fully_updated;
         sub_value
     }
@@ -132,7 +134,16 @@ impl ContractCombinator for OrCombinator {
 #[cfg(test)]
 mod tests {
     use super::super::{ ContractCombinator, Combinator, OrCombinator, OneCombinator, ZeroCombinator, TruncateCombinator, GetCombinator };
-    use super::super::contract_combinator::{ Box, vec };
+    use super::super::contract_combinator::{ Box, Vec, vec };
+    use { or_choices_key };
+    use storage::*;
+
+    // Sets up the storage struct
+    fn setup_storage(or_choices: &Vec<Option<bool>>) -> Storage {
+        let mut storage = Storage::new();
+        storage.write_vec(&or_choices_key(), or_choices);
+        storage
+    }
 
     // Combinator number is correct
     #[test]
@@ -140,7 +151,7 @@ mod tests {
         let combinator = OrCombinator::new(Box::new(ZeroCombinator::new()), Box::new(ZeroCombinator::new()), 0);
         assert_eq!(combinator.get_combinator_number(), Combinator::OR);
     }
-    
+
     // Horizon is latest of sub-combinators' horizons with the left combinator truncated
     #[test]
     fn correct_horizon_with_left_combinator_truncated() {
@@ -199,7 +210,8 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 5;
-        combinator.acquire(time, &vec![Some(true)], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(true)]);
+        combinator.acquire(time, &mut storage);
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -221,8 +233,9 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![Some(false)], &mut vec![]);
-        let value = combinator.update(0, &vec![Some(false)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(false)]);
+        combinator.acquire(0, &mut storage);
+        let value = combinator.update(0, &mut storage);
 
         assert_eq!(
             value,
@@ -243,8 +256,9 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![Some(false)], &mut vec![]);
-        combinator.update(0, &vec![Some(false)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(false)]);
+        combinator.acquire(0, &mut storage);
+        combinator.update(0, &mut storage);
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert!(
@@ -265,9 +279,10 @@ mod tests {
         );
 
         // Acquire and check value
-        combinator.acquire(0, &vec![Some(false)], &mut vec![]);
-        combinator.update(0, &vec![Some(false)], &vec![], &mut vec![]);
-        let value = combinator.update(0, &vec![Some(false)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(false)]);
+        combinator.acquire(0, &mut storage);
+        combinator.update(0, &mut storage);
+        let value = combinator.update(0, &mut storage);
 
         assert_eq!(
             value,
@@ -293,8 +308,9 @@ mod tests {
         );
 
         // Acquire, update and check value
-        combinator.acquire(0, &vec![Some(true)], &mut vec![]);
-        let value = combinator.update(3, &vec![Some(true)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(true)]);
+        combinator.acquire(0, &mut storage);
+        let value = combinator.update(3, &mut storage);
 
         assert_eq!(
             value,
@@ -320,8 +336,10 @@ mod tests {
         );
 
         // Acquire, update and check value
-        combinator.acquire(0, &vec![None], &mut vec![]);
-        let value = combinator.update(3, &vec![Some(true)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![None]);
+        combinator.acquire(0, &mut storage);
+        storage.set(&or_choices_key(), 0, Some(true));
+        let value = combinator.update(3, &mut storage);
 
         assert_eq!(
             value,
@@ -342,7 +360,8 @@ mod tests {
         );
 
         // Update check details
-        let value = combinator.update(0, &vec![Some(false)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(false)]);
+        let value = combinator.update(0, &mut storage);
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -370,8 +389,9 @@ mod tests {
         );
 
         // Update check details
-        combinator.acquire(1, &vec![Some(false)], &mut vec![]);
-        let value = combinator.update(0, &vec![Some(false)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(false)]);
+        combinator.acquire(1, &mut storage);
+        let value = combinator.update(0, &mut storage);
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -399,8 +419,9 @@ mod tests {
         );
 
         // Update check details
-        combinator.acquire(0, &vec![None], &mut vec![]);
-        let value = combinator.update(0, &vec![None], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![None]);
+        combinator.acquire(0, &mut storage);
+        let value = combinator.update(0, &mut storage);
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -431,8 +452,9 @@ mod tests {
         );
 
         // Update check details
-        combinator.acquire(0, &vec![Some(true)], &mut vec![]);
-        let value = combinator.update(2, &vec![Some(true)], &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(true)]);
+        combinator.acquire(0, &mut storage);
+        let value = combinator.update(2, &mut storage);
 
         assert_eq!(
             value,
@@ -463,8 +485,9 @@ mod tests {
         let or_index = 0;
         let mut combinator = OrCombinator::new(Box::new(OneCombinator::new()), Box::new(ZeroCombinator::new()), or_index);
         let or_choices = &vec![Some(true)];
-        combinator.acquire(1, &or_choices, &mut vec![]);
-        combinator.update(2, &or_choices, &vec![], &mut vec![]);
+        let mut storage = setup_storage(or_choices);
+        combinator.acquire(1, &mut storage);
+        combinator.update(2, &mut storage);
         let serialized = combinator.serialize();
         let deserialized = OrCombinator::deserialize(1, &serialized).1;
         assert_eq!(deserialized.serialize(), serialized);
@@ -482,8 +505,9 @@ mod tests {
         );
 
         // Acquire twice
-        combinator.acquire(0, &vec![Some(false)], &mut vec![]);
-        combinator.acquire(0, &vec![Some(false)], &mut vec![]);
+        let mut storage = setup_storage(&vec![Some(false)]);
+        combinator.acquire(0, &mut storage);
+        combinator.acquire(0, &mut storage);
     }
 
     // Acquiring combinator post-expiry is not allowed
@@ -505,6 +529,7 @@ mod tests {
         );
 
         // Acquire at time = 1
-        combinator.acquire(1, &vec![], &mut vec![]);
+        let mut storage = setup_storage(&vec![]);
+        combinator.acquire(1, &mut storage);
     }
 }

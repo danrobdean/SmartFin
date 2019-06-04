@@ -1,6 +1,7 @@
 extern crate pwasm_std;
 
-pub use self::pwasm_std::{ Box, Vec, vec };
+pub use self::pwasm_std::{ Box, Vec, vec, types::{ Address } };
+use storage::*;
 
 use ZeroCombinator;
 use OneCombinator;
@@ -129,10 +130,10 @@ pub trait ContractCombinator {
     fn get_combinator_details(&self) -> &CombinatorDetails;
 
     // Acquires the combinator, setting the acquisition time in the combinator details
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>);
+    fn acquire(&mut self, time: u32, storage: &mut Storage);
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64;
+    fn update(&mut self, time: u32, storage: &mut Storage) -> i64;
 
     // Gets the combinator number
     fn get_combinator_number(&self) -> Combinator;
@@ -197,6 +198,7 @@ pub fn deserialize_combinator(index: usize, serialized_combinator: &Vec<i64>) ->
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+    use { anytime_acquisition_times_key };
 
     // Dummy combinator
     pub struct DummyCombinator {
@@ -225,12 +227,12 @@ mod tests {
         }
 
         // Acquires the combinator and acquirable sub-combinators
-        fn acquire(&mut self, time: u32, _or_choices: &Vec<Option<bool>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) {
+        fn acquire(&mut self, time: u32, _: &mut Storage) {
             self.combinator_details.acquisition_time = Some(time);
         }
 
         // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-        fn update(&mut self, _time: u32, _or_choices: &Vec<Option<bool>>, _obs_values: &Vec<Option<i64>>, _anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
+        fn update(&mut self, _time: u32, _: &mut Storage) -> i64 {
             self.combinator_details.fully_updated = true;
             0
         }
@@ -292,8 +294,9 @@ mod tests {
         assert_eq!(serialized_details[2], 0);
 
 
-        combinator.acquire(10, &vec![], &mut vec![]);
-        combinator.update(11, &vec![], &vec![], &mut vec![]);
+        let mut storage = Storage::new();
+        combinator.acquire(10, &mut storage);
+        combinator.update(11, &mut storage);
         serialized_details = combinator.serialize_details();
         
         assert_eq!(Combinator::from(serialized_details[0]), combinator.get_combinator_number());
@@ -308,9 +311,9 @@ mod tests {
         let mut serialized = combinator.serialize();
         assert_eq!(serialized, combinator.serialize());
 
-
-        combinator.acquire(10, &vec![], &mut vec![]);
-        combinator.update(11, &vec![], &vec![], &mut vec![]);
+        let mut storage = Storage::new();
+        combinator.acquire(10, &mut storage);
+        combinator.update(11, &mut storage);
         serialized = combinator.serialize();
 
         assert_eq!(serialized, combinator.serialize_details());
@@ -344,9 +347,10 @@ mod tests {
             )),
             0
         );
-        let mut anytime_acquisition_times = vec![(false, None)];
-        combinator.acquire(10, &vec![None], &mut anytime_acquisition_times);
-        combinator.update(11, &vec![None], &vec![], &mut anytime_acquisition_times);
+        let mut storage = Storage::new();
+        storage.write_vec(&anytime_acquisition_times_key(), &vec![(false, Some(20 as u32))]);
+        combinator.acquire(10, &mut storage);
+        combinator.update(11, &mut storage);
         let serialized = combinator.serialize();
 
         let (_, deserialized) = deserialize_combinator(0, &serialized);

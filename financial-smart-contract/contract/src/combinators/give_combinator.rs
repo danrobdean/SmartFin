@@ -1,4 +1,5 @@
 use super::contract_combinator::{ Combinator, ContractCombinator, CombinatorDetails, deserialize_combinator, Box, Vec };
+use storage::Storage;
 
 // The give combinator
 pub struct GiveCombinator {
@@ -50,7 +51,7 @@ impl ContractCombinator for GiveCombinator {
     }
 
     // Acquires the combinator and acquirable sub-combinators
-    fn acquire(&mut self, time: u32, or_choices: &Vec<Option<bool>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) {
+    fn acquire(&mut self, time: u32, storage: &mut Storage) {
         if self.past_horizon(time) {
             panic!("Cannot acquire an expired contract.");
         }
@@ -58,12 +59,12 @@ impl ContractCombinator for GiveCombinator {
             panic!("Acquiring a previously-acquired give combinator is not allowed.");
         }
 
-        self.sub_combinator.acquire(time, or_choices, anytime_acquisition_times);
+        self.sub_combinator.acquire(time, storage);
         self.combinator_details.acquisition_time = Some(time);
     }
 
     // Updates the combinator, returning the current balance to be paid from the holder to the counter-party
-    fn update(&mut self, time: u32, or_choices: &Vec<Option<bool>>, obs_values: &Vec<Option<i64>>, anytime_acquisition_times: &mut Vec<(bool, Option<u32>)>) -> i64 {
+    fn update(&mut self, time: u32, storage: &mut Storage) -> i64 {
         // If not acquired yet or fully updated (no more pending balance), return 0
         if self.combinator_details.acquisition_time == None
             || self.combinator_details.acquisition_time.unwrap() > time
@@ -71,7 +72,7 @@ impl ContractCombinator for GiveCombinator {
             return 0;
         }
 
-        let sub_value = self.sub_combinator.update(time, or_choices, obs_values, anytime_acquisition_times);
+        let sub_value = self.sub_combinator.update(time, storage);
         self.combinator_details.fully_updated = self.sub_combinator.get_combinator_details().fully_updated;
         -1 * sub_value
     }
@@ -88,7 +89,8 @@ impl ContractCombinator for GiveCombinator {
 #[cfg(test)]
 mod tests {
     use super::super::{ ContractCombinator, Combinator, GiveCombinator, OneCombinator, TruncateCombinator };
-    use super::super::contract_combinator::{ Box, vec };
+    use super::super::contract_combinator::{ Box };
+    use storage::Storage;
 
     // Combinator number is correct
     #[test]
@@ -126,7 +128,7 @@ mod tests {
 
         // Acquire and check details
         let time: u32 = 5;
-        combinator.acquire(time, &vec![], &mut vec![]);
+        combinator.acquire(time, &mut Storage::new());
         let combinator_details = combinator.get_combinator_details();
 
         assert_eq!(
@@ -144,8 +146,8 @@ mod tests {
         let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
 
         // Acquire and check value
-        combinator.acquire(0, &vec![], &mut vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(0, &mut Storage::new());
+        let value = combinator.update(0, &mut Storage::new());
 
         assert_eq!(
             value,
@@ -162,8 +164,8 @@ mod tests {
         let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
 
         // Acquire and check value
-        combinator.acquire(0, &vec![], &mut vec![]);
-        combinator.update(0, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(0, &mut Storage::new());
+        combinator.update(0, &mut Storage::new());
         let fully_updated = combinator.get_combinator_details().fully_updated;
 
         assert!(
@@ -180,9 +182,9 @@ mod tests {
         let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
 
         // Acquire and check value
-        combinator.acquire(0, &vec![], &mut vec![]);
-        combinator.update(0, &vec![], &vec![], &mut vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(0, &mut Storage::new());
+        combinator.update(0, &mut Storage::new());
+        let value = combinator.update(0, &mut Storage::new());
 
         assert_eq!(
             value,
@@ -199,7 +201,7 @@ mod tests {
         let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
 
         // Update check details
-        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
+        let value = combinator.update(0, &mut Storage::new());
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -223,8 +225,8 @@ mod tests {
         let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
 
         // Update check details
-        combinator.acquire(1, &vec![], &mut vec![]);
-        let value = combinator.update(0, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(1, &mut Storage::new());
+        let value = combinator.update(0, &mut Storage::new());
         let combinator_details = combinator.get_combinator_details();
 
         assert!(
@@ -256,8 +258,8 @@ mod tests {
     #[test]
     fn deserialization_correct() {
         let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
-        combinator.acquire(1, &vec![], &mut vec![]);
-        combinator.update(2, &vec![], &vec![], &mut vec![]);
+        combinator.acquire(1, &mut Storage::new());
+        combinator.update(2, &mut Storage::new());
         let serialized = combinator.serialize();
         let deserialized = GiveCombinator::deserialize(1, &serialized).1;
         assert_eq!(deserialized.serialize(), serialized);
@@ -271,8 +273,8 @@ mod tests {
         let mut combinator = GiveCombinator::new(Box::new(OneCombinator::new()));
 
         // Acquire twice
-        combinator.acquire(0, &vec![], &mut vec![]);
-        combinator.acquire(0, &vec![], &mut vec![]);
+        combinator.acquire(0, &mut Storage::new());
+        combinator.acquire(0, &mut Storage::new());
     }
 
     // Acquiring combinator post-expiry is not allowed
@@ -288,6 +290,6 @@ mod tests {
         );
 
         // Acquire at time = 1
-        combinator.acquire(1, &vec![], &mut vec![]);
+        combinator.acquire(1, &mut Storage::new());
     }
 }
