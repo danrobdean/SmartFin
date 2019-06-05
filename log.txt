@@ -1335,4 +1335,19 @@ Storage changes:
 
 
 
+========== 5th Jun ==========
+
+More storage changes:
+	- Instead of "write/read"_"len/some", now require StoresFixed<i64/bool> in implementations that used them
+	- Finalllyyyyy figured out a way to cast the storage calls that doesnt complain, with <Storage as StoresFixed<T>>::method(self)
+		- can thus use <Storage as StoresFixed<i64/bool>>::write/read, instead of write/read_len/some
+		- CAN implement StoresFixed<T>::size() and call correctly, so no more StorageSized
+	- Updated everything to use this, much much nicer (although ugly casting everywhere) and all tests pass
+	- Apparently these casts don't get checked at compile time, so make sure it's in the where clause if you wanna cast
+	- Have removed all T: StorageSized requirements
+	- Despite its generic nature, can NOT make StoresFixedVec<T> a default implementation as it complains that Self: Sized is not fulfilled (I'm pretty sure this is never fulfilled either way but oh well)
+
+Besides that, fixing up report (updating financial smart contract section for new storage design, and editing/cutting)
+
+
 

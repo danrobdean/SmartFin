@@ -31,25 +31,21 @@ pub struct Storage {
     table: Vec<Entry>
 }
 
-// Trait to indicate that an object has a fixed size in smart contract storage.
-pub trait StorageSized {
-    // Returns the size of a type in smart contract storage.
-    fn storageSize() -> u64 {
-        1
-    }
-}
-
 // The implementing struct can store values of the given type (passed/returned by value). These values must never change size.
-pub trait StoresFixed<T> where T: StorageSized {
+pub trait StoresFixed<T> {
     // Reads a value of the given type from storage, returns the value and the last used address (storage is done sequentially)
     fn read(&mut self, key: &H256) -> (T, H256);
 
     // Writes a value of the given type to storage, returns the last used address (storage is done sequentially)
     fn write(&mut self, key: &H256, value: T) -> H256;
+
+    fn size() -> usize {
+        1
+    }
 }
 
 // The implementing struct can store a vector of values of the given type (passed/returned by value). These values must never change size.
-pub trait StoresFixedVec<T> where Self: StoresFixed<T>, T: StorageSized {
+pub trait StoresFixedVec<T> where Self: StoresFixed<T> + StoresFixed<i64> {
     // Reads a set of values of the given type from storage, returns the value and the last used address (storage is done sequentially)
     fn read_vec(&mut self, key: &H256) -> (Vec<T>, H256);
 
@@ -84,26 +80,6 @@ impl Storage {
     // Initialise a new storage table
     pub fn new() -> Storage {
         Storage { table: Vec::new() }
-    }
-
-    // Read the length of a vector from storage
-    fn read_len(&mut self, key: &H256) -> usize {
-        Storage::to_i64(&pwasm_ethereum::read(key)) as usize
-    }
-
-    // Write the length of a vector to storage, uses 1 slot in storage
-    fn write_len(&mut self, key: &H256, len: usize) {
-        pwasm_ethereum::write(key, &Storage::from_i64(len as i64));
-    }
-
-    // Read whether an Option has Some or None
-    fn read_some(&mut self, key: &H256) -> bool {
-        Storage::to_bool(&pwasm_ethereum::read(key))
-    }
-
-    // Write whether an Option has Some or None
-    fn write_some(&mut self, key: &H256, some: bool) {
-        pwasm_ethereum::write(key, &Storage::from_bool(some));
     }
     
     // Convert a stored value into an address
@@ -175,9 +151,6 @@ impl Storage {
     }
 }
 
-
-impl StorageSized for [u8; 32] { }
-
 impl StoresFixed<[u8; 32]> for Storage {
     // Read a value from storage, store locally if not already
     fn read(&mut self, key: &H256) -> ([u8; 32], H256) {
@@ -214,9 +187,6 @@ impl StoresFixed<[u8; 32]> for Storage {
     }
 }
 
-
-impl StorageSized for Address { }
-
 impl StoresFixed<Address> for Storage {
     fn read(&mut self, key: &H256) -> (Address, H256) {
         let (value, last_used): ([u8; 32], H256) = self.read(key);
@@ -229,9 +199,6 @@ impl StoresFixed<Address> for Storage {
     }
 }
 
-
-impl StorageSized for i64 { }
-
 impl StoresFixed<i64> for Storage {
     fn read(&mut self, key: &H256) -> (i64, H256) {
         let (value, last_used): ([u8; 32], H256) = self.read(key);
@@ -243,9 +210,6 @@ impl StoresFixed<i64> for Storage {
         *key
     }
 }
-
-
-impl StorageSized for u32 { }
 
 impl StoresFixed<u32> for Storage {
     fn read(&mut self, key: &H256) -> (u32, H256) {
@@ -261,9 +225,6 @@ impl StoresFixed<u32> for Storage {
     }
 }
 
-
-impl StorageSized for bool { }
-
 impl StoresFixed<bool> for Storage {
     fn read(&mut self, key: &H256) -> (bool, H256) {
         let (value, last_used): ([u8; 32], H256) = self.read(key);
@@ -275,51 +236,38 @@ impl StoresFixed<bool> for Storage {
     }
 }
 
-
-impl<T> StorageSized for Option<T> where T: StorageSized {
-    // Returns the size of a type in smart contract storage.
-    fn storageSize() -> u64 {
-        T::storageSize() + 1
+impl<T> StoresFixed<Option<T>> for Storage where Storage: StoresFixed<T> + StoresFixed<bool> {
+    fn size() -> usize {
+        <Storage as StoresFixed<T>>::size() + 1
     }
-}
 
-impl<T> StoresFixed<Option<T>> for Storage where Storage: StoresFixed<T>, T: StorageSized {
     fn read(&mut self, key: &H256) -> (Option<T>, H256) {
-        let some: bool = self.read_some(key);
+        let some: bool = <Storage as StoresFixed<bool>>::read(self, key).0;
         if some {
             let (value, last_used) = self.read(&add_to_key(*key, 1));
             (Some(value), last_used)
         } else {
-            (None, add_to_key(*key, T::storageSize() as u64))
+            (None, add_to_key(*key, <Storage as StoresFixed<T>>::size() as u64))
         }
     }
 
     fn write(&mut self, key: &H256, value: Option<T>) -> H256 {
         match value {
             Some(v) => {
-                self.write_some(key, true);
-                self.write(&add_to_key(*key, T::storageSize() as u64), v)
+                let last_used = <Storage as StoresFixed<bool>>::write(self, key, true);
+                self.write(&add_to_key(last_used, 1), v)
             },
             None => {
-                self.write_some(key, false);
+                <Storage as StoresFixed<bool>>::write(self, key, false);
                 // Cannot have variable-length elements in StoresFixed, so always save 2 slots even if no value to write
-                add_to_key(*key, T::storageSize() as u64)
+                add_to_key(*key, <Storage as StoresFixed<T>>::size() as u64)
             }
         }
     }
 }
 
-
-impl<T, U> StorageSized for (T, U) where T: StorageSized, U: StorageSized {
-    // Returns the size of a type in smart contract storage.
-    fn storageSize() -> u64 {
-        T::storageSize() + U::storageSize()
-    }
-}
-
 // Tuple implementation
-impl<T, U> StoresFixed<(T, U)> for Storage where Storage: StoresFixed<T> + StoresFixed<U>,
-                                                T: StorageSized, U: StorageSized {
+impl<T, U> StoresFixed<(T, U)> for Storage where Storage: StoresFixed<T> + StoresFixed<U> {
     fn read(&mut self, key: &H256) -> ((T, U), H256) {
         let (first, key0): (T, H256) = self.read(key);
         let (second, key1): (U, H256) = self.read(&add_to_key(key0, 1));
@@ -330,18 +278,13 @@ impl<T, U> StoresFixed<(T, U)> for Storage where Storage: StoresFixed<T> + Store
         let key0 = self.write(&key, value.0);
         self.write(&add_to_key(key0, 1), value.1)
     }
-}
 
-
-impl<T, U, V> StorageSized for (T, U, V) where T: StorageSized, U: StorageSized, V: StorageSized {
-    // Returns the size of a type in smart contract storage.
-    fn storageSize() -> u64 {
-        T::storageSize() + U::storageSize() + V::storageSize()
+    fn size() -> usize {
+        <Storage as StoresFixed<T>>::size() + <Storage as StoresFixed<U>>::size()
     }
 }
 
-impl<T, U, V> StoresFixed<(T, U, V)> for Storage where Storage: StoresFixed<T> + StoresFixed<U> + StoresFixed<V>,
-                                                        T: StorageSized, U: StorageSized, V: StorageSized {
+impl<T, U, V> StoresFixed<(T, U, V)> for Storage where Storage: StoresFixed<T> + StoresFixed<U> + StoresFixed<V> {
     fn read(&mut self, key: &H256) -> ((T, U, V), H256) {
         let (first, key0): (T, H256) = self.read(key);
         let (second, key1): (U, H256) = self.read(&add_to_key(key0, 1));
@@ -354,13 +297,17 @@ impl<T, U, V> StoresFixed<(T, U, V)> for Storage where Storage: StoresFixed<T> +
         let key1 = self.write(&add_to_key(key0, 1), value.1);
         self.write(&add_to_key(key1, 1), value.2)
     }
+
+    fn size() -> usize {
+        <Storage as StoresFixed<T>>::size() + <Storage as StoresFixed<U>>::size() + <Storage as StoresFixed<V>>::size()
+    }
 }
 
 
-impl<T> StoresFixedVec<T> for Storage where Storage: StoresFixed<T>, T: StorageSized, Vec<T>: core::clone::Clone {
+impl<T> StoresFixedVec<T> for Storage where Storage: StoresFixed<T> + StoresFixed<i64>, Vec<T>: core::clone::Clone {
     // Reads a set of values of the given type from storage, returns the value and the last used address (storage is done sequentially)
     fn read_vec(&mut self, key: &H256) -> (Vec<T>, H256) {
-        let length: usize = self.read_len(key);
+        let length: usize = self.length(key);
         let mut current = add_to_key(*key, 1);
         let mut res: Vec<T> = Vec::new();
 
@@ -378,7 +325,7 @@ impl<T> StoresFixedVec<T> for Storage where Storage: StoresFixed<T>, T: StorageS
     // Writes a set of values of the given type to storage, returns the last used address (storage is done sequentially)
     fn write_vec(&mut self, key: &H256, value: &Vec<T>) -> H256 {
         let length = value.len();
-        self.write_len(key, length);
+        <Storage as StoresFixed<i64>>::write(self, key, length as i64);
         let mut last_used = *key;
         let mut clone = value.clone();
 
@@ -391,53 +338,53 @@ impl<T> StoresFixedVec<T> for Storage where Storage: StoresFixed<T>, T: StorageS
 
     // Gets a single element of the given type from storage.
     fn get(&mut self, key: &H256, index: usize) -> T {
-        let length: usize = self.read_len(key);
+        let length: usize = self.length(key);
 
         if length <= index {
             panic!("Stored vector index out of bounds.");
         }
 
-        let size = T::storageSize();
-        let elem_key = &add_to_key(*key, 1 + size * (index as u64));
+        let size = <Storage as StoresFixed<T>>::size();
+        let elem_key = &add_to_key(*key, (1 + size * index) as u64);
         self.read(elem_key).0
     }
 
     // Sets a single element of the given type in storage.
     fn set(&mut self, key: &H256, index: usize, value: T) {
-        let length: usize = self.read_len(key);
+        let length: usize = self.length(key);
 
         if length <= index {
             panic!("Stored vector index out of bounds.");
         }
 
-        let size = T::storageSize();
-        let elem_key = &add_to_key(*key, 1 + size * (index as u64));
+        let size = <Storage as StoresFixed<T>>::size();
+        let elem_key = &add_to_key(*key, (1 + size * index) as u64);
         self.write(elem_key, value);
     }
 
     // Adds an element to the end of the stored vector.
     fn push(&mut self, key: &H256, value: T) {
-        let length: usize = self.read_len(key);
+        let length: usize = self.length(key);
 
-        let size = T::storageSize();
-        let elem_key = &add_to_key(*key, 1 + size * (length as u64));
+        let size = <Storage as StoresFixed<T>>::size();
+        let elem_key = &add_to_key(*key, (1 + size * length) as u64);
         self.write(elem_key, value);
 
-        self.write_len(key, length + 1);
+        <Storage as StoresFixed<i64>>::write(self, key, (length + 1) as i64);
     }
 
     // Gets the length of the vector
     fn length(&mut self, key: &H256) -> usize {
-        self.read_len(key)
+        <Storage as StoresFixed<i64>>::read(self, key).0 as usize
     }
 }
 
 
 // Vectors are stored sequentially
-impl<T> StoresVariable<Vec<T>> for Storage where Storage: StoresVariable<T>, Vec<T>: core::clone::Clone {
+impl<T> StoresVariable<Vec<T>> for Storage where Storage: StoresVariable<T> + StoresFixed<i64>, Vec<T>: core::clone::Clone {
     // Reads vector sequentially from storage
     fn read_var(&mut self, key: &H256) -> (Vec<T>, H256) {
-        let length: usize = self.read_len(key);
+        let length: usize = <Storage as StoresFixed<i64>>::read(self, key).0 as usize;
         let mut current = add_to_key(*key, 1);
         let mut res: Vec<T> = Vec::new();        
 
@@ -454,7 +401,7 @@ impl<T> StoresVariable<Vec<T>> for Storage where Storage: StoresVariable<T>, Vec
 
     fn write_var(&mut self, key: &H256, value: &Vec<T>) -> H256 {
         let length = value.len();
-        self.write_len(key, length);
+        <Storage as StoresFixed<i64>>::write(self, key, length as i64);
         let mut last_used = *key;
         let mut clone = value.clone();
 
@@ -545,25 +492,25 @@ mod tests {
     // Storage size of types which can be stored in a single storage slot are correct.
     #[test]
     fn storage_size_single_correct() {
-        assert_eq!(<[u8; 32]>::storageSize(), 1);
-        assert_eq!(bool::storageSize(), 1);
-        assert_eq!(u32::storageSize(), 1);
-        assert_eq!(i64::storageSize(), 1);
-        assert_eq!(Address::storageSize(), 1);
+        assert_eq!(<Storage as StoresFixed<[u8; 32]>>::size(), 1);
+        assert_eq!(<Storage as StoresFixed<bool>>::size(), 1);
+        assert_eq!(<Storage as StoresFixed<u32>>::size(), 1);
+        assert_eq!(<Storage as StoresFixed<i64>>::size(), 1);
+        assert_eq!(<Storage as StoresFixed<Address>>::size(), 1);
     }
 
     // Storage size of Options are correct.
     #[test]
     fn storage_size_option_correct() {
-        assert_eq!(Option::<i64>::storageSize(), 2);
-        assert_eq!(Option::<Option<i64>>::storageSize(), 3);
+        assert_eq!(<Storage as StoresFixed<Option<i64>>>::size(), 2);
+        assert_eq!(<Storage as StoresFixed<Option<Option<i64>>>>::size(), 3);
     }
 
     // Storage size of Tuples are correct.
     #[test]
     fn storage_size_tuple_correct() {
-        assert_eq!(<(Option<i64>, u32)>::storageSize(), 3);
-        assert_eq!(<(Option<i64>, u32, (bool, Address))>::storageSize(), 5);
+        assert_eq!(<Storage as StoresFixed<(Option<i64>, u32)>>::size(), 3);
+        assert_eq!(<Storage as StoresFixed<(Option<i64>, u32, (bool, Address))>>::size(), 5);
     }
 
     // Storage of an i64 works correctly
