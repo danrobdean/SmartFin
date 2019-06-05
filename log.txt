@@ -1311,7 +1311,7 @@ Meeting questions:
 
 Meeting notes:
 	- conclusion with what you've done, what extra can be done (future work), and what you would do differently
-	- use "serialize" everywhere
+	- use "serialise" everywhere
 	- evaluation conclusions and whole chapter conclusions
 	- block diagrams for modules/equiv., clearly show which parts are external (not by me)
 	- footnotes for links and versions of used technologies (like React)
@@ -1348,6 +1348,11 @@ More storage changes:
 	- Despite its generic nature, can NOT make StoresFixedVec<T> a default implementation as it complains that Self: Sized is not fulfilled (I'm pretty sure this is never fulfilled either way but oh well)
 
 Besides that, fixing up report (updating financial smart contract section for new storage design, and editing/cutting)
+	- Re-written Storage section and testing/eval
+	- Re-written combinator implementation section to cut out repetition
+	- Added to evaluations somewhat
+	- Added eval conclusions and remarks sections
+	- Cut out some unimportant parts in smart contract abi implementation
 
 
 
