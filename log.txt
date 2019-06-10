@@ -1281,24 +1281,6 @@ or combinator changed to implement this behaviour, new test written (was failing
 
 Changed get_combinator if statement to match, slightly cleaner/clearer/less words
 
-TODO:
-	- Test metamask with other blockchain
-	- Write Help screen in composition view
-	- safe_add and assert_U256_can_be_i64 both check i64 max as 2^62 but it should be 2^62 + (2^62 - 1)
-	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned > 2^63 - 1
-	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
-	- Decide about the storage stuff
-	- could extract the checks for update/acquire into ContractCombinator methods (since these are always the same, and just use the combinator details)
-		- The update method is especially egregious, as combinators (get) act as if it's a given that these checks will occur in the sub-combinator
-		- Should have some try_update method, which has these checks and then calls an update method implemented per-combinator, to ensure the checks occur
-		- Can technically get away with this as each combinator should handle updating correctly based on current and acquisition times, but its a bit iffy
-	- change serialize/deserialize to serialise/deserialise, to stop changing back and forth in report
-	- Don't allow two observables with same name and arbiter, no way to differentiate but if acquired at different times their values may differ.
-	- change contract_utils functions to just throw an error if no web3, instead of trying the default web3 connection
-	- rename contract in contract_utils loadAndDeployContract function (currently called TestContract)
-	- delete isValidAddress (not used)
-	- In evaluator, check that the horizon of combinators doesn't spill over, e.g. for and one truncate 2 zero, the "one" should have undefined horizon but the nextmap may point to 2
-
 
 
 
@@ -1355,4 +1337,111 @@ Besides that, fixing up report (updating financial smart contract section for ne
 	- Cut out some unimportant parts in smart contract abi implementation
 
 
+
+
+
+========== 10th Jun ==========
+
+Questions for Meeting:
+	- Structure
+		- good to have DSL explanation first, but then financial smart contract (general) second, then combinator implementation third - how to do this?
+		- Could have DSL explanation in its own smaller chapter, then the following two chapters?
+		- Could have DSL explanation as part of financial smart contract chapter?
+		- Could put all combinators stuff first (not a big fan as missing context on financial smart contracts)	
+		- Need to figure out order of the following (could all be a chapter or could be joined together):
+			- DSL definition
+			- Smart contract representation
+			- Combinator representation
+			- Storage (kind of goes with smart contract representation)
+
+	- Lot of repetition between the background and main body DSL explanations
+		- how to avoid this?
+		- could be more general in background and more specific (like now) in main body?
+
+	- final DSL definition
+		- Should this be in terms of the financial contract? i.e. payments dont occur on acquisition but balance changes do
+
+	- DSL Name
+		- since it's not my language, should this just be an alias/nickname for convenience, or should I act like it's an official name?
+
+	- Single page printing? Or front-and-back?
+
+	- Could have SPJ in acknowledgements, for inspiring the project?
+
+	- Double check on plagiarism safety of explaining the SPJ language stuff
+		- Using similar syntax, is this bad?
+
+	- Is background meant to include conclusions on technologies/approaches to use, or just suggest options? Sounds like its mostlyy just suggesting options
+
+	- Original DSL BNF
+		- No concrete syntax actually given
+		- The only difference between original BNF and my BNF is that observables are not given a concrete BNF representation
+		- As such, seems a bit pointless to compare the two directly, and to make an interpreted BNF for the original DSL
+
+	- FSC Requirements
+		- Is it clear that they're devised by me, not obtained from an external source?
+
+
+Report TODO/Plan:
+	- Edit based on feedback (0.5 days)
+	- Decide on interview topics for evaluation (0.25 days)
+	- Have interviews (0.25 days)
+	- Write solidity financial smart contracts (0.25-0.5 days)
+	- Write up final evaluation section (0.5 days)
+	- Write introduction/conclusion (1 day)
+	- Abstract/acknowledgements (0.5 days)
+	- Pictures/diagrams (block diagrams, other useful diagrams) (1 day)
+	- Add user manual appendix, and other appendices (FSC ABI, original combinator language BNF?) (0.25 days)
+	- Decide upon serialize vs serialise and edit report to match (quick)
+	- Final editing (until deadline)
+
+Other report notes:
+	- Final Evaluation should relate to state-of-the art
+		- Not tons like this
+		- Definitely compare to SPJ work
+		- Can compare to existing smart contract languages (e.g. flint), but as this is a DSL it's not directly comparable (different purposes)
+		- Try to find other existing software for financial contracts
+		- Hyperledger/other blockchains for business
+	- Introduction
+		- Make sure that the intuition is incredibly clear
+		- This is ALWAYS a stumbling block for this project as no one ever understands it immediately
+		- If the intuition is clear from introduction, then the whole report works, otherwise it doesnt
+	- Abstract
+		- Also try to keep it crystal clear
+		- Less detail/motivation
+		- More on contributions and conclusions
+	- Main body sections:
+		- Ensure that each section starts off with an explanation of the intuition
+		- If the intuition is understood, then any part of each section will make sense
+	- Introduction - from feedback
+		- comment that DSL is small, so less possible errors (e.g. no loops, recursion, etc)
+
+
+Code TODO:
+	- Test metamask with other blockchain
+	- Write Help screen in composition view
+	- safe_add and assert_U256_can_be_i64 both check i64 max as 2^62 but it should be 2^62 + (2^62 - 1)
+	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned > 2^63 - 1
+	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
+	- could extract the checks for update/acquire into ContractCombinator methods (since these are always the same, and just use the combinator details)
+		- The update method is especially egregious, as combinators (get) act as if it's a given that these checks will occur in the sub-combinator
+		- Should have some try_update method, which has these checks and then calls an update method implemented per-combinator, to ensure the checks occur
+		- Can technically get away with this as each combinator should handle updating correctly based on current and acquisition times, but its a bit iffy
+	- change serialize/deserialize to serialise/deserialise, to stop changing back and forth in report
+	- Don't allow two observables with same name and arbiter, no way to differentiate but if acquired at different times their values may differ.
+	- change contract_utils functions to just throw an error if no web3, instead of trying the default web3 connection
+	- rename contract in contract_utils loadAndDeployContract function (currently called TestContract)
+	- delete isValidAddress (not used)
+	- In evaluator, check that the horizon of combinators doesn't spill over, e.g. for and one truncate 2 zero, the "one" should have undefined horizon but the nextmap may point to 2
+
+
+Interview topics:
+	- Sit people down with the web client
+	- Walk through functionality and DSL
+	- Compare to existing smart contract languages, is this easier than writing the equivalent?
+	- Would it be good to be able to deal with smart contract via CLI instead of web client?
+	- Any functionality missing?
+	- Any potential functionality that could be added?
+	- Any user-experience tweaks that could be made?
+	- Maaybe ask private vs public blockchain, kind of unnecessary probably
 
