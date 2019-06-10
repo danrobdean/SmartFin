@@ -1371,27 +1371,39 @@ Questions for Meeting:
 	- Double check on plagiarism safety of explaining the SPJ language stuff
 		- Using similar syntax, is this bad?
 
-	- Is background meant to include conclusions on technologies/approaches to use, or just suggest options? Sounds like its mostlyy just suggesting options
+	- Is background meant to include conclusions on technologies/approaches to use, or just suggest options?
+		- also, what should conclusion contain? currently just summing up all previous options/decisions made
 
 	- Original DSL BNF
 		- No concrete syntax actually given
 		- The only difference between original BNF and my BNF is that observables are not given a concrete BNF representation
 		- As such, seems a bit pointless to compare the two directly, and to make an interpreted BNF for the original DSL
 
-	- FSC Requirements
+	- Requirements in FSC chapter
 		- Is it clear that they're devised by me, not obtained from an external source?
+
+	- Background
+		- Is it absolutely necessarty to talk about competing things in the field?
+		- If so, there's not much except the SPJ paper stuff
+		- Could maybe talk about stuff like solidity/flint at a stretch, but not much utility as they have different purposes (maybe this is fine as motivation?)
 
 
 Report TODO/Plan:
 	- Edit based on feedback (0.5 days)
 	- Decide on interview topics for evaluation (0.25 days)
-	- Have interviews (0.25 days)
 	- Write solidity financial smart contracts (0.25-0.5 days)
+
+======================== ABOVE IS DONE ========================
+
+	- Have interviews (0.25 days)
+	- Edit based on name - call DSL by name, call contracts financial smart contract or <name> contract (to distinguish the two) (0.25 days)
+		- Take special care with background to differentiate these, may need to re-write a fair bit of the DSL section
+	- Re-structure based on feedback (0.35 days)
 	- Write up final evaluation section (0.5 days)
 	- Write introduction/conclusion (1 day)
-	- Abstract/acknowledgements (0.5 days)
+	- Abstract/acknowledgements (0.35 days)
 	- Pictures/diagrams (block diagrams, other useful diagrams) (1 day)
-	- Add user manual appendix, and other appendices (FSC ABI, original combinator language BNF?) (0.25 days)
+	- Add user manual appendix, and other appendices (FSC ABI, original combinator language BNF?) (0.1 days)
 	- Decide upon serialize vs serialise and edit report to match (quick)
 	- Final editing (until deadline)
 
