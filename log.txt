@@ -1363,6 +1363,7 @@ Questions for Meeting:
 
 	- DSL Name
 		- since it's not my language, should this just be an alias/nickname for convenience, or should I act like it's an official name?
+		- how to differentiate between SPJ and my dsl
 
 	- Single page printing? Or front-and-back?
 
@@ -1387,7 +1388,6 @@ Questions for Meeting:
 		- If so, there's not much except the SPJ paper stuff
 		- Could maybe talk about stuff like solidity/flint at a stretch, but not much utility as they have different purposes (maybe this is fine as motivation?)
 
-
 Report TODO/Plan:
 	- Edit based on feedback (0.5 days)
 	- Decide on interview topics for evaluation (0.25 days)
@@ -1406,6 +1406,9 @@ Report TODO/Plan:
 	- Add user manual appendix, and other appendices (FSC ABI, original combinator language BNF?) (0.1 days)
 	- Decide upon serialize vs serialise and edit report to match (quick)
 	- Final editing (until deadline)
+	- Add screenshots to web client chapter
+	- block diagrams, include lines of code (maybe)
+
 
 Other report notes:
 	- Final Evaluation should relate to state-of-the art
@@ -1456,4 +1459,19 @@ Interview topics:
 	- Any potential functionality that could be added?
 	- Any user-experience tweaks that could be made?
 	- Maaybe ask private vs public blockchain, kind of unnecessary probably
+
+
+Meeting notes:
+	- In conclusion, talk about biggest challenges, most novel challenges, etc
+	- Should be able to read intro and eval and get the general idea
+	- Abstract:
+		- Para 1 - what is the problem
+		- Para 2 - what other people have done
+		- Para 3 - What we have done
+	- Separate DSL language into its own section
+		- Only discuss changed combinators in main body, refer back to background for unchanged combinators (still list but don't explain)
+	- Name my DSL implementation, refer to SPJ DSL as Simon's DSL or equiv
+	- Front-and-back printing pls
+	- No original DSL BNF
+	- Background, don't need to talk so much about existing solutions, talk about why DSL is better than traditional smart contract languages
 
