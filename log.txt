@@ -1392,19 +1392,21 @@ Report TODO/Plan:
 	- Edit based on feedback (0.5 days)
 	- Decide on interview topics for evaluation (0.25 days)
 	- Write solidity financial smart contracts (0.25-0.5 days)
+	- Have interviews (0.25 days)
+	- Edit based on name - call DSL by name "SmartFin", call contracts financial smart contract or <name> contract (to distinguish the two) (0.5 days)
+		- Take special care with background to differentiate these, may need to re-write a fair bit of the DSL section
 
 ======================== ABOVE IS DONE ========================
 
-	- Have interviews (0.25 days)
-	- Edit based on name - call DSL by name, call contracts financial smart contract or <name> contract (to distinguish the two) (0.25 days)
-		- Take special care with background to differentiate these, may need to re-write a fair bit of the DSL section
-	- Re-structure based on feedback (0.35 days)
+	- Re-structure based on feedback (0.25 days)
+		- Move combinator language to own section at start of main body, alter to remove repetition (mainly highlight differences from original DSL)
 	- Write up final evaluation section (0.5 days)
 	- Write introduction/conclusion (1 day)
 	- Abstract/acknowledgements (0.35 days)
 	- Pictures/diagrams (block diagrams, other useful diagrams) (1 day)
-	- Add user manual appendix, and other appendices (FSC ABI, original combinator language BNF?) (0.1 days)
+	- Add user manual appendix, and other appendices (FSC ABI, evaluation solidity contract examples) (0.1 days)
 	- Decide upon serialize vs serialise and edit report to match (quick)
+	- Double check mentioning of the SPJ paper explicitly (Simon Peyton Jones et al.? Peyton Jones et al.? Peyton Jones et al. (2000)?)
 	- Final editing (until deadline)
 	- Add screenshots to web client chapter
 	- block diagrams, include lines of code (maybe)
@@ -1418,9 +1420,13 @@ Other report notes:
 		- Try to find other existing software for financial contracts
 		- Hyperledger/other blockchains for business
 	- Introduction
-		- Make sure that the intuition is incredibly clear
-		- This is ALWAYS a stumbling block for this project as no one ever understands it immediately
-		- If the intuition is clear from introduction, then the whole report works, otherwise it doesnt
+		- Make sure that the intuition is incredibly clear, and differentiate between the DSLs, DSL contracts vs smart contracts, etc
+		- Introduce SmartFin vs other stuff
+			- "original DSL" is the dsl from SPJ paper
+			- "SmartFin" is the DSL I implement, derived from the original DSL with minimal changes made for smart contract reasons
+			- "smart contract implementing SmartFin's behaviour" (or equiv) is the smart contract I implement
+			- "SmartFin contract (definition)" is a financial contract written in SmartFin
+			- "financial smart contract" is an instance of the previous smart contract with a SmartFin contract passed to it
 	- Abstract
 		- Also try to keep it crystal clear
 		- Less detail/motivation
