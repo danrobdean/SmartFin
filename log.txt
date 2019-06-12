@@ -1410,6 +1410,7 @@ Report TODO/Plan:
 	- Final editing (until deadline)
 	- Add screenshots to web client chapter
 	- block diagrams, include lines of code (maybe)
+	- mention iteration/etc explicitly as source of bugs (as in feedback)
 
 
 Other report notes:
