@@ -1,0 +1,35 @@
+Gas Costs:
+- Transaction Cost = cost of sending transaction (based on size of transaction)
+- Execution Cost = cost of executing code (based on code complexity)
+
+One (one):
+	- Sol Transaction Cost: 1032860
+	- Sol Execution Cost  : 737156
+	- Rust total gas cost : 4875700
+
+	- sol acquire cost    : 148682
+	- sol update cost     : N/A
+	- Rust acquire cost   : 180417
+	- Rust update cost    : N/A
+
+European Option (get truncate <01/01/2020 00:00:00> or one zero):
+	- Sol Transaction Cost: 1350969
+	- Sol Execution Cost  : 983189
+	- Rust total gas cost : 15010171
+
+	- sol acquire cost    : 63684
+	- sol update cost     : 23712
+	- Rust acquire cost   : 464506
+	- Rust update cost    : 294993
+
+Loan with Variable Repayment (truncate <01/01/2020 00:00:00> and one anytime then truncate <01/02/2020 00:00:00> give scale 2 one truncate <01/03/2020 00:00:00> give scale 3 one):
+	- Sol Transaction Cost: 1412913
+	- Sol Execution Cost  : 1039897
+	- Rust total gas cost : 16529563
+
+	- sol acquire cost    : 149220
+	- sol update cost     : 50235
+	- sol subacquire cost : 103164
+	- Rust acquire cost   : 1439031
+	- Rust update cost    : 788817
+	- Rust subacquire cost: 955180
