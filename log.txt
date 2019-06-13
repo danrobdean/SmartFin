@@ -1399,41 +1399,29 @@ Report TODO/Plan:
 		- Move combinator language to own section at start of main body, alter to remove repetition (mainly highlight differences from original DSL)
 	- Decide upon serialize and edit report to match (quick)
 	- Write up final evaluation section (0.75 days)
+	- Check other papers for how to end evaluation (0.1 day)
+	- Write introduction/conclusion (0.5 day)
+		- mention iteration/etc explicitly as source of bugs (as in feedback) in intro
+	- Abstract/acknowledgements (0.25 days)
 
 ======================== ABOVE IS DONE ========================
 
-	- Check other papers for how to end evaluation (0.1 day)
-	- Write introduction/conclusion (1 day)
-		- mention iteration/etc explicitly as source of bugs (as in feedback) in intro
-	- Abstract/acknowledgements (0.35 days)
+	- Add code listing for reentrancy vulnerability, user manual appendix, and other appendices (FSC ABI, evaluation solidity contract examples) (0.1 days)
 	- Pictures/diagrams (block diagrams, other useful diagrams) (1 day)
 		- Add screenshots to web client chapter
 		- block diagrams, include lines of code (maybe)
-	- Add user manual appendix, and other appendices (FSC ABI, evaluation solidity contract examples) (0.1 days)
 	- Final editing (until deadline)
+	- More complicated solidity contract for evaluation if time permits (0.5 days)
 	- Print (front and back)
 
 To ask!:
-	- Should we mention things we intend to change before the presentation? (mainly user feedback)
 	- Double check mentioning of the SPJ paper explicitly (Simon Peyton Jones et al.? Peyton Jones et al.? Peyton Jones et al. (2000)?)
-	- Should have summary of chapter evaluations? (hard to do in a very short manner so feels quite repetitive)
+	- If using MIT licensed latex formatting file, should this be acknowledge anywhere?
 
 
 Other report notes:
 	- Background
-		- don't need to talk so much about existing solutions, but do talk about why a DSL is better than traditional smart contract languages
-	- Final Evaluation should relate to state-of-the art
-		- Not tons like this
-		- Definitely compare to SPJ work
-	- Introduction
-		- comment that DSL is small, so less possible errors (e.g. no loops, recursion, etc)
-		- Make sure that the intuition is incredibly clear, and differentiate between the DSLs, DSL contracts vs smart contracts, etc
-		- Introduce SmartFin vs other stuff
-			- "original DSL" is the dsl from SPJ paper
-			- "SmartFin" is the DSL I implement, derived from the original DSL with minimal changes made for smart contract reasons
-			- "smart contract implementing SmartFin's behaviour" (or equiv) is the smart contract I implement
-			- "SmartFin contract (definition)" is a financial contract written in SmartFin
-			- "financial smart contract" is an instance of the previous smart contract with a SmartFin contract passed to it
+		- don't need to talk so much about existing solutions, but do talk about why a DSL is better than traditional smart contract langua
 	- Abstract
 		- Para 1 - what is the problem
 		- Para 2 - what other people have done
@@ -1442,9 +1430,6 @@ Other report notes:
 	- Main body sections:
 		- Ensure that each section starts off with an explanation of the intuition
 		- If the intuition is understood, then any part of each section will make sense
-	- Conclusion
-		- talk about biggest challenges, most novel challenges, etc
-		- Should be able to read intro and conclusion and get the general idea
 
 
 Code TODO:
