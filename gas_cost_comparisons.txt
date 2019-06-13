@@ -28,8 +28,6 @@ Loan with Variable Repayment (truncate <01/01/2020 00:00:00> and one anytime the
 	- Rust total gas cost : 16529563
 
 	- sol acquire cost    : 149220
-	- sol update cost     : 50235
-	- sol subacquire cost : 103164
+	- sol subacquire cost : 135204
 	- Rust acquire cost   : 1439031
-	- Rust update cost    : 788817
 	- Rust subacquire cost: 955180

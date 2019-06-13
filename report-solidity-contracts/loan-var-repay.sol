@@ -96,6 +96,7 @@ contract LoanVarRepay {
 
         subAcquisitionTime.acquired = true;
         subAcquisitionTime.time = now;
+        this.update();
     }
 
     // Acquires this contract

@@ -1395,32 +1395,38 @@ Report TODO/Plan:
 	- Have interviews (0.25 days)
 	- Edit based on name - call DSL by name "SmartFin", call contracts financial smart contract or <name> contract (to distinguish the two) (0.5 days)
 		- Take special care with background to differentiate these, may need to re-write a fair bit of the DSL section
+	- Re-structure based on feedback (0.25 days)
+		- Move combinator language to own section at start of main body, alter to remove repetition (mainly highlight differences from original DSL)
+	- Decide upon serialize and edit report to match (quick)
+	- Write up final evaluation section (0.75 days)
 
 ======================== ABOVE IS DONE ========================
 
-	- Re-structure based on feedback (0.25 days)
-		- Move combinator language to own section at start of main body, alter to remove repetition (mainly highlight differences from original DSL)
-	- Write up final evaluation section (0.5 days)
+	- Check other papers for how to end evaluation (0.1 day)
 	- Write introduction/conclusion (1 day)
+		- mention iteration/etc explicitly as source of bugs (as in feedback) in intro
 	- Abstract/acknowledgements (0.35 days)
 	- Pictures/diagrams (block diagrams, other useful diagrams) (1 day)
+		- Add screenshots to web client chapter
+		- block diagrams, include lines of code (maybe)
 	- Add user manual appendix, and other appendices (FSC ABI, evaluation solidity contract examples) (0.1 days)
-	- Decide upon serialize vs serialise and edit report to match (quick)
-	- Double check mentioning of the SPJ paper explicitly (Simon Peyton Jones et al.? Peyton Jones et al.? Peyton Jones et al. (2000)?)
 	- Final editing (until deadline)
-	- Add screenshots to web client chapter
-	- block diagrams, include lines of code (maybe)
-	- mention iteration/etc explicitly as source of bugs (as in feedback)
+	- Print (front and back)
+
+To ask!:
+	- Should we mention things we intend to change before the presentation? (mainly user feedback)
+	- Double check mentioning of the SPJ paper explicitly (Simon Peyton Jones et al.? Peyton Jones et al.? Peyton Jones et al. (2000)?)
+	- Should have summary of chapter evaluations? (hard to do in a very short manner so feels quite repetitive)
 
 
 Other report notes:
+	- Background
+		- don't need to talk so much about existing solutions, but do talk about why a DSL is better than traditional smart contract languages
 	- Final Evaluation should relate to state-of-the art
 		- Not tons like this
 		- Definitely compare to SPJ work
-		- Can compare to existing smart contract languages (e.g. flint), but as this is a DSL it's not directly comparable (different purposes)
-		- Try to find other existing software for financial contracts
-		- Hyperledger/other blockchains for business
 	- Introduction
+		- comment that DSL is small, so less possible errors (e.g. no loops, recursion, etc)
 		- Make sure that the intuition is incredibly clear, and differentiate between the DSLs, DSL contracts vs smart contracts, etc
 		- Introduce SmartFin vs other stuff
 			- "original DSL" is the dsl from SPJ paper
@@ -1429,31 +1435,30 @@ Other report notes:
 			- "SmartFin contract (definition)" is a financial contract written in SmartFin
 			- "financial smart contract" is an instance of the previous smart contract with a SmartFin contract passed to it
 	- Abstract
+		- Para 1 - what is the problem
+		- Para 2 - what other people have done
+		- Para 3 - What we have done
 		- Also try to keep it crystal clear
-		- Less detail/motivation
-		- More on contributions and conclusions
 	- Main body sections:
 		- Ensure that each section starts off with an explanation of the intuition
 		- If the intuition is understood, then any part of each section will make sense
-	- Introduction - from feedback
-		- comment that DSL is small, so less possible errors (e.g. no loops, recursion, etc)
+	- Conclusion
+		- talk about biggest challenges, most novel challenges, etc
+		- Should be able to read intro and conclusion and get the general idea
 
 
 Code TODO:
 	- Test metamask with other blockchain
 	- Write Help screen in composition view
 	- safe_add and assert_U256_can_be_i64 both check i64 max as 2^62 but it should be 2^62 + (2^62 - 1)
-	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned > 2^63 - 1
+	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned >= 2^63
 	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
-	- could extract the checks for update/acquire into ContractCombinator methods (since these are always the same, and just use the combinator details)
-		- The update method is especially egregious, as combinators (get) act as if it's a given that these checks will occur in the sub-combinator
-		- Should have some try_update method, which has these checks and then calls an update method implemented per-combinator, to ensure the checks occur
-		- Can technically get away with this as each combinator should handle updating correctly based on current and acquisition times, but its a bit iffy
-	- change serialize/deserialize to serialise/deserialise, to stop changing back and forth in report
-	- Don't allow two observables with same name and arbiter, no way to differentiate but if acquired at different times their values may differ.
+	- Don't allow two observables with same name and arbiter on web client, no way to differentiate but if acquired at different times their values may differ.
 	- change contract_utils functions to just throw an error if no web3, instead of trying the default web3 connection
 	- rename contract in contract_utils loadAndDeployContract function (currently called TestContract)
 	- delete isValidAddress (not used)
+	- When selecting or or anytime based on index, highlight anytime/or combinator (in evaluation view and setter views)
+	- see if easy to check if anytime can be acquired (to filter the list of indexes in acquire anytime sub-contract view)
 	- In evaluator, check that the horizon of combinators doesn't spill over, e.g. for and one truncate 2 zero, the "one" should have undefined horizon but the nextmap may point to 2
 
 
@@ -1466,19 +1471,4 @@ Interview topics:
 	- Any potential functionality that could be added?
 	- Any user-experience tweaks that could be made?
 	- Maaybe ask private vs public blockchain, kind of unnecessary probably
-
-
-Meeting notes:
-	- In conclusion, talk about biggest challenges, most novel challenges, etc
-	- Should be able to read intro and eval and get the general idea
-	- Abstract:
-		- Para 1 - what is the problem
-		- Para 2 - what other people have done
-		- Para 3 - What we have done
-	- Separate DSL language into its own section
-		- Only discuss changed combinators in main body, refer back to background for unchanged combinators (still list but don't explain)
-	- Name my DSL implementation, refer to SPJ DSL as Simon's DSL or equiv
-	- Front-and-back printing pls
-	- No original DSL BNF
-	- Background, don't need to talk so much about existing solutions, talk about why DSL is better than traditional smart contract languages
 
