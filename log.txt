@@ -1388,7 +1388,19 @@ Questions for Meeting:
 		- If so, there's not much except the SPJ paper stuff
 		- Could maybe talk about stuff like solidity/flint at a stretch, but not much utility as they have different purposes (maybe this is fine as motivation?)
 
-Report TODO/Plan:
+
+Interview topics:
+	- Sit people down with the web client
+	- Walk through functionality and DSL
+	- Compare to existing smart contract languages, is this easier than writing the equivalent?
+	- Would it be good to be able to deal with smart contract via CLI instead of web client?
+	- Any functionality missing?
+	- Any potential functionality that could be added?
+	- Any user-experience tweaks that could be made?
+	- Maaybe ask private vs public blockchain, kind of unnecessary probably
+
+
+Report TODO/Plan: ALL DONE
 	- Edit based on feedback (0.5 days)
 	- Decide on interview topics for evaluation (0.25 days)
 	- Write solidity financial smart contracts (0.25-0.5 days)
@@ -1409,25 +1421,12 @@ Report TODO/Plan:
 		- block diagrams, include lines of code
 		- FSMs where useful for processes
 		- Other misc diagrams
-
-======================== ABOVE IS DONE ========================
-
+	- Add LoC and number for tests in evaluations (0.1 days)
+	- Code highlighting for Rust and Solidity - attribute in footnote on first usage
+	- Reflections in conclusion - what can be done differently (0.1 days)
+	- Change name to "SmartFin - Implementing a Financial Domain-Specific Language for Smart Contracts"
 	- Final editing (until deadline)
-	- Reflections in conclusion? (0.1 day)
-	- Code highlighting if possible for Rust and Solidity
-	- Uncomment user manual appendix input (quicker compilation :) ) (quick)
-	- More complicated solidity contract for evaluation if time permits (probs not) (0.5 days)
 	- Print (front and back)
-
-To ask!:
-	- Double check mentioning of the SPJ paper explicitly (Simon Peyton Jones et al.? Peyton Jones et al.? Peyton Jones et al. (2000)?)
-	- If using MIT licensed latex formatting file, should this be acknowledge anywhere?
-
-
-Other report notes:
-	- Main body sections:
-		- Ensure that each section starts off with an explanation of the intuition
-		- If the intuition is understood, then any part of each section will make sense
 
 
 Code TODO:
@@ -1437,6 +1436,7 @@ Code TODO:
 	- safe_add and assert_U256_can_be_i64 both check i64 max as 2^62 but it should be 2^62 + (2^62 - 1)
 	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned >= 2^63
 	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
+	- update shouldn't call get_concluded, causes double reading/deserialization of combinators. Check gas costs after this for table in report (but too late to update report, just for reference)
 	- Don't allow two observables with same name and arbiter on web client, no way to differentiate but if acquired at different times their values may differ.
 	- change contract_utils functions to just throw an error if no web3, instead of trying the default web3 connection
 	- rename contract in contract_utils loadAndDeployContract function (currently called TestContract)
@@ -1444,15 +1444,5 @@ Code TODO:
 	- When selecting or or anytime based on index, highlight anytime/or combinator (in evaluation view and setter views)
 	- see if easy to check if anytime can be acquired (to filter the list of indexes in acquire anytime sub-contract view)
 	- In evaluator, check that the horizon of combinators doesn't spill over, e.g. for and one truncate 2 zero, the "one" should have undefined horizon but the nextmap may point to 2
-
-
-Interview topics:
-	- Sit people down with the web client
-	- Walk through functionality and DSL
-	- Compare to existing smart contract languages, is this easier than writing the equivalent?
-	- Would it be good to be able to deal with smart contract via CLI instead of web client?
-	- Any functionality missing?
-	- Any potential functionality that could be added?
-	- Any user-experience tweaks that could be made?
-	- Maaybe ask private vs public blockchain, kind of unnecessary probably
+	- Check for "easter eggs" and remove (and in report too)
 
