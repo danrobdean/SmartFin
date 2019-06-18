@@ -1445,4 +1445,5 @@ Code TODO:
 	- see if easy to check if anytime can be acquired (to filter the list of indexes in acquire anytime sub-contract view)
 	- In evaluator, check that the horizon of combinators doesn't spill over, e.g. for and one truncate 2 zero, the "one" should have undefined horizon but the nextmap may point to 2
 	- Check for "easter eggs" and remove (and in report too)
+	- Update readme
 
