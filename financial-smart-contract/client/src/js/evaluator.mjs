@@ -334,6 +334,9 @@ export default class Evaluator {
         switch (this.combinators[i].toLowerCase()) {
             case "zero":
             case "one":
+                // Add horizon to map
+                this.combinatorHorizonMap.add(i, undefined);
+
                 // Add end-of-contract tail index to map
                 this.combinatorTailIndexMap.add(i, i + 1);
 

@@ -100,7 +100,7 @@ impl Storage {
         let unsigned = pwasm_std::read_u64(value);
 
         // Convert u64 to i64
-        if unsigned > 2_u64.pow(63) {
+        if unsigned >= 2_u64.pow(63) {
             // Convert from 2^63..2^64 - 1 to -(2^63 - 1)..0
             res = (unsigned - 2_u64.pow(63)) as i64;
             res -= 2_i64.pow(62);

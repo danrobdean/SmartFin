@@ -304,6 +304,24 @@ describe('Contract utility tests', function() {
 
             assert.notEqual(res.error, undefined);
         });
+
+        it('Does not verify a contract with two observables with the same name and address', function() {
+            var res = Utils.verifyContract("scale name " + counterParty.address + " scale name " + counterParty.address + " one");
+
+            assert.notEqual(res.error, undefined);
+        });
+
+        it('Verifies a contract with two observables with the same name and different addresses', function() {
+            var res = Utils.verifyContract("scale name " + counterParty.address + " scale name " + uninvolved.address + " one");
+
+            assert.equal(res.error, undefined);
+        });
+
+        it('Verifies a contract with two observables with different names and the same address', function() {
+            var res = Utils.verifyContract("scale name1 " + counterParty.address + " scale name2 " + counterParty.address + " one");
+
+            assert.equal(res.error, undefined);
+        });
     });
 
     describe('Contract interaction tests', function() {

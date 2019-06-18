@@ -125,6 +125,24 @@ export class DeserializeResult {
     }
 }
 
+// Class for representing the definition of an observable in a combinator contract
+class ObservableDef {
+    /**
+     * Initialises a new instance of this class.
+     * @param address The arbiter address of the observable.
+     * @param name The name of the observable.
+     */
+    constructor(address, name) {
+        this.address = address;
+        this.name = name;
+    }
+
+    // Returns true if the given object is the same as this observable definition.
+    sameAs(other) {
+        return other.address === this.address && other.name === this.name;
+    }
+}
+
 export function setupWeb3(metamask = false, url = "http://localhost:8545") {
     var provider;
     if (metamask && typeof window.web3 !== undefined) {
@@ -143,7 +161,7 @@ export function setupWeb3(metamask = false, url = "http://localhost:8545") {
 
 export function unlockDefaultAccount() {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     web3.eth.defaultAccount = "0x004ec07d2329997267ec62b4166639513386f32e";
@@ -153,7 +171,7 @@ export function unlockDefaultAccount() {
 
 export async function unlockAccount(address, password) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return web3.eth.personal.unlockAccount(address, password, web3.utils.toHex(0));
@@ -174,22 +192,22 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender, use
     }
 
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
     
     // Construct a contract object
-    var TestContract = new web3.eth.Contract(ABI);
+    var contractPreDeploy = new web3.eth.Contract(ABI);
     
     // Construct a deployment transaction
-    var TestDeployTransaction = TestContract.deploy({ data: web3.utils.toHex(CODE_HEX), from: sender, arguments: [contractBytes, contractHolder, useGas] });
+    var contractDeployTransaction = contractPreDeploy.deploy({ data: web3.utils.toHex(CODE_HEX), from: sender, arguments: [contractBytes, contractHolder, useGas] });
     
     return new Promise(function(resolve, reject) {
         // Attempt to estimate the cost of the deployment transaction
-        TestDeployTransaction.estimateGas({}, (err, gas) => {
+        contractDeployTransaction.estimateGas({}, (err, gas) => {
             if (gas) {
                 gas = Math.round(gas * 1.2);
                 // Commit the deployment transaction with some extra gas
-                TestDeployTransaction.send({ gas: web3.utils.toHex(gas), from: sender }).then(contract => {
+                contractDeployTransaction.send({ gas: web3.utils.toHex(gas), from: sender }).then(contract => {
                     resolve(contract);
                 },
                 err => {
@@ -205,7 +223,7 @@ export function loadAndDeployContract(contractBytes, contractHolder, sender, use
 // Serializes a combinator contract from a string
 export function serializeCombinatorContract(combinatorContract) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     var combinators = combinatorContract.split(/[ \(\),]/)
@@ -294,7 +312,7 @@ export function verifyContract(contract) {
         .filter(c => Boolean(c) && c.length != 0)
         .map(c => c.toLowerCase());
 
-    var res = verifyCombinator(combinators, 0);
+    var res = verifyCombinator(combinators, [], 0);
     if (!res.error && res.endIndex + 1 < combinators.length) {
         res.warning = "This contract contains extraneous combinators after atom " + res.endIndex + ". These will have no effect.";
     }
@@ -303,9 +321,9 @@ export function verifyContract(contract) {
 }
 
 // Verifies the combinator at the given index in the given list of combinator atoms.
-function verifyCombinator(combinators, i) {
+function verifyCombinator(combinators, seenObservables, i) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     // Function to generate an error description.
@@ -340,7 +358,7 @@ function verifyCombinator(combinators, i) {
         case "get":
         case "anytime":
             // One sub-combinator, check it and return index
-            var res = verifyCombinator(combinators, i + 1);
+            var res = verifyCombinator(combinators, seenObservables, i + 1);
             if (res.error) {
                 return addToErrStack(res, i);
             } else {
@@ -354,7 +372,7 @@ function verifyCombinator(combinators, i) {
             var res;
             var checked = i;
             for (var j = 0; j < 2; j++) {
-                res = verifyCombinator(combinators, checked + 1);
+                res = verifyCombinator(combinators, seenObservables, checked + 1);
 
                 if (res.error) {
                     return addToErrStack(res, i)
@@ -406,7 +424,7 @@ function verifyCombinator(combinators, i) {
             }
 
             // Check sub-combinator
-            var res = verifyCombinator(combinators, nextCombinator);
+            var res = verifyCombinator(combinators, seenObservables, nextCombinator);
             if (res.error) {
                 return addToErrStack(res, i);
             } else {
@@ -430,15 +448,24 @@ function verifyCombinator(combinators, i) {
                     return new VerificationError("Expected observable arbiter address, found end of contract.", errDesc(i));
                 }
 
+                var name = combinators[i + 1];
                 var address = combinators[i + 2];
                 if (!web3.utils.isAddress(address)) {
                     return new VerificationError("Expected a valid address, found: '" + address + "'.", errDesc(i));
                 }
+
+
+                // Check if seen observable name and address pair
+                var obsDef = new ObservableDef(address, name);
+                if (seenObservables.findIndex(elem => elem.sameAs(obsDef)) != -1) {
+                    return new VerificationError("Found observable with same name and arbiter address as existing observable, name: " + name + ", address: " + address + ".", errDesc(i));
+                }
+                seenObservables.push(obsDef);
             } else if (!isValidScaleValue(combinators[i + 1])) {
                 return new VerificationError("Expected signed 64-bit scale value, found: '" + combinators[i + 1] + "'.", errDesc(i));
             }
 
-            var res = verifyCombinator(combinators, subCombinatorIndex);
+            var res = verifyCombinator(combinators, seenObservables, subCombinatorIndex);
             if (res.error) {
                 return addToErrStack(res, i);
             } else {
@@ -450,7 +477,7 @@ function verifyCombinator(combinators, i) {
 // Serializes an address into 4 integers
 export function serializeAddress(address) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     var bytes = [0,0,0,0].concat(web3.utils.hexToBytes(address));
@@ -470,7 +497,7 @@ export function serializeAddress(address) {
 // Deserializes 4 integers into an address
 export function deserializeAddress(address) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     var bytes = new Array(20);
@@ -508,7 +535,7 @@ export function deserializeAcquisitionTimes(acquisitionTimes) {
 // Deserializes the or choices byte array into an array of Options
 export function deserializeOrChoices(orChoices) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     var res = [];
@@ -565,7 +592,7 @@ export function deserializeName(nameSerialized) {
 // Checks whether or not the given address is valid.
 export function isValidAddress(address) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return web3.utils.isAddress(address);
@@ -574,7 +601,7 @@ export function isValidAddress(address) {
 // Checks whether the account with the given address is a smart contract.
 export async function isSmartContract(address) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return web3.eth.getCode(address).then(code => {
@@ -596,7 +623,7 @@ export function getContractAtAddress(address) {
 // Gets the holder of the contract.
 export async function getHolder(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_holder().call({ from: caller }).then(res => {
@@ -609,7 +636,7 @@ export async function getHolder(contract, caller) {
 // Gets the counter-party of the contract.
 export async function getCounterParty(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_counter_party().call({ from: caller }).then(res => {
@@ -622,7 +649,7 @@ export async function getCounterParty(contract, caller) {
 // Gets whether or not the contract is concluded.
 export async function getConcluded(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_concluded().call({ from: caller }).then(res => {
@@ -635,7 +662,7 @@ export async function getConcluded(contract, caller) {
 // Gets whether or not the contract allocates gas fees upon withdrawal.
 export async function getUseGas(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_use_gas().call({ from: caller }).then(res => {
@@ -648,7 +675,7 @@ export async function getUseGas(contract, caller) {
 // Gets the last-updated time.
 export async function getLastUpdated(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_last_updated().call({ from: caller }).then(res => {
@@ -661,7 +688,7 @@ export async function getLastUpdated(contract, caller) {
 // Gets the or-choices of the contract.
 export async function getOrChoices(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_or_choices().call({ from: caller }).then(res => {
@@ -674,7 +701,7 @@ export async function getOrChoices(contract, caller) {
 // Gets the observable entries of the contract.
 export async function getObsEntries(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_obs_entries().call({ from: caller }).then(res => {
@@ -687,7 +714,7 @@ export async function getObsEntries(contract, caller) {
 // Gets the acquisition times of the given contract.
 export async function getAcquisitionTimes(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_acquisition_times().call({ from: caller }).then(res => {
@@ -700,7 +727,7 @@ export async function getAcquisitionTimes(contract, caller) {
 // Sets the or choice of an or combinator on the given contract.
 export async function setOrChoice(contract, caller, index, choice) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.set_or_choice(index, choice).send({ from: caller }).catch(err => {
@@ -711,7 +738,7 @@ export async function setOrChoice(contract, caller, index, choice) {
 // Sets the value of an observable.
 export async function setObsValue(contract, caller, index, value) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     if (!isValidScaleValue(value)) {
@@ -726,7 +753,7 @@ export async function setObsValue(contract, caller, index, value) {
 // Acquires the contract.
 export async function acquireContract(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.acquire().send({ from: caller }).catch(err => {
@@ -737,7 +764,7 @@ export async function acquireContract(contract, caller) {
 // Acquires a sub-contract.
 export async function acquireSubContract(contract, caller, index) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.acquire_anytime_sub_contract(index).send({ from: caller }).catch(err => {
@@ -748,7 +775,7 @@ export async function acquireSubContract(contract, caller, index) {
 // Updates the contract (costs gas).
 export async function updateContract(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.update().send({ from: caller }).catch(err => {
@@ -759,7 +786,7 @@ export async function updateContract(contract, caller) {
 // Gets the balance of the given party (true is holder, false counter-party)
 export async function getBalance(contract, caller, holderBalance) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_balance(holderBalance).call({ from: caller }).then(res => {
@@ -772,7 +799,7 @@ export async function getBalance(contract, caller, holderBalance) {
 // Stakes the given amount of wei to the given contract.
 export async function stake(contract, caller, amount) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.stake().send({ from: caller, value: amount }).catch(err => {
@@ -783,7 +810,7 @@ export async function stake(contract, caller, amount) {
 // Withdraws the given amount of wei from the given contract.
 export async function withdraw(contract, caller, amount) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.withdraw(amount).send({ from: caller }).catch(err => {
@@ -869,7 +896,7 @@ export function deserializeCombinatorContract(i, serializedCombinatorContract) {
 // Gets the combinator contract definition from the given contract.
 export async function getCombinatorContract(contract, caller) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     return contract.methods.get_contract_definition().call({ from: caller }).then(res => {
@@ -886,7 +913,7 @@ export async function getCombinatorContract(contract, caller) {
 // Returns true if the given value can be used as a scale value, false otherwise
 export function isValidScaleValue(value) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
     if (isNaN(value)) {
         return false;
@@ -912,7 +939,7 @@ export function compareTime(a, b) {
 // Converts an array of bytes to an address
 function bytesToAddress(bytes) {
     if (!web3) {
-        setupWeb3();
+        return Promise.reject("Web3 connection not initialised.");
     }
 
     var hex = web3.utils.bytesToHex(bytes).substring(2);

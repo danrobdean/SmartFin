@@ -480,6 +480,29 @@ describe('Evaluator tests', function() {
         assert.equal(evaluator.evaluate(false), "var0 * var1 * -50 Wei");
     });
 
+    it('Evaluates an and combinator correctly', function() {
+        evaluator.setContract("and one one");
+
+        var options = evaluator.getNextStepThroughOptions(false);
+        evaluator.setStepThroughOption(options.options[0]);
+
+        assert.equal(evaluator.evaluate(false), "(1 Wei + 1 Wei)");
+    });
+
+    it('Evaluates a truncate in an and combinator correctly', function() {
+        evaluator.setContract("and one truncate " + dateStringMin + " one");
+
+        var options = evaluator.getNextStepThroughOptions(false);
+        evaluator.setStepThroughOption(options.options[0]);
+
+        assert.equal(evaluator.evaluate(false), "(1 Wei + 1 Wei)");
+
+        evaluator.deleteStepThroughOption(-1);
+        evaluator.setStepThroughOption(options.options[1]);
+
+        assert.equal(evaluator.evaluate(false), "1 Wei");
+    });
+
     it('Evaluates a give in an and combinator correctly', function() {
         evaluator.setContract("and give scale 5 one one");
 

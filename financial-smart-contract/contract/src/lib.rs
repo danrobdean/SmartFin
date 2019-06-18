@@ -230,9 +230,7 @@ impl FinancialScInterface for FinancialScContract {
     // Gets whether or not the contract has concluded.
     fn get_concluded(&mut self) -> bool {
         let combinator = self.get_combinator();
-        let combinator_details = combinator.get_combinator_details();
-        combinator_details.fully_updated
-            || combinator_details.acquisition_time == None && combinator.past_horizon(pwasm_ethereum::timestamp() as u32)
+        FinancialScContract::is_combinator_concluded(&combinator)
     }
 
     // Gets whether or not the contract allocates gas fees upon withdrawal.
@@ -370,8 +368,10 @@ impl FinancialScInterface for FinancialScContract {
 
     // Updates the balances of the holder and counter-party
     fn update(&mut self) {
+        let mut combinator = self.get_combinator();
+
         // If concluded, can't update.
-        if self.get_concluded() {
+        if FinancialScContract::is_combinator_concluded(&combinator) {
             panic!("Contract has concluded, nothing more to update.");
         }
 
@@ -379,8 +379,6 @@ impl FinancialScInterface for FinancialScContract {
         self.storage.write(&last_updated_key(), pwasm_ethereum::timestamp() as i64);
 
         // Update combinators
-        let mut combinator = self.get_combinator();
-
         let difference = combinator.update(pwasm_ethereum::timestamp() as u32, &mut self.storage);
 
         self.set_combinator(combinator);
@@ -474,13 +472,15 @@ impl FinancialScInterface for FinancialScContract {
             panic!("Not enough funds to pay the gas price while withdrawing.");
         }
 
-        self.storage.write(&key, original_balance - final_amount);
-        let mut result = Vec::<u8>::new();
-
         let gas_cost = if use_gas { CALL_GAS } else { 0 };
         let withdraw_amount = final_amount - gas_cost;
 
-        match pwasm_ethereum::call(gas_cost as u64, &sender, U256::from(withdraw_amount), &[], &mut result) {
+        if withdraw_amount <= 0 {
+            panic!("Not enough funds to withdraw.");
+        }
+        self.storage.write(&key, original_balance - final_amount);
+
+        match pwasm_ethereum::call(gas_cost as u64, &sender, U256::from(withdraw_amount), &[], &mut Vec::<u8>::new()) {
             Ok(_v) => return,
             Err(_e) => {
                 // Payment failed, roll-back balance
@@ -662,9 +662,9 @@ impl FinancialScContract {
 
     // Add numbers safely to avoid integer overflow/underflow
     fn safe_add(x: i64, y: i64) -> i64 {
-        if y > 0 && x > 2_i64.pow(62) - y {
+        if y > 0 && x > 2_i64.pow(62) + (2_i64.pow(62) - 1) - y {
             panic!("Integer overflow.");
-        } else if y < 0 && x < -2_i64.pow(62) - y {
+        } else if y < 0 && x < -2_i64.pow(62) - 2_i64.pow(62) - y {
             panic!("Integer underflow.");
            
         }
@@ -673,7 +673,7 @@ impl FinancialScContract {
 
     // Checks if a U256 can be converted to an i64 without loss of information
     fn assert_U256_can_be_i64(val: U256) {
-        if val > U256::from(2_i64.pow(62)) {
+        if val > U256::from(2_i64.pow(62) + (2_i64.pow(62) - 1)) {
             panic!("Given value is too large to be converted to i64.");
         }
     }
@@ -698,7 +698,13 @@ impl FinancialScContract {
             final_amount = funds;
         }
 
-        return final_amount as i64;
+        return final_amount;
+    }
+
+    fn is_combinator_concluded(combinator: &Box<ContractCombinator>) -> bool {
+        let combinator_details = combinator.get_combinator_details();
+        combinator_details.fully_updated
+            || combinator_details.acquisition_time == None && combinator.past_horizon(pwasm_ethereum::timestamp() as u32)
     }
 }
 
@@ -1325,7 +1331,7 @@ mod tests {
         // Set the stake to the maximum i64 value
         ext_update(|e| e
             .sender(holder)
-            .value(U256::from(2_i64.pow(62)))
+            .value(U256::from(2_i64.pow(62) + (2_i64.pow(62) - 1)))
         );
         contract.stake();
 
@@ -1352,7 +1358,7 @@ mod tests {
         // Set the stake to the maximum i64 value
         ext_update(|e| e
             .sender(sender)
-            .value(U256::from(2_i64.pow(62)))
+            .value(U256::from(2_i64.pow(62) + (2_i64.pow(62) - 1)))
         );
         contract.stake();
 
@@ -1423,5 +1429,41 @@ mod tests {
             .value(U256::from(10))
         );
         contract.stake();
+    }
+
+    // Attempting to withdraw without enough funds to pay the gas fees is not allowed
+    #[test]
+    #[should_panic(expected = "Not enough funds to pay the gas price while withdrawing.")]
+    fn should_panic_if_withdrawal_amount_below_gas_fees() {
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
+            0,
+            vec![0]
+        );
+
+        // Check state as an uninvolved user
+        ext_update(|e| e.value(U256::from(2299)));
+        contract.stake();
+
+        contract.withdraw(1);
+    }
+
+    // Attempting to withdraw without enough funds to withdraw any Eth is not allowed
+    #[test]
+    #[should_panic(expected = "Not enough funds to withdraw.")]
+    fn should_panic_if_withdrawal_amount_is_0() {
+        let mut contract = setup_contract(
+            "1818909b947a9FA7f5Fe42b0DD1b2f9E9a4F903f".parse().unwrap(),
+            "25248F6f32B37f69A92dAf05d5647981b58Aaec4".parse().unwrap(),
+            0,
+            vec![0]
+        );
+
+        // Check state as an uninvolved user
+        ext_update(|e| e.value(U256::from(2300)));
+        contract.stake();
+
+        contract.withdraw(1);
     }
 }
