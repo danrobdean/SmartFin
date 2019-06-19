@@ -1429,16 +1429,15 @@ Report TODO/Plan: ALL DONE
 	- Print (front and back)
 
 
-Code TODO:
-	- Test metamask with other blockchain
-	- Write Help screen in composition view
-	- Edit client to call DSL "SmartFin"
-	- When selecting or or anytime based on index, highlight anytime/or combinator (in evaluation view and setter views)
-	- see if easy to check if anytime can be acquired (to filter the list of indexes in acquire anytime sub-contract view)
-	- Check for "easter eggs" and remove (and in report too)
-	- Update readme
 
-Code DONE:
+
+
+========== 18th Jun ==========
+
+Started on presentation:
+	- Written slides for structure (titles, bullets)
+
+Done some bug fixing:
 	- safe_add and assert_U256_can_be_i64 both check i64 max as 2^62 but it should be 2^62 + (2^62 - 1)
 	- to_i64 and from_i64 check unsigned > 2^63, but should be unsigned >= 2^63
 	- get_withdrawal_amount should panic if withdrawal amount hits 0 or negative
@@ -1452,3 +1451,23 @@ Code DONE:
 		- Add undefined to horizon map for one and zero
 
 
+
+
+
+========== 19th Jun ==========
+
+Making full first draft of presentation:
+	- "Script" Notes
+	- Demo ideas
+	- First draft of presentation
+
+
+Code still TODO:
+	- Test metamask with other blockchain
+	- Write Help screen in composition view
+	- Edit client to call DSL "SmartFin"
+	- Allow newlines and tabs in composition textarea (and remove in code)
+	- When selecting or or anytime based on index, highlight anytime/or combinator (in evaluation view and setter views)
+	- see if easy to check if anytime can be acquired (to filter the list of indexes in acquire anytime sub-contract view)
+	- Check for "easter eggs" and remove (and in report too)
+	- Update readme
