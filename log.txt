@@ -1462,6 +1462,45 @@ Making full first draft of presentation:
 	- First draft of presentation
 
 
+
+
+
+========== 20th Jun ==========
+
+Practice feedback:
+	- explaining combinators was hard to follow, english explanation on slide would be good
+	- Add a slide showing all combinators, maybe more detail in slides after conclusion
+	- horizons, truncate, etc need more explanation if talking about
+	- context for the problems, examples
+	- If talking about the tests at the end for DSLs, make sure its not misleading (like testing frameworks)
+	- "SmartFin financial contract" instead of SmartFin contract
+	- More careful about creating a smart contract, not compiles
+	- Compare solidity and smartfin on the slide (tiny text for solidity)
+	- Add languages to architecture diagram
+	- Remove technical stuff from evaluator, have slides for these at the end and allow questions for this
+	- Remove web client slide
+	- Introduction - panos says small financial contracts take about 2 weeks
+	- Bespoke Solidity contract could be shown early on to provide context, could be used for a storyline/narrative
+
+
+Todo Slides:
+	- Re-write testing conclusion to avoid confusion
+	- Add extra slides listed on slide
+	- Maybe show a solidity contract early on, to show how much bigger it is
+	- Add diagrams
+	- Add/edit speaker notes
+
+Done Slides:
+	- Added solidity code for "one" to slides, for easy visual comparison of difficulty of implementaiton
+	- Removed stuff about time slices and ring data structure from evaluator slides
+	- Removed web client slide
+	- Added panos 2 week contract writing time to intro
+	- Add languages to architecture diagram
+	- Add slide showing all combinators (briefly)
+	- Add english explanation for combinators
+	- Use examples for the problem slides
+
+
 Code still TODO:
 	- Test metamask with other blockchain
 	- Write Help screen in composition view
