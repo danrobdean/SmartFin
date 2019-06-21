@@ -4,6 +4,14 @@
     align-items: flex-end;
 }
 
+.acquire-sub-contract-controls__contract-container {
+    width: 100%;
+    padding-bottom: 0.5em;
+    margin-bottom: 2em;
+
+    border-bottom: 1px ridge $colour-border;
+}
+
 .acquire-sub-contract-controls__input-container {
     width: 100%;
     margin-bottom: 1em;

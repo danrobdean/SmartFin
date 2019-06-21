@@ -110,7 +110,8 @@ export default class Monitoring extends React.Component {
             || !this.state.acquisitionTimes
             || this.state.acquisitionTimes.length < 2
             || !this.state.acquisitionTimes[0].isDefined()
-            || this.state.acquisitionTimes.every(time => time.isDefined() && new Date(time.getValue() * 1000) < Date.now());
+            || this.state.acquisitionTimes.every(time => time.isDefined() && new Date(time.getValue() * 1000) < Date.now())
+            || this.state.concluded;
 
         var acquisitionTime = (this.state.acquisitionTimes && this.state.acquisitionTimes.length > 0)
             ? this.state.acquisitionTimes[0].getValue()
@@ -128,6 +129,7 @@ export default class Monitoring extends React.Component {
                 <Modal title={"Set Or Choice"} visible={this.state.orChoiceOpen} closeModal={() => this.closeModals()}>
                     <OrChoiceControls
                         contract={this.props.contract}
+                        combinatorContract={this.state.combinatorContract}
                         holder={this.state.holder}
                         address={this.props.address}
                         orChoices={this.state.orChoices}
@@ -145,6 +147,7 @@ export default class Monitoring extends React.Component {
                 <Modal title="Acquire Sub-contract" visible={this.state.acquireOpen} closeModal={() => this.closeModals()}>
                     <AcquireSubContractControls
                         contract={this.props.contract}
+                        combinatorContract={this.state.combinatorContract}
                         address={this.props.address}
                         acquisitionTimes={this.state.acquisitionTimes}
                         callback={() => this.setValueModalCallback()}/>

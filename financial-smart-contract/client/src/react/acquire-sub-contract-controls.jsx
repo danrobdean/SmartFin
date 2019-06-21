@@ -1,8 +1,10 @@
 import React from "react";
 
+import ContractText from "./contract-text.jsx";
+import DropDown from "./drop-down.jsx";
 import Message from "./message.jsx";
 
-import { acquireSubContract } from "./../js/contract-utils.mjs";
+import { acquireSubContract, splitContract } from "./../js/contract-utils.mjs";
 
 /**
  * Component representing the acquire controls for a contract.
@@ -28,9 +30,11 @@ export default class AcquireSubContractControls extends React.Component {
     constructor(props) {
         super(props);
 
-        var acquirableIndexes = this.getAcquirableIndexes(props.acquisitionTimes);
+        var acquisitionTimes = this.populateAcquisitionTimes(props.acquisitionTimes);
+        var index = acquisitionTimes.findIndex(elem => elem.unacquired);
         this.state = {
-            anytimeIndex: (acquirableIndexes.length > 0) ? acquirableIndexes[0] : "N/A",
+            anytimeIndex: index,
+            acquisitionTimes: acquisitionTimes,
             acquisitionError: "",
             acquisitionErrorDetails: ""
         };
@@ -41,17 +45,31 @@ export default class AcquireSubContractControls extends React.Component {
      */
     render() {
         var anytimeIndexOptions = [];
-        var acquirableIndexes = this.getAcquirableIndexes(this.props.acquisitionTimes);
-        for (var index of acquirableIndexes) {
-            anytimeIndexOptions.push(
-                <option key={index} value={index}>
-                    {index}
-                </option>
-            );
+        for (var i = 0; i < this.state.acquisitionTimes.length; i++) {
+            if (this.state.acquisitionTimes[i].unacquired) {
+                var index = this.state.acquisitionTimes[i].anytimeIndex;
+                anytimeIndexOptions.push(
+                    <option key={index} value={index}>
+                        {index}
+                    </option>
+                );
+            }
         }
+
+        var combinatorIndex = (this.state.anytimeIndex >= 0 && this.state.acquisitionTimes.length > this.state.anytimeIndex)
+            ? this.state.acquisitionTimes[this.state.anytimeIndex].combinatorIndex
+            : -1;
 
         return (
             <div className={AcquireSubContractControls.blockName + "__container"}>
+                <div className={AcquireSubContractControls.blockName + "__contract-container"}>
+                    <DropDown title="SmartFin Contract">
+                            <ContractText
+                                contract={this.props.combinatorContract}
+                                highlightIndex={combinatorIndex}/>
+                        </DropDown>
+                </div>
+
                 <div className={AcquireSubContractControls.blockName + "__input-container"}>
                     <span className={AcquireSubContractControls.blockName + "__label"}>
                         <em>anytime</em> combinator index:
@@ -83,9 +101,11 @@ export default class AcquireSubContractControls extends React.Component {
      */
     componentDidUpdate(prevProps) {
         if (this.props.acquisitionTimes != prevProps.acquisitionTimes) {
-            var acquirableIndexes = this.getAcquirableIndexes(this.props.acquisitionTimes);
+            var acquisitionTimes = this.populateAcquisitionTimes(this.props.acquisitionTimes);
+            var index = acquisitionTimes.findIndex(elem => elem.unacquired);
             this.setState({
-                anytimeIndex: (acquirableIndexes.length > 0) ? acquirableIndexes[0] : "N/A"
+                acquisitionTimes: acquisitionTimes,
+                anytimeIndex: index
             });
         }
     }
@@ -103,7 +123,7 @@ export default class AcquireSubContractControls extends React.Component {
             this.props.callback();
         }, err => {
             this.setState({
-                acquisitionError: "Could not acquire sub-contract. Please ensure that sub-contract's parent has been acquired, and the sub-contract's acquisition date is in the future (if one exists).",
+                acquisitionError: "Could not acquire sub-contract. The sub-contract's parent combinator may not yet have been acquired.",
                 acquisitionErrorDetails: err.toString()
             })
         });
@@ -121,19 +141,47 @@ export default class AcquireSubContractControls extends React.Component {
     }
 
     /**
-     * Gets the available anytime combinator indexes.
+     * Gets the available anytime acquisition times.
      */
-    getAcquirableIndexes(acquisitionTimes) {
-        var acquirableIndexes = [];
+    populateAcquisitionTimes(acquisitionTimeOptions) {
+        if (!this.props.combinatorContract || !acquisitionTimeOptions || acquisitionTimeOptions.length == 0) {
+            return [];
+        }
 
-        if (acquisitionTimes) {
-            for (var i = 1; i < acquisitionTimes.length; i++) {
-                if (!acquisitionTimes[i].isDefined() || new Date(acquisitionTimes[i].getValue() * 1000) > Date.now()) {
-                    acquirableIndexes.push(i - 1);
-                }
+        var acquisitionTimes = [];
+        var combinators = splitContract(this.props.combinatorContract);
+        var index = 0;
+
+        for (var i = 0; i < combinators.length; i++) {
+            if (combinators[i] === "anytime") {
+                // Add 1 to account for top-level contract acquisition time
+                var time = acquisitionTimeOptions[index + 1]
+                var unacquired = !time.isDefined() || new Date(time.getValue() * 1000) > Date.now();
+                acquisitionTimes.push(new AnytimeAcquisitionTime(time, index, i, unacquired));
+                index++;
             }
         }
 
-        return acquirableIndexes;
+        return acquisitionTimes;
+    }
+}
+
+/**
+ * Represents an anytime acquisition time, with the acquisition time option, the
+ * anytime-index, the combinator index, and whether or not it has been acquired.
+ */
+class AnytimeAcquisitionTime {
+    /**
+     * Initialises a new instance of this class.
+     * @param acquisitionTime The acquisition time option.
+     * @param anytimeIndex The anytime index.
+     * @param combinatorIndex The combinator index.
+     * @param unacquired Whether or not this anytime combinator has not been acquired.
+     */
+    constructor(acquisitionTime, anytimeIndex, combinatorIndex, unacquired) {
+        this.acquisitionTime = acquisitionTime;
+        this.anytimeIndex = anytimeIndex;
+        this.combinatorIndex = combinatorIndex;
+        this.unacquired = unacquired;
     }
 }

@@ -21,6 +21,8 @@
     margin: 10% auto 0 auto;
     width: 80%;
     max-width: 1200px;
+    box-shadow: 3px 3px 4px 2px $colour-shadow-dark;
+    border-radius: 5px;
 }
 
 .modal__titlebar {
@@ -32,6 +34,7 @@
     color: $colour-text-primary;
     background-color: $colour_primary;
     padding: 0.5em 1em 0.5em 2em;
+    border-radius: 5px 5px 0 0;
 }
 
 .modal__title {

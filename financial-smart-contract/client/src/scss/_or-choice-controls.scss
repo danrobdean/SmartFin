@@ -4,6 +4,14 @@
     align-items: flex-end;
 }
 
+.or-choice-controls__contract-container {
+    width: 100%;
+    padding-bottom: 0.5em;
+    margin-bottom: 2em;
+
+    border-bottom: 1px ridge $colour-border;
+}
+
 .or-choice-controls__set-or-choice-input-container {
     display: flex;
     flex-direction: row;

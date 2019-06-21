@@ -1506,11 +1506,12 @@ Code done:
 	- Don't clean by default anymore when running client or tests, now need to run "run-node.sh --clean" explicitly to clean
 	- Update readme
 	- Edit client to call DSL "SmartFin"
-	- Highlighted anytime/or for evaluation view, deciding about setter views (more work and not as worthwhile)
+	- Highlighted anytime/or for evaluation view
+	- Highlighted or for set or choice view
+	- Highlighted anytime for acquire sub-contract view
+	- Cannot check if anytime is acquirable, requires access to or-choices etc. Would be better to send the boolean from the smart contract, and free. Not going to do because requires changing tests etc.
 
 Code still TODO:
-	- When selecting or or anytime based on index, highlight anytime/or combinator (in setter views)
-	- see if easy to check if anytime can be acquired (to filter the list of indexes in acquire anytime sub-contract view) (its not, but if doing the above it is)
 	- Write Help screen in composition view
 	- Test metamask with other blockchain (Kovan)
 	- Check for "easter eggs" and remove (and in report too)
