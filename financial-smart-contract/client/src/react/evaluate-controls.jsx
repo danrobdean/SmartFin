@@ -1,7 +1,6 @@
-import moment from "moment";
 import React from "react";
 
-import { UNIX_FORMAT, DATE_STRING_FORMAT } from "./../js/contract-utils.mjs";
+import ContractText from "./contract-text.jsx";
 import DropDown from "./drop-down.jsx";
 import Message from "./message.jsx";
 import StepThroughOptions from "./../js/step-through-options.mjs";
@@ -91,10 +90,10 @@ export default class EvaluateControls extends React.Component {
             <div className={EvaluateControls.blockName + "__container"}>
 
                 <div className={EvaluateControls.blockName + "__contract-drop-down"}>
-                    <DropDown title={"Combinator Contract"} disableChildClick={true}>
-                        <div className={EvaluateControls.blockName + "__combinator-contract-container"}>
-                            <em>{this.props.contract}</em>
-                        </div>
+                    <DropDown title={"SmartFin Contract"} disableChildClick={true}>
+                        <ContractText
+                            contract={this.props.contract}
+                            highlightIndex={(this.state.options) ? this.state.options.combinatorIndex : undefined}/>
                     </DropDown>
                 </div>
 

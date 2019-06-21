@@ -1,0 +1,15 @@
+.contract-text__container {
+    font-style: italic;
+}
+
+.contract-text__contract-complete {
+    background-color: $colour-success-light;
+    color: $colour-text-success;
+    padding: 0.5em 0;
+}
+
+.contract-text__contract-highlighted {
+    background-color: $colour-err-light;
+    color: $colour-text-err;
+    padding: 0.5em 0;
+}

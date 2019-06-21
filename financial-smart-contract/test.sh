@@ -39,7 +39,7 @@ else
     # Start blockchain node if required
     if [ $NC_TEST -eq 0 ]
     then
-        "./run-node.sh" "--clean" &
+        "./run-node.sh" &
         sleep 3
     fi
 

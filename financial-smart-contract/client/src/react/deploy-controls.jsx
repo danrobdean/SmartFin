@@ -60,7 +60,7 @@ export default class DeployControls extends React.Component {
             <div className={DeployControls.blockName + "__container"}>
                 <div className={DeployControls.blockName + "__details-container"}>
                     <span className={DeployControls.blockName + "__contract-label"}>  
-                        Contract to deploy:
+                        SmartFin contract to deploy:
                     </span>
 
                     <span className={DeployControls.blockName + "__contract"}>

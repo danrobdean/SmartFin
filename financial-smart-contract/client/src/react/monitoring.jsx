@@ -246,7 +246,7 @@ export default class Monitoring extends React.Component {
                             </div>
 
                             <div className={Monitoring.blockName + "__details-drop-down"}>
-                                <DropDown title={"Combinator Contract"} disableChildClick={true} className={Monitoring.blockName + "__drop-down"}>
+                                <DropDown title={"SmartFin Contract"} disableChildClick={true} className={Monitoring.blockName + "__drop-down"}>
                                     <div className={Monitoring.blockName + "__combinator-contract-container"}>
                                         <em>{this.state.combinatorContract}</em>
                                     </div>

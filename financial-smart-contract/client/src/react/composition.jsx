@@ -65,7 +65,7 @@ export default class Composition extends React.Component {
                     <TimeSelect returnTime={unixTime => this.insertTime(unixTime)}/>
                 </Modal>
 
-                <Modal title="Deploy Contract" closeModal={() => this.closeModals()} visible={this.state.deployOpen}>
+                <Modal title="Deploy Smart Contract" closeModal={() => this.closeModals()} visible={this.state.deployOpen}>
                     <DeployControls
                         address={this.props.address}
                         contract={this.state.contract}
@@ -73,7 +73,7 @@ export default class Composition extends React.Component {
                         deployed={contract => this.contractDeployed(contract)}/>
                 </Modal>
 
-                <Modal title="Evaluate Contract" closeModal={() => this.closeModals()} visible={this.state.evaluateOpen}>
+                <Modal title="Evaluate SmartFin Contract" closeModal={() => this.closeModals()} visible={this.state.evaluateOpen}>
                     <EvaluateControls
                         evaluator={this.props.evaluator}
                         contract={this.state.contract}
@@ -84,7 +84,7 @@ export default class Composition extends React.Component {
                 <div className={Composition.blockName + "__size-container"}>
                     <div className={Composition.blockName + "__wrapping-container"}>
                         <div className={Composition.blockName + "__composition-container"}>
-                            <span className={Composition.blockName + "__composition-title"}>Enter your contract here:</span>
+                            <span className={Composition.blockName + "__composition-title"}>Enter your SmartFin contract here:</span>
                             <textarea
                                 className={Composition.blockName + "__composition-input"}
                                 ref={r => this.compositionInput = r}
