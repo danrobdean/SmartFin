@@ -189,6 +189,10 @@ export default class EvaluateControls extends React.Component {
 
         for (var i = 0; i < this.state.prevValues.length; i++) {
             var prevValue = this.state.prevValues[i];
+            if (prevValue.type === StepThroughValue.TYPE_GET_ACQUISITION_TIME) {
+                continue;
+            }
+
             var prevValueElement;
             var label = EvaluateControls.getLabel(prevValue.index, prevValue.type, false);
 

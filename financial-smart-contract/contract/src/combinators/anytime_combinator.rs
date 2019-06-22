@@ -66,7 +66,7 @@ impl ContractCombinator for AnytimeCombinator {
             panic!("Acquiring a previously-acquired anytime combinator is not allowed.");
         }
 
-        storage.set(&anytime_acquisition_times_key(), self.anytime_index, (true, self.sub_combinator.get_horizon()));
+        storage.set(&anytime_acquisition_times_key(), self.anytime_index, (false, self.sub_combinator.get_horizon()));
         self.combinator_details.acquisition_time = Some(time);
     }
 
@@ -77,6 +77,12 @@ impl ContractCombinator for AnytimeCombinator {
             || self.combinator_details.acquisition_time.unwrap() > time
             || self.combinator_details.fully_updated {
             return 0;
+        }
+
+        // If acquisition time not passed previously, set it as passed
+        let acquisition_details: (bool, Option<u32>) = storage.get(&anytime_acquisition_times_key(), self.anytime_index);
+        if !acquisition_details.0 {
+            storage.set(&anytime_acquisition_times_key(), self.anytime_index, (true, self.sub_combinator.get_horizon()));
         }
 
         // Check if sub-combinator acquisition time already set
@@ -525,6 +531,32 @@ mod tests {
             "Value of updating with no horizon != 0: {}",
             value
         )
+    }
+
+    fn acquiring_with_future_acquisition_time_does_not_allow_acquisition() {
+        // Create combinator anytime one
+        let mut combinator = AnytimeCombinator::new(
+            Box::from(OneCombinator::new()),
+            0
+        );
+
+        // Update check details
+        let acquisition_times = &vec![(false, None)];
+        let mut storage = setup_storage(acquisition_times);
+        combinator.acquire(2, &mut storage);
+        combinator.update(0, &mut storage);
+        let mut acquisition_details: (bool, Option<u32>) = storage.get(&anytime_acquisition_times_key(), 0);
+        assert!(
+            !acquisition_details.0,
+            "anytime combinator is acquirable before its acquisition time."
+        );
+        
+        combinator.update(2, &mut storage);
+        acquisition_details = storage.get(&anytime_acquisition_times_key(), 0);
+        assert!(
+            !acquisition_details.0,
+            "anytime combinator is not acquirable after its acquisition time."
+        );
     }
 
     // Serializing anytime-combinator is correct

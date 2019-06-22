@@ -231,7 +231,7 @@ export default class Evaluator {
         }, 0);
 
         var reverseValues = this.stepThroughValues.slice().reverse();
-        var timeIndex = reverseValues.findIndex(elem => [StepThroughValue.TYPE_ACQUISITION_TIME, StepThroughValue.TYPE_ANYTIME_ACQUISITION_TIME].includes(elem.type));
+        var timeIndex = reverseValues.findIndex(elem => [StepThroughValue.TYPE_ACQUISITION_TIME, StepThroughValue.TYPE_ANYTIME_ACQUISITION_TIME, StepThroughValue.TYPE_GET_ACQUISITION_TIME].includes(elem.type));
         if (timeIndex != -1) {
             this.stepThroughTime = reverseValues[timeIndex].value;
         }
@@ -474,8 +474,8 @@ export default class Evaluator {
                             }
                         } else {
                             // ANYTIME combinator, check if only one acquisition time, in which case make choice
-                            var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getSlices();
-                            var index = timeSlices.findIndex(elem => elem.getEnd() >= this.stepThroughTime.getStart());
+                            var timeSlices = this.anytimeTimeSlices[this.stepThroughAcquisitionTimeIndex - 1].getValidSlices(this.stepThroughTime.getStart());
+                            var index = timeSlices.findIndex(elem => this._horizonLaterThan(elem.getEnd(), this.stepThroughTime.getStart()));
 
                             if (index == -1) {
                                 timeSlices = [];
@@ -503,7 +503,11 @@ export default class Evaluator {
                         this._tryRevisitOrEndStepThrough();
                     } else {
                         // Set current time slice to instant at horizon
-                        this.stepThroughTime = new TimeSlice(horizon, horizon)
+                        this.stepThroughTime = new TimeSlice(horizon, horizon);
+
+                        // Store step through time in step through values
+                        this.stepThroughValues.push(new StepThroughValue(StepThroughValue.TYPE_GET_ACQUISITION_TIME, this.stepThroughTime, this.stepThroughCombinatorIndex));
+
                         this.stepThroughCombinatorIndex += 1;
                     }
 
@@ -608,7 +612,7 @@ export default class Evaluator {
                 if (horizon === undefined) {
                     return new StepThroughEvaluationResult(0);
                 } else {
-                    return this._stepThroughEvaluate(i + 1, new TimeSlice(horizon, horizon), values);
+                    return this._stepThroughEvaluate(i + 1, values.shift().value, values);
                 }
 
             case "anytime":
