@@ -1516,7 +1516,20 @@ BUG FIX:
 	- Auto acquisition in evaluator was also not checking for valid time slices, also showing times in the past (all the way back to 1970)
 	- GET ANYTIME.. in smart contract also broken, changed ANYTIME to set acquirable bool to false in acquire method, then set to true in update method once its acquisition time has passed
 
-Code still TODO:
+
+
+
+========== 22nd Jun ==========
+
+Finishing "final" draft of presentation.
+
+Code done:
 	- Write Help screen in composition view
+
+Code still TODO:
 	- Test metamask with other blockchain (Kovan)
 	- Check for "easter eggs" and remove (and in report too)
+
+
+
+
