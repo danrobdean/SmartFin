@@ -60,6 +60,13 @@ export default class LoadContractControls extends React.Component {
     }
 
     /**
+     * Focus on the contract address input upon mounting.
+     */
+    componentDidMount() {
+        this.contractAddressInput.focus();
+    }
+
+    /**
      * Sets the contract instance address.
      */
     setContractAddress() {

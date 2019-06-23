@@ -90,6 +90,7 @@ export default class Composition extends React.Component {
                                 ref={r => this.compositionInput = r}
                                 onChange={e => this.handleCompositionInputChange(e)}
                                 onKeyPress={e => this.handleCompositionInputKeyPress(e)}
+                                onKeyDown={e => this.handleCompositionInputKeyDown(e)}
                                 rows={15}
                                 cols={70}
                                 readOnly={this.state.helpOpen || this.state.deployOpen || this.state.timePickerOpen}/>
@@ -125,22 +126,20 @@ export default class Composition extends React.Component {
     }
 
     /**
+     * Focus on the contract address input upon mounting.
+     */
+    componentDidMount() {
+        this.compositionInput.focus();
+    }
+
+    /**
      * Inserts the date/time from the date and time inputs into the contract.
      */
     insertTime(unixTime) {
         this.closeModals(() => {
             this.compositionInput.focus();
-    
-            var pos = this.compositionInput.selectionStart;
-            this.compositionInput.value =
-                this.compositionInput.value.substring(0, pos)
-                + unixTime
-                + this.compositionInput.value.substring(pos, this.compositionInput.value.length);
-            this.compositionInput.setSelectionRange(pos + unixTime.toString().length, pos + unixTime.toString().length);
 
-            this.setState({
-                contract: this.compositionInput.value
-            });
+            this.insertCompositionTextarea(unixTime.toString());
         });
     }
 
@@ -239,7 +238,30 @@ export default class Composition extends React.Component {
             timePickerOpen: false,
             deployOpen: false,
             evaluateOpen: false
-        }, callback);
+        }, () => {
+            this.compositionInput.focus();
+
+            callback();
+        });
+    }
+
+    /**
+     * Inserts the given string into the composition textarea.
+     * @param text The string to insert.
+     */
+    insertCompositionTextarea(text) {
+        var pos = this.compositionInput.selectionStart;
+
+        this.compositionInput.value =
+            this.compositionInput.value.substring(0, pos)
+            + text
+            + this.compositionInput.value.substring(pos, this.compositionInput.value.length);
+
+        this.compositionInput.setSelectionRange(pos + text.length, pos + text.length);
+
+        this.setState({
+            contract: this.compositionInput.value
+        });
     }
 
     /**
@@ -259,10 +281,28 @@ export default class Composition extends React.Component {
      * @param event The key press event.
      */
     handleCompositionInputKeyPress(event) {
-        // If the key code is ENTER (13), display deploy modal
-        if ((event.keyCode ? event.keyCode : event.which) == 13) {
+        // If the key code is ENTER (13) and not holding shift, display deploy modal
+        if ((event.keyCode ? event.keyCode : event.which) == 13 && !event.shiftKey) {
             event.preventDefault();
-            this.displayDeploy();
+
+            if (event.ctrlKey) {
+                this.displayEvaluate();
+            } else {
+                this.displayDeploy();
+            }
+        }
+    }
+
+    /**
+     * Handles the key down event for the contract composition input.
+     * @param event The key down event.
+     */
+    handleCompositionInputKeyDown(event) {
+        // If the key code is tab (9), insert a tab and prevent focus change
+        if ((event.keyCode ? event.keyCode : event.which) == 9) {
+            event.preventDefault();
+
+            this.insertCompositionTextarea("\t");
         }
     }
 }

@@ -935,7 +935,7 @@ export function compareTime(a, b) {
 
 // Splits a SmartFin contract into an array of SmartFin atoms.
 function splitContractCaseSensitive(contract) {
-    return contract.split(/[ \(\),]/).filter(elem => elem !== "");
+    return contract.split(/[ \(\),\n\t]/).filter(elem => elem !== "");
 }
 
 // Splits a SmartFin contract into a lowercase array of SmartFin atoms.
