@@ -226,7 +226,7 @@ export function serializeCombinatorContract(combinatorContract) {
         return Promise.reject("Web3 connection not initialised.");
     }
 
-    var combinators = splitContractCaseSensitive(combinatorContract);
+    var combinators = splitContract(combinatorContract);
     var result = [];
     for (var i = 0; i < combinators.length; i++) {
         // Lookup value of combinator when serialized
@@ -307,7 +307,7 @@ export function verifyContract(contract) {
         };
     }
 
-    var combinators = splitContractCaseSensitive(contract);
+    var combinators = splitContract(contract);
 
     var res = verifyCombinator(combinators, [], 0);
     if (!res.error && res.endIndex + 1 < combinators.length) {
@@ -934,13 +934,8 @@ export function compareTime(a, b) {
 }
 
 // Splits a SmartFin contract into an array of SmartFin atoms.
-export function splitContractCaseSensitive(contract) {
-    return contract.split(/[ \(\),\n\t]/).filter(elem => elem !== "");
-}
-
-// Splits a SmartFin contract into a lowercase array of SmartFin atoms.
 export function splitContract(contract) {
-    return splitContractCaseSensitive(contract).map(elem => elem.toLowerCase());
+    return contract.split(/[ \(\),\n\t]/).filter(elem => elem !== "");
 }
 
 // Converts an array of bytes to an address

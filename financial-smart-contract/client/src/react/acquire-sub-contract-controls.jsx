@@ -153,7 +153,7 @@ export default class AcquireSubContractControls extends React.Component {
         var index = 0;
 
         for (var i = 0; i < combinators.length; i++) {
-            if (combinators[i] === "anytime") {
+            if (combinators[i].toLowerCase() === "anytime") {
                 // Add 1 to account for top-level contract acquisition time
                 var time = acquisitionTimeOptions[index + 1]
                 var unacquired = !time.isDefined() || new Date(time.getValue() * 1000) > Date.now();

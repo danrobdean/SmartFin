@@ -222,7 +222,7 @@ export default class OrChoiceControls extends React.Component {
         var orIndex = 0;
 
         for (var i = 0; i < combinators.length; i++) {
-            if (combinators[i] === "or") {
+            if (combinators[i].toLowerCase() === "or") {
                 orChoices.push(new OrChoice(orChoiceOptions[orIndex], orIndex, i));
                 orIndex++;
             }

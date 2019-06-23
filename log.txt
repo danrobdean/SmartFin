@@ -1528,7 +1528,7 @@ Finishing "final" draft of presentation.
 Code DONE:
 	- Allow newlines and tabs in composition editor if possible for demo
 	- Automatically focus on load contract input and contract composition input on mounting
-	- Fixed evaluator setting whole contract to lower case
+	- Fixed evaluator setting whole contract to lower case, splitContract no longer sets all atoms to lower case (never needed anyway) and case sensitive version removed
 
 
 Code still TODO:

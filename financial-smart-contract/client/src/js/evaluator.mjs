@@ -1,6 +1,6 @@
 import moment from "moment";
 
-import { UNIX_FORMAT, DATE_STRING_FORMAT, DATE_STRING_NO_ZONE_FORMAT, compareTime, splitContractCaseSensitive } from "./contract-utils.mjs";
+import { UNIX_FORMAT, DATE_STRING_FORMAT, DATE_STRING_NO_ZONE_FORMAT, compareTime, splitContract } from "./contract-utils.mjs";
 import NextMap from "./next-map.mjs";
 import StepThroughEvaluationResult from "./step-through-evaluation-result.mjs";
 import StepThroughOptions from "./step-through-options.mjs";
@@ -103,7 +103,7 @@ export default class Evaluator {
 
         // Set the array of combinator atoms.
         // Split by any character of '(', ')', ',', or ' '
-        this.combinators = splitContractCaseSensitive(this.contract);
+        this.combinators = splitContract(this.contract);
 
         var result = this._processCombinators(0);
         this.horizon = result.horizon;
