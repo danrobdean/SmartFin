@@ -1479,14 +1479,6 @@ Practice feedback:
 	- Introduction - panos says small financial contracts take about 2 weeks
 	- Bespoke Solidity contract could be shown early on to provide context, could be used for a storyline/narrative
 
-
-Todo Slides:
-	- Re-write testing conclusion to avoid confusion
-	- Add extra slides listed on slide
-	- Maybe show a solidity contract early on, to show how much bigger it is
-	- Add diagrams
-	- Add/edit speaker notes
-
 Done Slides:
 	- Added solidity code for "one" to slides, for easy visual comparison of difficulty of implementaiton
 	- Removed stuff about time slices and ring data structure from evaluator slides
@@ -1521,14 +1513,31 @@ BUG FIX:
 
 ========== 22nd Jun ==========
 
-Finishing "final" draft of presentation.
-
 Code done:
 	- Write Help screen in composition view
 
+Finishing "final" draft of presentation.
+	- Editing notes
+	- Added diagrams/text to main slides
+
+
+
+
+========== 23rd Jun ==========
+
+
 Code still TODO:
+	- Allow newlines and tabs in composition editor if possible for demo
+	- Submit preliminary archive
 	- Test metamask with other blockchain (Kovan)
 	- Check for "easter eggs" and remove (and in report too)
+
+Slides TODO:
+	- Time presentation
+	- Finish planning and time demos
+	- Write extra slides listed on slide
+	- Maybe show a solidity contract early on, to show how much bigger it is (maybe not)
+	- Add/edit speaker notes
 
 
 
