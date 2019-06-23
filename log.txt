@@ -1529,15 +1529,37 @@ Code DONE:
 	- Allow newlines and tabs in composition editor if possible for demo
 	- Automatically focus on load contract input and contract composition input on mounting
 	- Fixed evaluator setting whole contract to lower case, splitContract no longer sets all atoms to lower case (never needed anyway) and case sensitive version removed
+	- Submitted preliminary archive
+
+Presentation run through:
+	Intro - 2:16
+	SmartFin Financial Contracts - 2:46
+	European Option Example - 3:15
+	SmartFin DSL - 3:59
+	SmartFin DSL Syntax - 4:10
+	Composition Demo - skipped
+	Smart Contract Implementation - 4:55
+	Problems - 5:24
+	Retroactive Payment - 6:10
+	More Problems - 6:57
+	Observable arbiters - 7:54
+	Contract Interaction and Evaluation demo - skipped
+	SmartFin Financial Contract Evaluation - 9:00
+	Evaluation - 9:54
+	Evaluation - Case Studies - 10:58
+	Evaluation - Case Studies 2 - 12:07
+	Conclusion - 12:53
+	Thanks for listening - 13:00
+
 
 
 Code still TODO:
-	- Submit preliminary archive
-	- Test metamask with other blockchain (Kovan)
-	- Check for "easter eggs" and remove (and in report too)
+	- Double check metamask with other blockchain (Kovan)
+	- Check for "easter eggs" (should be none) and remove (and in report too)
 
 Slides TODO:
-	- Time presentation again
+	- double check slide transition points (seem inconsistent)
+	- add detail, try to bring up to 15 mins at least (2 extra mins needed)
 	- Finish planning and time demos
 	- Make extra slides
 	- Maybe show a solidity contract early on, to show how much bigger it is (maybe not)
