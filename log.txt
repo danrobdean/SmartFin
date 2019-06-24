@@ -1553,17 +1553,16 @@ Presentation run through:
 
 
 
+========== 24th Jun ==========
+
+Removed conclusion slides
+Run through slides, 22.5 mins, no notes
+
+
+
 Code still TODO:
 	- Double check metamask with other blockchain (Kovan)
 	- Check for "easter eggs" (should be none) and remove (and in report too)
-
-Slides TODO:
-	- double check slide transition points (seem inconsistent)
-	- add detail, try to bring up to 15 mins at least (2 extra mins needed)
-	- Finish planning and time demos
-	- Make extra slides
-	- Maybe show a solidity contract early on, to show how much bigger it is (maybe not)
-	- Add/edit speaker notes
 
 
 
