@@ -1,8 +1,5 @@
 # SmartFin - Implementing a Financial Domain-Specific Language for Smart Contracts
 
-## Daniel Dean DD2415
-## https://gitlab.doc.ic.ac.uk/dd2415-individual-project/main/tree/master
-
 This is the repository for the *SmartFin - Implementing a Financial Domain-Specific Language for Smart Contracts* project. The `financial-smart-contract` folder contains the main deliverables of the project.
 
 The `report-solidity-contracts` folder contains several Solidity implementations of SmartFin financial contract and a code snippet showcasing a reentrancy vulnerability, used for the report's evaluation and introduction respectively.
