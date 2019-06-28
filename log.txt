@@ -1557,10 +1557,7 @@ Presentation run through:
 
 Removed conclusion slides
 Run through slides, 22.5 mins, no notes
-
-
-
-Code still TODO:
+Done
 	- Double check metamask with other blockchain (Kovan)
 	- Check for "easter eggs" (should be none) and remove (and in report too)
 
