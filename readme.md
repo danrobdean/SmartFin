@@ -1,6 +1,9 @@
 # SmartFin - Implementing a Financial Domain-Specific Language for Smart Contracts
 
-This is the repository for the *SmartFin - Implementing a Financial Domain-Specific Language for Smart Contracts* project. The `financial-smart-contract` folder contains the main deliverables of the project.
+This is the repository for the *SmartFin - Implementing a Financial Domain-Specific Language for Smart Contracts* project. In this project, we provide a smart contract implementation for a financial contract domain-specific language, SmartFin. SmartFin is derived from a DSL presented by Simon Peyton Jones, Jean-Marc Eber, and Julian Seward in *Composing Contracts:
+An Adventure in Financial Engineering*. We also present a web client for writing and evaluating SmartFin financial contracts, and managing their smart contract representations.
+
+The `financial-smart-contract` folder contains the main deliverables of the project.
 
 The `report-solidity-contracts` folder contains several Solidity implementations of SmartFin financial contract and a code snippet showcasing a reentrancy vulnerability, used for the report's evaluation and introduction respectively.
 
