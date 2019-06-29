@@ -6,6 +6,12 @@ The `report-solidity-contracts` folder contains several Solidity implementations
 
 The report log is also included in this folder, as well as the results of several gas-cost comparisons for the case studies used in the evaluation section of the report.
 
+The `report` folder contains the final report produced for this project in PDF form, as well as the LaTeX source files and images.
+
+The `user-manual` folder contains the user manual for the web client in PDF form, as well as the LaTeX source files and images.
+
+The `presentation` folder contains the final presentation produced for this project, as a PPTX file with notes.
+
 ### `financial-smart-contract`
 
 This folder contains several folders, scripts, the settings for a local development blockchain, and a readme which explains running these scripts, and running the client build.

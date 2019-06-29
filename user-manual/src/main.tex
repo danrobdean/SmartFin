@@ -1,0 +1,456 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[export]{adjustbox}
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+\usepackage{float}
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+\title{SmartFin Financial Smart Contract Client - User Manual}
+\date{}
+\author{Daniel Dean - DD2415}
+
+\begin{document}
+
+\maketitle
+\clearpage
+
+\tableofcontents
+\clearpage
+
+
+\section{Getting Started}
+
+\subsection{Overview}
+
+The financial smart contract client is a client which allows the user to define a financial contract in a domain-specific language called SmartFin, and publish it to a blockchain in the form of a smart contract. These financial contracts can be as simple as one party paying the other 1 Wei (the minimal amount of currency payable on an Ethereum blockchain), but they can also be more complex - like a European option. For more information on writing financial contracts in SmartFin, see section \ref{UG:DSL-guide}. \\
+
+The client can be connected to a blockchain of your choice (see sections \ref{UG:installation} and \ref{UG:connecting}), and used to publish \textit{financial smart contracts} (smart contracts which represent SmartFin financial contracts). These contracts are made between two parties. One party is the \textit{holder} - the party that can sign, or \textit{acquire}, the contract. The second party is the \textit{counter-party} - the party that authors the contract. It is not currently possible to create a contract with any number of parties other than 2 in this client. \\
+
+When the holder \textit{acquires} a financial smart contract, the contract will track the balance of Wei between the two parties. For example, a smart contract representing a SmartFin financial contract requiring the counter-party to pay the holder 1 Wei immediately will track the holder's balance increasing by 1 Wei, and the counter-party's balance decreasing by 1 Wei, upon acquisition by the holder. \\
+
+This manual contains instructions on using the financial smart contract client to compose and evaluate SmartFin financial contracts, and deploy and interact with financial smart contracts.
+
+
+\subsection{Installation} \label{UG:installation}
+
+In order to use the financial smart contract client, run the provided \texttt{fsc-server.sh} file (requires Python 3 and Google Chrome). This will run a local server, and open a tab in Google Chrome to the client page. \\
+
+If no tab is opened automatically, open a browser window in Google Chrome and navigate to \texttt{http://localhost:8080}.
+
+
+\section{SmartFin - The Financial Contract DSL} \label{UG:DSL-guide}
+
+\subsection{Overview} \label{UG:DSL-overview}
+
+The financial smart contract client deals with smart contracts that represent financial contracts defined in SmartFin, a combinator language used to describe financial contracts. A combinator language is a functional language in which a program is made up of chained function calls. As such, each contract written in SmartFin can be used as a sub-contract for any combinator. This means that a whole financial contract can be represented by a single combinator, or by some composition of combinators. \\
+
+Each SmartFin financial contract has a \textit{holder}, and a \textit{counter-party}. Typically, the counter-party will be the party making payments, and the holder will be the party receiving payments. All payments are made in Ether (and all amounts of currency will be in the form of Wei, the smallest denomination of Ether). \\
+
+A SmartFin financial contract can be \textit{acquired} by the holder at any point in time, but the responsibilities of each party may differ depending on when the contract is acquired. For example, consider a contract $C_1$ which requires the counter-party to pay the holder 100 Ether on noon of January 1st 2019 and again on noon of January 1st 2020. $C_1$ requires 2 payments to occur if acquired before 12:00 on 01/01/19, 1 payment to occur if acquired by the 12:00 01/01/20, or none otherwise. The acquisition date of a SmartFin financial contract will therefore affect the value of the contract for each party. \\
+
+A SmartFin financial contract may also \textit{expire} where no responsibilities outlined in the contract take effect if the contract is acquired after a certain time. For example, the contract $C_1$ has no effect if acquired after 12:00 on 01/01/20. This date is called the \textit{horizon} of the SmartFin contract. An important thing to note is that a contract's responsibilities could potentially extend past the contract's horizon, but a contract acquired after its horizon will have no effect. \\
+
+Some SmartFin financial contracts may be dependent on not just sub-contracts, but also parameters. The contract $C_1$, for instance, defines payments of a specific amount on two specific dates. This contract would need to be defined with a constant representing 100 Ether, and two date/times. A SmartFin financial contract could also be dependent on a variable value, such as the temperature in London in Celsius, or the distance between two people in metres. Such a value is called an \textit{observable}.
+
+\subsection{Combinators} \label{UG:combinators}
+
+The set of combinators defined in SmartFin is described below, along with the type signature of each combinator (using the function signature notation of Haskell). The notation used to describe SmartFin is defined in table \ref{UG:dsl-notation}. \\
+
+\begin{table}[ht]
+    \begin{center}
+        \begin{tabular}{|ll|}
+            \hline
+            $c, d$ &\textit{Contract} \\
+            $o$ &\textit{Observable} \\
+            $t$ &\textit{Date/Time} \\
+            \hline
+        \end{tabular}
+        \caption{Conventions for SmartFin's Description}
+        \label{UG:dsl-notation}
+    \end{center}
+\end{table}
+
+\parbox{\textwidth}{
+\texttt{zero :: Contract} \\
+
+This combinator represents a contract with no terms. It can be acquired at any time. \\ \\
+
+}
+
+\parbox{\textwidth}{
+\texttt{one :: Contract} \\
+
+This combinator represents a contract which requires the counter-party to immediately pay the holder one Wei upon acquisition. This contract can be acquired at any time. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{give :: Contract -> Contract} \\
+
+\texttt{give c} represents \texttt{c} with all responsibilities reversed (e.g. if the holder acquires \texttt{give one}, they must pay the counter-party 1 Wei immediately). \\ \\
+
+}
+
+\parbox{\textwidth}{
+\texttt{and :: Contract -> Contract -> Contract} \\
+
+When \texttt{and c d} is acquired, both c and d are acquired immediately. Expired sub-contracts are not acquired. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{or :: Contract -> Contract -> Contract} \\
+
+When \texttt{or c d} is acquired, the holder immediately acquires either c or d. If one has expired, the holder cannot acquire it (and must acquire the other if possible). \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{truncate :: Date -> Contract -> Contract} \\
+
+When \texttt{truncate t c} is acquired, the holder acquires \texttt{c}. The horizon of \texttt{truncate t c} is the earliest of \texttt{t} and the horizon of \texttt{c} (thus \texttt{truncate t c} does nothing after either horizon has passed). \\
+
+Dates in SmartFin must be provided in either the format \texttt{<DD/MM/YYYY HH:mm:ss>}, the format \texttt{<DD/MM/YYYY HH:mm:ss Z>}, or in UNIX Epoch time format. For more information on how to format times, see section \ref{UG:time-input}. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{then :: Contract -> Contract -> Contract} \\
+
+When acquiring \texttt{then c d}, the holder acquires \texttt{c} if \texttt{c} has not expired, or \texttt{d} if \texttt{c} has expired and \texttt{d} has not. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{scale :: Observable -> Contract -> Contract} \\
+
+\texttt{scale o c} represents \texttt{c} with all payments multiplied by the value of the observable \texttt{o} at the time of acquisition. \\
+
+An observable is represented by either a number (e.g. \texttt{scale 5 one} requires the counter-party to pay 5 Wei to the holder), or by a name and address if the observable has a time-varying value. The name is used to refer to the observable in the financial smart contract client, and the address is the user address of an arbiter for the observable's value that will provide its value at some point. This is written in the form \texttt{scale <name> <addr> c}, e.g. \texttt{scale tempInLondon 0xA0a4D3524dC3428884c41C05CD344f9BcB5c79f3 one}. Observable names can be in any form as long as they contain at least 1 non-mathematical character, such as a letter. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{get :: Contract -> Contract} \\
+
+Acquiring \texttt{get c} acquires \texttt{c} at the moment in time when the horizon of \texttt{c} is reached. For example, \texttt{get truncate t one} will require the counter-party to pay the holder 1 Wei at time \texttt{t} (if acquired before it expires). \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{anytime :: Contract -> Contract} \\
+
+After \texttt{anytime c} is acquired, \texttt{c} can be acquired by the holder at any time before it expires, and must be acquired by this point. \\
+}
+
+
+\subsection{Examples}
+
+\subsubsection{Zero-Coupon Discount Bond}
+
+One example of a simple financial contract is a \textit{zero-coupon discount bond}. This is a contract between a holder and a counter-party that requires the counter-party to pay a specified amount of currency to the holder at a certain date. \\
+
+A zero-coupon discount bond which requires the counter-party to pay 100 Wei to the holder at 12:00pm on 01/01/2020 is defined in SmartFin as: \\
+
+\texttt{get truncate <01/01/2020 12:00:00> scale 100 one} \\
+
+Once the \texttt{get} combinator is acquired, its sub-contract will be acquired at the acquisition date, i.e. 12:00pm on 01/01/01. The \texttt{truncate} combinator will not yet have expired, and so its underlying contract will be acquired at this point. The acquisition of the \texttt{scale} combinator causes its underlying contract (with values multiplied by 100) to be acquired immediately, thus acquiring the \texttt{one} combinator. This results in the counter-party paying 100 Wei to the holder at 12:00pm on 01/01/2020, if acquired before this time.
+
+
+\subsubsection{European Options}
+
+A European option is another type of financial contract, which states that the holder can choose whether or not to acquire a contract on a given date. \\
+
+A European option over the contract \texttt{c} at 12:00pm on 01/01/2020 is defined in SmartFin as: \\
+
+\texttt{get truncate <01/01/2020 12:00:00> or \textit{c} zero} \\
+
+Similarly to the previous contract, acquiring the \texttt{get} combinator acquires the sub-contract at its horizon, i.e. 12:00pm on 01/01/2020. This acquires the non-expired \texttt{truncate} combinator, and thus the underlying \texttt{or} combinator. \\
+
+At any point in time, the holder may specify which branch of the \texttt{or} combinator they would like to acquire. In the financial smart contract implementation, the contract will not proceed until a choice is made. After a choice is made, the chosen branch is evaluated based on the acquisition time of the \texttt{or} combinator (i.e. 01/01/2020 12:00pm), regardless of when the \texttt{or} choice is actually supplied. \\
+
+This means that the user will select between the underlying contract \texttt{c} and \texttt{zero}, and the result will be paid out at 01/01/2020 12:00pm, or as soon as the \texttt{or} choice is provided (whichever is latest).
+
+
+\section{Connecting to a Blockchain} \label{UG:connecting}
+
+\subsection{Overview}
+
+Once the server has been started and the client is open in a browser tab, you will be greeted by the blockchain connection screen, shown in figure \ref{UG:fig:connect}.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.2\width} {.3\height} {.2\width} {.1\height}},clip,width=\textwidth]{connect.png}
+    \caption{The \textit{Connect} view, through which you can connect the client to a blockchain.}
+    \label{UG:fig:connect}
+\end{figure}
+
+If you are using MetaMask in your browser, you can connect to it using the \textit{Connect to MetaMask} button. This will automatically detect your account's address, and allow you to approve any blockchain interaction through MetaMask.
+
+
+\subsection{Manual Connection}
+
+If you are running a local test blockchain, it may be easier to enter your blockchain's details manually. Please note, this is \textbf{not recommended} unless you are connecting to a local test blockchain, as your credentials will be processed directly through \texttt{web3} in plaintext, which is not secure. \\
+
+Pressing the \textit{Connect Manually} button will prompt the client to communicate with the blockchain at the address in the \textit{Blockchain URL} input. If the blockchain is successfully found, you will be prompted for the account's address and password, as shown in figure \ref{UG:fig:connect-account}.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.22\width} {.28\height} {.22\width} {.34\height}},clip,width=\textwidth]{connect-with-account-details.png}
+    \caption{The account detail inputs in the \textit{Connect} view, after a manually-entered blockchain is found.}
+    \label{UG:fig:connect-account}
+\end{figure}
+
+If the account's details are correct, the account will be unlocked permanently (or until the connected blockchain node is restarted), and the client will proceed to the main menu. \\
+
+If the connection is not successful, please ensure that the blockchain URL is correct, and that the account credentials are correct.
+
+
+\section{Main Menu}
+
+Once you have connected the client to a blockchain, the client will progress to the main menu (shown in figure \ref{UG:fig:main-menu}).
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.2\width} {.2\height} {.2\width} {.2\height}},clip,width=\textwidth]{main-menu.png}
+    \caption{The \textit{Main Menu} view.}
+    \label{UG:fig:main-menu}
+\end{figure}
+
+From the main menu, there are 2 available options. You may proceed to the \textit{contract composition} view, to create, evaluate, and deploy new SmartFin financial contracts and their corresponding financial smart contracts. The other option is to proceed to the \textit{contract monitoring} view, to monitor and interact with a deployed financial smart contract. \\
+
+Press one of the two buttons to proceed to the appropriate view. You may return to the main menu from either of these menus.
+
+
+\section{Composing a SmartFin Contract} \label{UG:composition}
+
+From the main menu, you may have progressed to the contract composition view (shown in figure \ref{UG:fig:composition}). If you progressed to the monitoring view instead, please see section \ref{UG:monitoring}. To return to the main menu, press the button at the top left of the screen. The contract composition menu allows you to write, evaluate, and deploy a SmartFin financial contract and its financial smart contract counterpart.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{0\width} {.2\height} {0\width} {.07\height}},clip,width=\textwidth]{composition-empty.png}
+    \caption{The \textit{Composition} view, consisting of a large text input on the left for a SmartFin financial contract definition, and several options to the right. The top-left button will return you to the main menu.}
+    \label{UG:fig:composition}
+\end{figure}
+
+\subsection{Composing a SmartFin Financial Contract}
+
+In the large text input, you may input a SmartFin financial contract. If you need to know how to write a financial contract with SmartFin, please refer to section \ref{UG:DSL-guide}. Alternatively, the \textit{Help} button in the monitoring view will display a similar guide for writing in SmartFin.
+
+
+\subsubsection{Inputting Time} \label{UG:time-input}
+
+Some SmartFin contracts require a time value to be provided, which will be a specific time on a specific date. For example, the \texttt{truncate} combinator causes a contract to expire at a given time (if not earlier). These time values can be provided in a few ways. \\
+
+One way to provide times to a SmartFin contract is in the format \texttt{<DD/MM/YYYY HH:mm:ss>}. For example, the contract \texttt{truncate <01/02/2020 13:45:01> one} is worth 1 Wei up until 13:45:01 on the 1st of February 2020.
+
+By default, the time zone for times input in this manner is set to the time zone of your client's locale. In order to change this, the time zone can be provided by inputting a time in the format \texttt{<DD/MM/YYYY HH:mm:ss Z>}, where \texttt{Z} represents a 2 or 4 digit time zone offset. For example, the time \texttt{"<01/02/2020 12:34:00 +1234>"} is equivalent to the time \texttt{"<01/02/2020 00:00:00 +0000>"}. Times returned from the client are usually displayed in UTC, with the time zone visible to prevent ambiguity. \\
+
+Times can also be provided in UNIX Epoch time format. To input a UNIX Epoch time more conveniently, pressing the \textit{Input UNIX Time} button will open a view to input the time using a calendar and time selector. Upon pressing the \textit{Input UNIX Time} button in this menu, the UNIX Epoch time corresponding to the input date/time (in UTC) will be inserted into the SmartFin contract definition at the text cursor's current location.
+
+\subsubsection{Verification}
+
+Once you have input a SmartFin financial contract definition, you may verify it by pressing the \textit{Evaluate Contract} button, or the \textit{Deploy Contract} button (pressing \texttt{enter} is equivalent to pressing \textit{Deploy Contract}). \\
+
+Upon pressing either of these buttons (or the \texttt{enter} key), the SmartFin contract will be verified. If it contains any errors, then they will be displayed below the contract input (as shown in figure \ref{UG:fig:composition-error}). The error message can be expanded by clicking on it, which will show a more detailed trace of the error.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.15\width} {.15\height} {.15\width} {.2\height}},clip,width=\textwidth]{composition-error.png}
+    \caption{The \textit{Composition} view, with an error message and expanded error trace.}
+    \label{UG:fig:composition-error}
+\end{figure}
+
+
+\subsubsection{Evaluating a SmartFin Financial Contract}
+
+In order to evaluate the SmartFin contract before deploying it, press the \textit{Evaluate Contract} button. This will display the \textit{Evaluate Contract} menu. For more information about this menu, please see section \ref{UG:evaluating}.
+
+
+\subsection{Deploying a Financial Smart Contract}
+
+Once the SmartFin financial contract definition is fully-written and error-free, its financial smart contract representation can be deployed to the connected blockchain. The smart contract is compiled to the \texttt{wasm} format, so please ensure that the connected blockchain is compatible with \texttt{wasm} smart contracts before proceeding. \\
+
+To open the deployment menu, press the \textit{Deploy Contract} button on the composition view (or press \texttt{enter} in the SmartFin contract text input). This will display a short menu for setting some options on the contract (as shown in figure \ref{UG:fig:deploy}).
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.2\width} {.2\height} {.2\width} {.2\height}},clip,width=\textwidth]{deploy.png}
+    \caption{The \textit{Deploy Contract} menu, which displays the final SmartFin contract, as well as several options.}
+    \label{UG:fig:deploy}
+\end{figure}
+
+A deployed financial smart contract has a counter-party (the account used to deploy the contract), and a prospective holder. The prospective holder of the financial smart contract is fixed, to ensure that only the intended party may acquire the contract. The holder's address must be provided to the contract during deployment, and can be entered in the \textit{Contract Holder} input. \\
+
+The financial smart contract also has an option for whether or not it should use gas upon withdrawal. If only externally-owned accounts (i.e. users, not other smart contracts) will interact with the contract, or the blockchain the contract is running on does not require gas fees, then this box does not need to be ticked. If one of the parties who will withdraw funds from the contract is a smart contract, then gas fees will need to be paid upon withdrawing in case the smart contract receiving the funds needs to execute code. In this case, the gas fees (2300 Wei) will be taken out of the withdrawing party's balance upon withdrawal. If there are not enough funds to pay for gas fees, then withdrawal will fail. \\
+
+Once you have provided all options to the deployment menu, the \textit{Deploy} button will deploy the financial smart contract to the connected blockchain from the connected account. If this fails for any reason, the error message will be displayed at the bottom of this menu. This message can be expanded by clicking to see the blockchain's error message.
+
+
+\section{Monitoring a Financial Smart Contract} \label{UG:monitoring}
+
+From the main menu, you may have progressed to the monitoring view. If you progressed to the composition view instead, please see section \ref{UG:composition}. The monitoring view enables you to interact with already deployed financial smart contracts in various ways. \\
+
+If you have previously deployed a financial smart contract in the composition view during the current session on the client, then the monitoring view will automatically display the details of the deployed contract. If not, you will be prompted for the address of the financial smart contract you would like to monitor (as shown in figure \ref{UG:fig:monitoring-load}). If the given address corresponds to a financial smart contract then its details will be loaded, otherwise an error message will be shown.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.24\width} {.55\height} {.25\width} {.23\height}},clip,width=\textwidth]{monitor-load.png}
+    \caption{The \textit{Load Contract} menu, which allows you to enter the address of a financial smart contract you would like to monitor.}
+    \label{UG:fig:monitoring-load}
+\end{figure}
+
+\subsection{Financial Smart Contract Details}
+
+The monitoring view allows the user to view several details from the financial smart contract, as shown in figure \ref{UG:fig:monitoring}. These details are contained with drop-down boxes, which can be opened or closed by clicking on the titles. The \textit{Contract Details} box contains information regarding the financial smart contract's current state, including the contract holder and counter-party's addresses, whether or not the contract has concluded, the top-level acquisition time, the holder and counter-party's balances, whether or not the contract uses gas, and the last time the contract was updated. The SmartFin financial contract definition for the financial smart contract is also displayed. All of the information in the monitoring view is refreshed every few seconds. The functions on the smart contract which return this information are \textit{pure}, and so no gas is used to obtain these details.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.15\width} {.1\height} {.15\width} {.11\height}},clip,width=\textwidth]{monitor-one.png}
+    \caption{The \textit{Monitoring} menu, which displays the details of a financial smart contract in several drop-down boxes, and several options.}
+    \label{UG:fig:monitoring}
+\end{figure}
+
+Besides the basic details, the contract also shows a list of available or-choices, observable values, and anytime acquisition times (and the state/value of each). This can be seen in figures \ref{UG:fig:monitoring-or}, \ref{UG:fig:monitoring-obs}, and \ref{UG:fig:monitoring-anytime}.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.19\width} {.5\height} {.35\width} {.27\height}},clip,width=\textwidth]{monitor-or.png}
+    \caption{An or-choice (before choosing) in the \textit{Monitoring} menu.}
+    \label{UG:fig:monitoring-or}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.19\width} {.45\height} {.35\width} {.27\height}},clip,width=\textwidth]{monitor-obs.png}
+    \caption{An observable value named \textit{observable0} (before setting) in the \textit{Monitoring} menu.}
+    \label{UG:fig:monitoring-obs}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.19\width} {.33\height} {.37\width} {.3\height}},clip,width=\textwidth]{monitor-anytime.png}
+    \caption{An anytime acquisition time (before acquisition) in the \textit{Monitoring} menu.}
+    \label{UG:fig:monitoring-anytime}
+\end{figure}
+
+\subsection{Interacting with a Financial Smart Contract}
+
+Besides viewing the details of the financial smart contract, the monitoring view also allows the user to interact with it. The user can step through the contract to evaluate it based on certain parameters (see section \ref{UG:evaluating} for more details), acquire the contract (if the user is the contract holder), stake funds in the contract, withdraw funds from the contract, update the contract, or set values in the contract.
+
+
+\subsubsection{Acquiring and Updating}
+
+Acquiring the contract (i.e. \textit{signing}) will set its acquisition time to the current time, and updates the contract based on its combinators. For example, if a user acquires the financial smart contract representing the SmartFin contract \texttt{one}, then the holder balance will increase by 1, and the counter-party balance will decrease by 1. \\
+
+Some balance changes will only occur over time, depending on the combinators . For example, a \texttt{get} combinator will only acquire the sub-contract to update the contract balance upon its horizon, and before this its value is 0. The financial smart contract cannot automatically update over time, as this would be non-deterministic, and would require someone to pay gas fees. To bring the contract's value up-to-date, press the \textit{Update Contract} button. \textit{This requires paying gas, as updating requires state-altering execution on the smart contract.}
+
+
+\subsubsection{Staking and Withdrawing Funds}
+
+A financial smart contract cannot pay funds to either party until some funds are paid in. To put funds into the contract, press the \textit{Stake Contract} button and enter a value (in Wei) to send. To withdraw funds, press the \textit{Withdraw Funds} button and enter a value (in Wei) to withdraw. You cannot withdraw more funds than your balance, more funds than the total contract balance, or when your balance or the financial smart contract's total balance cannot afford the gas fees (when gas fees upon withdrawal are enabled).
+
+
+\subsubsection{Choosing \texttt{or} Branches} \label{UG:or-branches}
+
+You may also set several values on the financial smart contract. A contract with \texttt{or} combinators allows the user to choose between the left and right sub-contracts. To do this, you may press the \textit{Set Or Choice} button and choose an \texttt{or} combinator and its chosen sub-contract (as shown in figure \ref{UG:fig:monitoring-or-select}). The \texttt{or} combinator is selected by its \texttt{or-index}. Each \texttt{or} combinator has an \texttt{or-index}, starting from zero and increasing sequentially by order of occurrence in the financial smart contract (from left to right). For example, in the contract \texttt{or one or one zero}, the \texttt{or} at atom 0 has \texttt{or-index} 0, and the \texttt{or} at atom 2 has \texttt{or-index} 1.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.25\width} {.54\height} {.25\width} {.23\height}},clip,width=\textwidth]{monitor-or-select.png}
+    \caption{The menu to choose a branch for an \texttt{or} combinator.}
+    \label{UG:fig:monitoring-or-select}
+\end{figure}
+
+
+\subsubsection{Setting Observable Values}
+
+From the monitoring view, you may also set the value of observables (as shown in figure \ref{UG:fig:monitoring-obs-select}). The \texttt{scale} combinator may define an observable and an arbiter. If you are logged in to the client with the address of an arbiter of an observable, then you can set the value of that observable. To do so, press the \textit{Set Observable Value} button, choose the observable to set, and enter the value.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.25\width} {.55\height} {.25\width} {.23\height}},clip,width=\textwidth]{monitor-set-obs.png}
+    \caption{The menu to set the value of an observable (named \textit{temperatureInLondon}).}
+    \label{UG:fig:monitoring-obs-select}
+\end{figure}
+
+
+\subsubsection{Acquiring \texttt{anytime} Sub-contracts}
+
+In a financial smart contract, an \texttt{anytime} combinator can be acquired at any point before the horizon is passed. If it is not acquired by this time, it will be acquired on the horizon. For more details, see section \ref{UG:DSL-guide}. In order to acquire an \texttt{anytime} sub-contract at the current time, press the \textit{Acquire Anytime Sub-contract} button to open the \texttt{anytime} acquisition menu (shown in figure \ref{UG:fig:monitoring-anytime-acquire}). Choose the combinator by its \texttt{anytime-index} (defined similarly as the \texttt{or-index} in section \ref{UG:or-branches}, for \texttt{anytime} instead of \texttt{or}), and press the \textit{Acquire} button. \textit{If you have not acquired the parent of the \texttt{anytime} combinator, then this will fail and display an error message.}
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.24\width} {.55\height} {.25\width} {.23\height}},clip,width=\textwidth]{monitor-anytime-acquire.png}
+    \caption{The menu to acquire an \texttt{anytime} combinator.}
+    \label{UG:fig:monitoring-anytime-acquire}
+\end{figure}
+
+
+\section{Evaluating a SmartFin Financial Contract} \label{UG:evaluating}
+
+The evaluation menu can be viewed from either the \textit{composition} view or the \textit{monitoring} view. The SmartFin financial contract which has been composed or loaded from a monitored financial smart contract can be evaluated in this view, by selecting acquisition times and or-choices for the contract. The evaluation is handled in a step-by-step manner, and at each step you are required to choose one of several options. These options can be deleted at any time, in case you change your mind. The first step of evaluation will be choosing the top-level contract acquisition time, i.e. the time the contract itself is acquired.
+
+
+\subsection{Top-level Acquisition Time}
+
+When choosing the top-level acquisition time, several options will be prevented to you (as shown in figure \ref{UG:fig:eval-time-unselected}). These options are each a distinct range of time, within which the contract's value will not change. For example, the contract \texttt{truncate <1st March 2020 12:00> one} will have the value 1 Wei until 12:00 on the 1st March 2020 is passed, and the value 0 Wei afterwards. This makes 2 distinct ranges of time with fixed values. \\
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.15\width} {.35\height} {.15\width} {.23\height}},clip,width=\textwidth]{eval-one-time-unselected.png}
+    \caption{The \textit{Evaluation} menu, before choosing the contract's acquisition time.}
+    \label{UG:fig:eval-time-unselected}
+\end{figure}
+
+These time ranges do not account for the varying of observables; for example, \texttt{scale obs <addr> one} will be treated as a single range of time with equal value, even though the value of its observable may change over time.
+
+
+\subsection{Anytime Acquisition Time}
+
+Similarly to the top-level acquisition time, you may also need to provide acquisition times for anytime combinators within a contract, as shown in figure \ref{UG:fig:eval-anytime-select}. The options for this will also be represented as distinct time ranges, in the same way that the top-level acquisition time options are shown. For example, for the contract \texttt{anytime then truncate <1st March 2020 12:00:00> one zero} (with a top-level acquisition time of 1st March 2020 12:00:00 or earlier), \texttt{anytime 0} will have options consisting of the time before 12:00 on 1st March 2020, and the following time period.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.18\width} {.32\height} {.15\width} {.23\height}},clip,width=\textwidth]{eval-anytime-select.png}
+    \caption{The \textit{Evaluation} menu, setting an \texttt{anytime} acquisition time.}
+    \label{UG:fig:eval-anytime-select}
+\end{figure}
+
+If an \texttt{anytime} combinator only has one available option for its acquisition time, then that option will be chosen automatically. For example, in the same contract defined above, if the top-level acquisition time is after 12:00:00 on 1st March 2020, then \texttt{anytime 0} can only be acquired in the time range after this time, and so this is automatically set. As such, the user only needs to select \texttt{anytime} acquisition times where there is more than one time-range to choose from. \\
+
+The \texttt{anytime} combinator is denoted by its \texttt{anytime-index}, which is defined similarly to the \texttt{or-index} in section \ref{UG:or-branches}.
+
+
+\subsection{Or Choices}
+
+Besides acquisition times, the other combinator which requires user input is the \texttt{or} combinator. As such, during step-by-step evaluation the user must input any \texttt{or-choices} as they occur, as shown in figure \ref{UG:fig:eval-or-select}. You may choose between the first and second branch of the \texttt{or} combinator, ordered by occurrence when reading the SmartFin financial contract definition from left-to-right. For example, in the contract \texttt{or one zero}, choosing the first branch will net a value of 1 Wei, and the second branch will net a value of 0 Wei.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.18\width} {.28\height} {.15\width} {.23\height}},clip,width=\textwidth]{eval-or-select.png}
+    \caption{The \textit{Evaluation} menu, setting an \texttt{or} choice.}
+    \label{UG:fig:eval-or-select}
+\end{figure}
+
+If either branch is expired at the time that the \texttt{or} combinator is encountered during evaluation (i.e. the time-range chosen for its parent combinators), then that branch cannot be acquired (for more information, see section \ref{UG:DSL-guide}). For example, in the contract \texttt{or truncate <1st March 2020 12:00:00> one zero}, if the top-level contract is acquired after 12:00:00 on the 1st March 2020, then no \texttt{or} choice will be presented and the value will be 0 Wei. If both branches have expired, then similarly no choice is presented and the \texttt{or} combinator will evaluate to 0 Wei. \\
+
+The \texttt{or} combinator is denoted by its \texttt{or-index}, which is defined in section \ref{UG:or-branches}.
+
+
+\subsection{Value}
+
+The final result of the evaluation process will be a value, displayed at the bottom of the menu (as shown in figure \ref{UG:fig:eval-scale-obs-evaluated}). This value consists of a sum of products of observables and values. For example, the contract \texttt{and scale obs0 <addr> one scale obs1 <addr> one} will evaluate to \textit{obs0 * 1 + obs1 * 1} Wei. The value of the observable cannot be estimated by the evaluation process, and so it is treated as an unknown variable.
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.15\width} {.28\height} {.15\width} {.23\height}},clip,width=\textwidth]{eval-scale-obs-evaluated.png}
+    \caption{The \textit{Evaluation} menu, after evaluating a SmartFin financial contract.}
+    \label{UG:fig:eval-scale-obs-evaluated}
+\end{figure}
+
+By default, the evaluation value represents the total overall value of the contract once it has concluded, and does not take time into account. Some observables may have widely varying values over time, in which case it can be useful to know the specific times in which observables/payments are acquired. In order to show this, check the box labelled \textit{"show acquisition times for observables and payments."} This will display time periods alongside observables and payment values, which represent the times at which they are each queried or obtained respectively (as shown in figure \ref{UG:fig:eval-scale-obs-evaluated-times}).
+
+\begin{figure}[h]
+    \centering
+    \adjincludegraphics[trim={{.15\width} {.26\height} {.15\width} {.23\height}},clip,width=\textwidth]{eval-scale-obs-evaluated-times.png}
+    \caption{The \textit{Evaluation} menu, after evaluating a SmartFin financial contract with acquisition times displayed.}
+    \label{UG:fig:eval-scale-obs-evaluated-times}
+\end{figure}
+
+
+\end{document}

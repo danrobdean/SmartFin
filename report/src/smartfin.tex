@@ -1,0 +1,83 @@
+\chapter{The Design of SmartFin} \label{combinator-DSL}
+
+The main goal of this project is to provide a smart contract implementation of a DSL for financial contracts. Before discussing this implementation, this chapter defines the syntax and semantics of the DSL being implemented, SmartFin. \\
+
+The syntax and semantics of SmartFin are derived from a DSL proposed by Peyton Jones et al.\cite{SPJ}, described in section \ref{DSL-design}, but SmartFin varies slightly from this original DSL. The smart contract implementing SmartFin must behave correctly when any SmartFin contract definition is provided, according to the syntax and semantics laid out in this chapter.
+
+
+\section{Overview of SmartFin Financial Contracts}
+
+SmartFin is a combinator domain-specific language used to describe financial contracts, and in general operates very similarly to the DSL defined by Peyton Jones et al.\cite{SPJ} which is described in section \ref{DSL-overview}. The general gist is that a SmartFin contract represents a financial contract between two parties, which can define payments between these parties. The \textit{holder} party is able to acquire a SmartFin contract - just as a traditional financial contract would be signed - and any obligations are carried out subsequently. SmartFin contracts can expire, and contracts can rely on external input.
+
+
+\section{Syntax} \label{DSL-BNF}
+
+The syntax of SmartFin is very simple, due to its combinatorial nature. The Backus-Naur form of the grammar is as follows, where \texttt{<name>} is a string starting with a non-integer character, \texttt{<time>} is a date and time, \texttt{<integer>} is an integer value, and \texttt{<address>} is an Ethereum address: \\
+
+\setlength{\grammarindent}{10em}
+\begin{grammar}
+<contract> ::= `zero'
+\alt `one'
+\alt `give' <contract>
+\alt `get' <contract>
+\alt `anytime' <contract>
+\alt `scale' <observable> <contract>
+\alt `truncate' <time> <contract>
+\alt `and' <contract> <contract>
+\alt `or' <contract> <contract>
+\alt `then' <contract> <contract>
+
+<observable> ::= <integer> | <name> <address>
+\end{grammar}
+
+This syntax has one major difference from the syntax of the original DSL presented in the paper by Peyton Jones et al.\cite{SPJ}. This difference is the representation of \textit{observables}, used with the \texttt{scale} combinator in the \texttt{<contract>} rule. In the original DSL, an \texttt{observable} takes a constant value, or a representation of a time-varying value, but its syntax was left abstract due to the somewhat abstract nature of the combinators' implementation in the paper. The paper was more focused on evaluating financial contracts written in this form than representing them programmatically. As this project requires a concrete implementation of the DSL, the syntax cannot be left abstract. Because of this, it is necessary to give a specific definition of an observable's syntax; the chosen definition being a constant integer value, or a name and an Ethereum address. The purpose of these representations is explained further in section \ref{DSL-semantics}. The original DSL also allowed observables to have mathematical operations carried out on them, whereas SmartFin does not. \\
+
+For clarity, the format of the \texttt{<time>} rule in the provided BNF can be either UNIX Epoch time, or a date and time in the format \texttt{"<DD/MM/YYYY HH:mm:ss +ZZ>"} - where \texttt{"DD"} is a two-digit date, \texttt{"MM"} is a two-digit month, \texttt{"YYYY"} is a four-digit year, \texttt{"HH"} is a two-digit hour, \texttt{"mm"} is a two-digit minute, \texttt{"ss"} is a two-digit second, and \texttt{"+ZZ"} is an optional positive or negative two-digit time zone offset.
+
+
+\section{Semantics} \label{DSL-semantics}
+
+Each combinator has a specific meaning, potentially depending on sub-combinators, times, and/or observables. This section gives a definition of the semantics of SmartFin combinators where they differ from the original DSL, namely \texttt{one} and \texttt{scale}. For combinators not listed here, see \ref{combinators} for their semantics. The conventions used to represent the syntax of these combinators is defined in figure \ref{combinator-semantics-notation}, and the definition of each combinator's semantics is as follows: \\
+
+\begin{table}[ht]
+    \begin{center}
+        \begin{tabular}{|ll|}
+            \hline
+            $c, d$ &\textit{Contract} \\
+            $o$ &\textit{Observable} \\
+            $x$ &\textit{Constant Value} \\
+            $n$ &\textit{Observable Name (as in section \ref{DSL-BNF})} \\
+            $a$ &\textit{Ethereum Address} \\
+            $t$ &\textit{Time} \\
+            \hline
+        \end{tabular}
+        \caption{Conventions for the description of the SmartFin's semantics}
+        \label{combinator-semantics-notation}
+    \end{center}
+\end{table}
+
+\parbox{\textwidth}{
+\texttt{zero, give c, and c d, or c d, truncate t c, then c d, get c, anytime c} \\
+
+These combinators' semantics are unchanged from the original DSL, described in section \ref{combinators}. \\ \\
+
+}
+
+\parbox{\textwidth}{
+\texttt{one} \\
+
+This combinator represents a contract which requires the counter-party to pay the holder 1 Wei upon acquisition. The currency of payments is always Ether, as opposed to the original DSL's \texttt{one} combinator which takes a currency. This contract can be acquired at any time, and thus has no horizon. \\ \\
+}
+
+\texttt{scale o c} \\
+
+A \texttt{scale} combinator represents \texttt{c} with all payments multiplied by the value of the observable \texttt{o} at the time of acquisition. \texttt{scale(o, c)} has the same horizon as \texttt{c}. \\
+
+An observable can be provided in the format \texttt{x}, or \texttt{n a}. An observable in the form \texttt{x} is a constant integer value. For example, \texttt{scale 5 one} requires the counter-party to pay the holder 5 Wei on acquisition. \\
+
+An observable in the form \texttt{n a} is a time-varying value. The name \texttt{n} is an identifier for the observable, and the address \texttt{a} represents an arbiter for the observable's value. This address is treated as the canonical source of the observable's value at the time of acquisition. No two observables may have the same name and arbiter, or there would be no way to differentiate the two, even though their values may differ (if they are acquired at different times, for instance). \\
+
+
+\section{Remarks}
+
+Overall, the SmartFin DSL is very similar to the original DSL described by Peyton Jones et al.\cite{SPJ}, with a few differences for the sake of compatibility with the Ethereum platform. The next chapter will describe the top-level implementation of a smart contract which can represent any given SmartFin contract, and the following chapter describes the implementation of specific combinators' semantics.

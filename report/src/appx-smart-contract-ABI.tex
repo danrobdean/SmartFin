@@ -1,0 +1,73 @@
+\begin{lstlisting}[language=Rust, caption={The ABI of the smart contract implementation of SmartFin, defined as a trait in Rust$^1$. See section \ref{smart-contract-ABI} for details.}, captionpos=b, breaklines=true, postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}]
+// The financial smart contract interface
+#[eth_abi(FinancialScEndpoint)]
+pub trait FinancialScInterface {
+    // The contract constructor, takes the combinator contract definition (serialized) and the holder address
+    fn constructor(&mut self, contract_definition: Vec<i64>, holder: Address, use_gas: bool);
+
+    // Gets the address of the contract holder
+    #[constant]
+    fn get_holder(&mut self) -> Address;
+
+    // Gets the address of the counter-party
+    #[constant]
+    fn get_counter_party(&mut self) -> Address;
+
+    // Gets the combinator contract definition, returns the combinator contract serialized
+    #[constant]
+    fn get_contract_definition(&mut self) -> Vec<i64>;
+
+    // Gets the current balance of the given party (true is holder, false counter-party)
+    #[constant]
+    fn get_balance(&mut self, holderBalance: bool) -> i64;
+
+    // Gets whether or not the contract has concluded all operation (i.e. updating will never change the balance).
+    #[constant]
+    fn get_concluded(&mut self) -> bool;
+
+    // Gets whether or not the contract allocates gas fees upon withdrawal.
+    #[constant]
+    fn get_use_gas(&mut self) -> bool;
+
+    // Gets the last-updated time.
+    #[constant]
+    fn get_last_updated(&mut self) -> i64;
+
+    // Gets the contract acquisition times (top level acquisition time and anytime acquisition times)
+    #[constant]
+    fn get_acquisition_times(&mut self) -> Vec<i64>;
+
+    // Gets the or choices
+    #[constant]
+    fn get_or_choices(&mut self) -> Vec<u8>;
+
+    // Gets the concrete observable values
+    #[constant]
+    fn get_obs_entries(&mut self) -> Vec<i64>;
+
+    // Sets the preference of the given or combinator's sub-combinators
+    fn set_or_choice(&mut self, or_index: u64, choice: bool);
+
+    // Sets a value for the given observable
+    fn set_obs_value(&mut self, obs_index: u64, value: i64);
+
+    // Acquires the combinator contract at the current block-time (when called by the holder)
+    fn acquire(&mut self);
+
+    // Updates the balances of the holder and counter-party
+    fn update(&mut self);
+
+    // Acquires an anytime combinator's sub-contract
+    fn acquire_anytime_sub_contract(&mut self, anytime_index: u64);
+
+    // Stakes Eth with the contract (can be called by the holder or counter-party), returns the caller's total balance
+    #[payable]
+    fn stake(&mut self) -> i64;
+
+    // Withdraws positive Eth balance up to the given amount from the contract (can be called by the holder or counter-party)
+    fn withdraw(&mut self, amount: u64) ;
+}
+\end{lstlisting}
+
+\stepcounter{footnote}
+\footnotetext{Rust syntax highlighting derived from the \texttt{solidity-latex-highlighting} package package written by Sergei Tikhomirov, used under the MIT license, available at \url{https://github.com/s-tikhomirov/solidity-latex-highlighting}.}

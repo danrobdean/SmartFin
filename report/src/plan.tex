@@ -1,0 +1,42 @@
+\chapter{Plan}
+
+\section{Overview}
+
+The implementation of the financial smart contract DSL and analysis tool can be broken up into several steps. The general design of the internal representation of financial smart contracts has been carried out in section \ref{DSL-design} (although this may be tweaked in future)\todo{Shouldn't be in background}. This design needs to be implemented in a high-level language, likely Rust, and to have the functionality of all combinators described in section \ref{combinators} implemented. The DSL functionality must also be tested thoroughly with unit and integration tests. The analysis tool should also be implemented, allowing the evaluation of a financial contract's value at a given point in time, and tested with unit tests. There are a few extra features which can be added to the DSL/analysis tool as extensions, if time permits. The project report must also be produced once major development is complete.
+
+\section{DSL Implementation} \label{DSL-implentation-timeframe}
+
+The major steps for implementing the DSL and compilation process are:
+\begin{enumerate}
+    \item Implementing very basic smart contracts in a high-level language, compiling them to WebAssembly, and deploying/testing on a blockchain (to nail down the toolchain).
+    \item Implementing the basic generic structure of the DSL in Rust (as described in section \ref{DSL-design}).
+    \item Implementing generic parsing/compilation functionality for financial smart contracts.
+    \item Implementing the \texttt{zero} combinator in Rust, and testing it (via manual and unit testing).
+    \item Implementing the \texttt{one} combinator in Rust (thus handling payment), and testing it.
+    \item Implementing other basic combinators (\texttt{and}, \texttt{or}, \texttt{then}) and testing them.
+    \item Implementing and testing the more complicated combinators one at a time (\texttt{scale}, \texttt{truncate}, \texttt{give}, \texttt{get}, and \texttt{anytime}).
+\end{enumerate}
+
+In the ideal case, the implementation of the DSL will be completed by the 19th of April. This will allow me to split my time evenly between the implementation of the DSL, and the implementation of the analysis tool. In the worst case scenario, the time taken for the completion of the DSL could extend until the 29th of April, although this will limit the amount of time spent on the analysis tool and report (and any extensions attempted). The steps up to and including step 5 should ideally be completed by the 29th of March, leaving the 30th of March to the 19th of April open for the implementation of most of the combinators - approximately balancing the time given to each of these two sets of steps, when accounting for limited available time during spring term.
+
+
+\section{Analysis Tool Implementation}
+
+The major steps for implementing the analysis tool in the order of implementation are as follows:
+\begin{enumerate}
+    \item Implementing a basic parser for the DSL (or re-purposing the parser used for compiling the smart contract), and tests.
+    \item Implementing the general evaluation pipeline - converting input to suitable data structure, traversal and memoisation - and tests.
+    \item Implementing evaluation rules for simple combinators (\texttt{zero}, \texttt{one}), and tests.
+    \item Implementing evaluation rules for the remaining combinators, and tests.
+\end{enumerate}
+
+If the ideal time frame of completion of the steps outlined in section \ref{DSL-implentation-timeframe} is kept to, then the implementation of steps in this section should begin on the 19th of April. Ideally, these features should all be implemented by the 17th of May. This splits the amount of time given to the implementation of the DSL and the analysis tool evenly (given the limited available time during spring term), and leaves a month for the writing of the final report. The implementation of the analysis tool should not take as long as the DSL, as the major details behind the evaluation process are described in \cite{SPJ} (whereas the implementation of the DSL was only described in hypothetical terms). I would estimate that the implementation of the analysis tool could be completed by some time around the 6th of May, leaving some time available to work on an extension. If the DSL implementation overruns until the 29th of April, then the analysis tool should be completed by around the 16th of May still (leaving no time for extensions). In the worst case scenario, finishing the analysis tool by the 24th of May should leave 3.5 weeks for the final report, which is still an ample amount of time.
+
+
+\section{Final Report}
+
+The final report will need to be completed by the 17th of June. The major parts of the discussion of implementation details in the final report should ideally be written while the DSL and analysis tool are being implemented, although likely in shorthand. Given this, the majority of the time working on the report will be spent writing up these notes, and writing the evaluation, conclusion, and user guide (which will be necessary for the usage of the DSL and analysis tool). I would estimate that this work should take around 1 month to complete, without rushing, thus the implementation of the analysis tool and any extensions should be completed by the 17th of May. If necessary, the report could probably be finished in around 3 weeks, although this may affect the quality of the report.
+
+\section{Extensions}
+
+The analysis tool should be completed by the 17th of May, but it may be finished before this deadline. During the time between completion of the analysis tool and the writing of the final report, there may be time to implement some extensions to the project. It may also be possible to work on these extensions if the final report is finished before the deadline, although this time may be better spent polishing the report. Possible extensions for this project include the modelling of inflation and exchange rates in the analysis tool (as described in section \ref{cost-analysis}), the improvement of how fund exhaustion is handled (see section \ref{fund-exhaustion}), the implementation of new combinators (whether for conciseness or utility), the implementation of bounding for the values of observables (see section \ref{dsl-observables}), developing a GUI for the analysis tool, and outputting graphs of a contract's value over time from the analysis tool.

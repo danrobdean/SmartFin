@@ -1,0 +1,221 @@
+\chapter{Evaluation} \label{evaluation}
+
+Due to the somewhat segmented nature of this project, the implementation-based chapters so far have each included an evaluation. In this chapter, these individual evaluations will be brought together alongside new analyses to evaluate the contributions made in this project holistically.
+
+
+\section{Individual Chapter Evaluations}
+
+Each implementation-based chapter in the main body has its own evaluation section, as these chapters are relatively distinct in content. These sections are as follows:
+
+\begin{itemize}
+    \item Evaluation of the top-level smart contract implementation of SmartFin, in section \ref{DSL-impl-evaluation}.
+    \item Evaluation of the SmartFin combinators' semantics implementation in the smart contract, in section \ref{combinators-eval}.
+    \item Evaluation of the web client, in section \ref{web-client-eval}. \\
+\end{itemize}
+
+Overall, based on the evaluations of each of these sections, the smart contract implementation of SmartFin provides sufficient functionality to represent a SmartFin financial contract in the form of a smart contract. Certain compromises had to be made, such as the use of retroactive payments instead of scheduled payments, and the provision of observable values by an external user as opposed to obtaining them dynamically; these compromises are unavoidable when writing smart contracts on the Ethereum platform, however, and they do not significantly impact the functionality of the smart contract implementation. The representation of SmartFin contracts through the implemented smart contract was thoroughly tested to ensure correctness, providing some guarantee towards the behaviour of these financial smart contracts. \\
+
+The web client makes the composition, evaluation, deployment, and monitoring of financial smart contracts quick and easy. This makes it easier to create correct smart contract implementations of SmartFin financial contracts, and mitigates the risk of errors in their composition. Contract evaluation could be expanded upon by implementing maximal/minimal evaluation of SmartFin contracts, but this would likely require some level of numerical modelling to handle observables - unfortunately, this is outside of the scope of this project. The web client was also thoroughly tested to ensure the correctness of functionality dealing with the blockchain and SmartFin contract evaluation; UI testing could have been improved, however, but this does not impact the essential functionality of the web client greatly.
+
+
+\section{User Feedback} \label{user-feedback}
+
+In order to further evaluate the final product of this project (consisting of the smart contract implementation of SmartFin and the web client) as a whole with reduced bias, several people experienced with blockchain technology were interviewed for their feedback. The interview consisted of running through the web client, explaining the SmartFin DSL, and demonstrating the behaviour of several financial smart contracts. Some Solidity implementations of financial smart contracts were also shown to the interviewees for comparison, which are listed in appendices \ref{appx:one-contract}, \ref{appx:euro-contract}, and \ref{appx:loan-contract}. \\
+
+The SmartFin DSL was explained to the interviewees, as well as the method of producing SmartFin financial smart contracts - smart contract instances which represent a SmartFin financial contract - by providing SmartFin contracts to a smart contract's constructor. Several SmartFin financial contracts were explained and demonstrated to the interviewees, along with Solidity implementations of these contracts (listed in appendices \ref{appx:one-contract}, \ref{appx:euro-contract}, and \ref{appx:loan-contract}). The most obvious difference noted by the interviewees between the sets of contracts was succinctness - as discussed in section \ref{case-studies}. They noted that writing the SmartFin contracts would be significantly less work, and the simplicity of SmartFin was praised as it makes SmartFin contracts significantly less error-prone - whereas Solidity contracts need to be written carefully to prevent critical bugs like reentrancy errors and integer overflow/underflow. It was mentioned that those writing financial contracts would likely prefer a more rigid implementation language for the guarantees of correctness it provides, rather than a less-restricted but complex language like Solidity. This shows the utility of using SmartFin to create financial smart contracts over a high-level language like Solidity. \\
+
+The operation of financial smart contracts was also explained and demonstrated to the interviewees, along with the concessions made due to the limitations of Ethereum smart contracts - such as the requirement of an \texttt{update} method to deal with contracts over time, and the provision of observable values from arbiters instead of obtaining them dynamically. All who were interviewed understood these limitations, and no alternative approaches were deemed better than those implemented. The compromises made were accepted by the interviewees, who agreed that they did not greatly harm the utility of the final product. As such, this supports the idea that the smart contract implementation of SmartFin is fit for purpose. \\
+
+The interviewees had a brief discussion on the use cases of financial smart contracts. It was agreed that smart contract representations of financial contracts would be useful in/between financial institutions, for simplifying payments required by financial contracts the company is involved in, or for auditing purposes. The use case of an individual deploying financial smart contracts on a public blockchain was also considered, and several issues were brought up. As mentioned in section \ref{DSL-impl-evaluation}, there is no way to bind users to the obligations laid out in a financial smart contract. As such, financial smart contracts between two users on a public blockchain are less useful as it is difficult for the two parties to use some other form of binding (like a traditional legal contract). Furthermore, it was noted that typical members of the public do not often engage with financial contracts without the presence of a party with relevant legal knowledge, making them unlikely to create their own financial smart contracts. Besides these points, the lack of privacy on a public blockchain was also brought up as a deterrent; a private blockchain can typically only be accessed by trusted parties, but a public blockchain can be viewed by anyone. This would allow financial smart contracts to be visible to anyone on the public blockchain, which could be off-putting due to the lack of privacy. Because of these points, the usage of financial smart contracts by individuals on public blockchains was deemed as an unlikely scenario, and thus prioritising consideration of private blockchain usage during implementation may have been the correct approach. \\
+
+One interesting point raised by the interviewees regarded how the gas costs of financial smart contracts (i.e. the fees required for deployment and execution on the blockchain) affect their value. The web client allows SmartFin contracts to be evaluated for their cost/value, but these evaluations do not take gas costs into accounts. In situations where SmartFin contracts deal with a very small amount of Ether, it may be the case that gas costs greatly alter the resulting value of a contract. For example, when deploying the contract \texttt{one}, the gas costs are likely to be an order of magnitude greater than the evaluated value of the contract, thus greatly affecting the actual final cost/value of the contract (see section \ref{case-studies} for gas cost analyses). As such, some method of taking gas costs into account during evaluation could be useful, or at least the ability to preview gas costs of deployment (as deployment is typically the most expensive operation in terms of gas). This issue is more important for public blockchains where miners only operate because of gas fees, as private blockchains are less likely to require/rely on expensive gas fees where the miners will instead be operating for the sole purpose of updating the blockchain; as such this suggestion is not an essential feature for the web client, but could be implemented in the future relatively easily in a basic form. \\
+
+In summary, the interviewees found that the creation of SmartFin financial smart contracts through the web client required much less development effort than Solidity representations of equivalent contracts, and that using Smart\-Fin was likely to result in a far lower risk of erroneous behaviour than Solidity. Furthermore, the behaviour of SmartFin's smart contract implementation was found to be fit for purpose, and its compromises acceptable. The use case of financial institutions deploying financial smart contracts to a private blockchain was deemed significantly more likely than individuals deploying them to public blockchains, for trust and privacy reasons. Additionally, the gas costs of deploying/interacting with financial smart contracts could potentially be considered when evaluating these contracts, although this is less useful on a private blockchain.
+
+
+\section{Solidity Case Studies} \label{case-studies}
+
+For a user intending to implement financial contracts as smart contracts, the other main option besides implementing it in SmartFin and deploying a financial smart contract is to deploy a bespoke smart contract written in a smart contract language which represents the financial contract. In order to compare the use of SmartFin in the web client to produce financial smart contracts with the implementation of bespoke financial smart contracts, several SmartFin examples have been implemented as Solidity smart contracts to compare the benefits and weaknesses of each approach. For clarity, any financial smart contracts deployed by the web client will be referred to as a \textit{SmartFin smart contract}, whereas any Solidity implementations of SmartFin contracts will be referred to as a \textit{Solidity smart contract}. \\
+
+Three SmartFin contracts have been implemented as Solidity smart contracts; these contracts span every combinator in the DSL, in order to provide some level of comparison for all combinators. The more complicated SmartFin contract examples are also used/explained in section \ref{example-contracts} (in the original DSL syntax, with the equivalent SmartFin behaviour). Each SmartFin smart contract and Solidity smart contract are compared by ease of implementation, accuracy of implementation, and efficiency/gas costs (i.e. the fees required for deployment/execution on the blockchain). For context with regards to gas estimation, $10^{18}$ Wei is equivalent to 1 Eth, which is equivalent to \$262.25 USD at the time of writing\cite{eth-usd}.
+
+\subsection{Simple Contract}
+
+The \textit{simple contract} example is defined as follows:
+
+\begin{Verbatim}[frame=single, samepage=true, rulecolor=\textcolor{black!50}]
+one
+\end{Verbatim}
+
+This contract was used in order to compare the general operation of SmartFin smart contracts with Solidity smart contracts, without comparing complicated combinator behaviour. The Solidity implementation of the simple contract is listed in appendix \ref{appx:one-contract}.
+
+
+\subsubsection{Ease of Implementation}
+
+For the \textit{simple contract}, the implementation as a SmartFin smart contract using the web client is trivial. Just inputting the contract \texttt{one} with a holder is all that's required. As such, the SmartFin smart contract is very easy to compose and deploy, and the risk of introducing errors is very low. \\
+
+The Solidity implementation of the \textit{simple contract}, however, is anything \textit{but} trivial. Overall, the Solidity smart contract takes 140 lines to represent the \textit{simple contract} (or 100 without comments). This is because it needs to define various methods that the user can interact through, just as the SmartFin smart contracts have a pre-defined ABI. This highlights the main issue with writing Solidity implementations of financial contracts; when writing \textit{any} Solidity smart contract implementation of a financial contract, all of the typical boilerplate methods for handling payments, staking/withdrawing funds, and so on must be written from scratch. The comparative benefit to deploying SmartFin smart contracts from the web client is that only the SmartFin contract definition must be written by the contract author, and \textit{not} the smart contract implementation of the SmartFin contract, thus making the barrier to entry for a user significantly lower. \\
+
+A notable issue with implementing the \textit{simple contract} in Solidity is how much work has be done to avoid introducing errors. The functions \texttt{safeAddSigned} and \texttt{safeSubSigned} have been implemented to prevent overflow or underflow from occurring when adding to or subtracting from a party's balance, as by default this does not throw an error. Additionally, the \texttt{withdraw} function can be at risk of a reentrancy attack - if the balance is decremented \textit{after} the Ether is transferred to the caller, then the contract can be entered again during the withdrawal transaction to repeatedly withdraw funds from the contract. This demonstrates the risks that exist when writing Solidity smart contracts which would be avoided by creating SmartFin smart contracts, which have been thoroughly tested. This is another benefit of using SmartFin smart contracts over implementing bespoke Solidity smart contracts.
+
+
+\subsubsection{Accuracy}
+
+The SmartFin smart contract and the Solidity smart contract effectively behave the same, so the accuracy with which both smart contracts represent the \textit{simple contract} is equivalent. Implementing the Solidity smart contract does \textit{not} allow the compromises made in the SmartFin smart contract implementation to be avoided (like retroactive payment) as these issues stem from the nature of the Ethereum platform, which both smart contracts are hosted on. The only benefits the Solidity smart contract has are the lack of superfluous ABI methods, although this does not effect the behaviour of the smart contract anyway and so this is only a superficial benefit.
+
+
+\subsubsection{Efficiency and Gas Costs}
+
+In order to evaluate the efficiency of the two smart contract implementations of the \textit{simple contract}, the gas costs of executing certain methods on the smart contract instances were measured and recorded in table \ref{table:gas-cost-simple}. Gas costs are the fees associated with deployment/execution on the Ethereum blockchain, used to reimburse the miner that computes this execution. \\
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{ |c|c|c|c| } 
+        \hline
+        \multicolumn{4}{|c|}{Gas Cost for Method Calls in Wei - \textit{simple contract}} \\
+        \hline
+        Method & SmartFin S.C. & Solidity S.C. & SmartFin to Solidity Ratio (3 s.f.) \\
+        \hline
+        \texttt{constructor} & 4875700 & 1770016 & 2.75 \\ 
+        \hline
+        \texttt{acquire} & 180417 & 148682 & 1.21 \\ 
+        \hline
+    \end{tabular}
+    \caption{The gas costs of certain method calls on the \textit{simple contract}'s SmartFin and Solidity smart contract instances.}
+    \label{table:gas-cost-simple}
+\end{table}
+
+As shown in table \ref{table:gas-cost-simple}, the constructor for the SmartFin smart contract instance is 2.75 times more expensive in terms of gas cost than the constructor for the Solidity smart contract instance. The reason for this is likely the deserialization that the SmartFin smart contract must carry out to create the combinators. The SmartFin smart contract also stores some extra state in the form of empty vectors for things like \texttt{or} combinator choices and \texttt{anytime} sub-contract acquisition times, which would cost extra gas. The SmartFin smart contract also contains more code than the Solidity smart contract as it contains logic for handling all combinators, including those not used in the \textit{simple contract}. The Solidity smart contract, on the other hand, does not need to process a serialized SmartFin contract definition as its implementation is bespoke to the \textit{simple contract}, and does not need to store superfluous unused data. \\
+
+The \texttt{acquire} method is closer in gas cost for the two smart contract implementations, as the SmartFin smart contract's \texttt{acquire} method call only costs 1.21 times as much as the Solidity smart contract's \texttt{acquire} method. This is likely because the \textit{simple contract} only involves the \texttt{one} combinator, and thus both smart contracts have to do very little work to update the smart contract state to represent the payment occurring. It is important to note that the \texttt{acquire} method also calls the \texttt{update} method in the SmartFin smart contract, so acquiring the contract also updates it. \\
+
+Overall, this comparison shows that the Solidity smart contract implementation for the \textit{simple contract} is significantly more efficient than the SmartFin smart contract implementation, due to the generic nature of the SmartFin smart contract compared to the bespoke nature of the Solidity smart contract. The \texttt{acquire} methods do not differ much, as this contract only has a small effect upon acquisition.
+
+
+\subsection{European Option}
+
+The \textit{European option} example contract is defined as follows:
+
+\begin{Verbatim}[frame=single, samepage=true, rulecolor=\textcolor{black!50}]
+get truncate <01/01/2020, 00:00:00> or
+    scale 500 one
+    zero
+\end{Verbatim}
+
+This contract represents a \textit{European option} for a contract where the counter-party pays the holder 500 Wei. This contract is used to allow the comparison of a more complicated financial smart contract with many recursive combinators and multiple options, to the bespoke implementation of a bespoke Solidity equivalent. The Solidity implementation of the \textit{European option} is listed in appendix \ref{appx:euro-contract}.
+
+
+\subsubsection{Ease of Implementation}
+
+Implementing the SmartFin contract representing the \textit{European option} is relatively straightforward. It is clear that the contract has an effect at a certain time, thus a \texttt{get truncate} combination is used to represent this. The choice of whether to acquire a sub-contract \texttt{c} can be represented easily by \texttt{or c zero}, and the contract for a counter-party to pay the holder 500 Wei is trivial. The total number of combinators required is 6. The Solidity smart contract implementation of the \textit{European option} contract requires almost 200 lines, which again takes significantly more development effort than the SmartFin smart contract. \\
+
+One interesting note is that much of the Solidity implementation boilerplate can be re-used from the \textit{simple contract} implementation, mainly requiring different behaviour upon acquisition to represent the combinators. The re-use of this code could allow for some time-saving when implementing these Solidity smart contracts. This particular Solidity smart contract also implements an \texttt{update} method, to handle the contract's behaviour over time. This Solidity smart contract also requires keeping track of \texttt{or} combinator choice's in a similar manner to the SmartFin smart contract implementation; this suggests that the more complicated the SmartFin contract becomes, the closer the Solidity smart contract will be to the SmartFin smart contract implementation as there will be no superfluous data/methods due to the use of every combinator. \\
+
+The issues with implementing this Solidity smart contract are generally similar to the issues with the simple smart contract, as most crop up while implementing the boilerplate. One extra issue is the fact that time is dealt with, which can be a tripping point as Ethereum smart contracts can only access \textit{block-time} - i.e. the time the latest block was mined at - not the current time. This issue also exists in the SmartFin smart contract, however, so it does not present a difference between the two.
+
+
+\subsubsection{Accuracy}
+
+The accuracy with which the Solidity smart contract represents the \textit{European option} contract is also quite similar to the SmartFin smart contract. Both contracts require the holder to acquire the contract, set their \texttt{or} combinator choice, and update, although the Solidity smart contract will throw an error and revert if the \texttt{or} choice is not set whereas the SmartFin smart contract will simply do nothing. As such, there is not much improvement to writing a \textit{European option} contract in Solidity compared to creating a SmartFin smart contract with regards to accuracy.
+
+
+\subsubsection{Efficiency and Gas Costs}
+
+The gas costs of executing certain methods on the \textit{European option} smart contract instances were measured and recorded in table \ref{table:gas-cost-euro-option}. \\
+
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{ |c|c|c|c| } 
+        \hline
+        \multicolumn{4}{|c|}{Gas Cost for Method Calls in Wei - \textit{European option} Contract} \\
+        \hline
+        Method & SmartFin S.C. & Solidity S.C. & SmartFin to Solidity Ratio (3 s.f.) \\
+        \hline
+        \texttt{constructor} & 15010171 & 2334158 & 6.43 \\ 
+        \hline
+        \texttt{acquire} & 464506 & 63684 & 7.29 \\ 
+        \hline
+        \texttt{update} & 294993 & 23712 & 12.4 \\ 
+        \hline
+    \end{tabular}
+    \caption{The gas costs of certain method calls on the \textit{European option} contract's SmartFin and Solidity smart contract instances.}
+    \label{table:gas-cost-euro-option}
+\end{table}
+
+Compared to the \textit{simple contract}, the differences in gas costs between method calls on the two smart contract implementations of the \textit{European option} contract are much more pronounced. The \texttt{constructor} call for the SmartFin smart contract was 6.43 times more expensive in terms of gas cost compared to the Solidity smart contract, likely due to the serialization and deserialization required for all of the combinators in the SmartFin smart contract. \\
+
+The \texttt{acquire} method's gas cost for the SmartFin smart contract was also 7.29 times higher than that of the Solidity smart contract. This is likely due to the recursive nature of the SmartFin smart contract's combinator representation, requiring all combinator objects to have their \texttt{acquire} method called and have an acquisition time set. In contrast, the Solidity smart contract only needed to set a single acquired boolean thanks to the relatively simple acquisition process for the \textit{European option} contract, which would be much cheaper. The \texttt{update} method's higher gas cost is likely caused by similar factors, as the \texttt{update} call would require a recursive call to be initiated for the combinators, whereas the call to update in the Solidity smart contract only needs to check/modify a few variables. \\
+
+Overall, for a contract with more combinators it is clear that a bespoke Solidity smart contract implementation can be significantly more efficient than a SmartFin smart contract in terms of gas costs.
+
+
+\subsection{Loan with Variable Repayment}
+
+The \textit{loan with variable repayment} example contract is defined as follows:
+
+\begin{Verbatim}[frame=single, samepage=true, rulecolor=\textcolor{black!50}]
+truncate <01/01/2020 00:00:00> and
+    one
+    anytime then
+        truncate <01/02/2020 00:00:00> give scale 2 one
+        truncate <01/03/2020 00:00:00> give scale 3 one
+\end{Verbatim}
+
+This contract represents a loan from the holder to the counter-party of 1 Wei, which can be paid back with 2 Wei by February 2020, or 3 Wei by March 2020. This enables the comparison of the rest of the SmartFin combinators (including time based combinators like \texttt{then}) in a financial smart contract against the bespoke implementation of a Solidity equivalent. The Solidity implementation of the \textit{loan with variable repayment} is listed in appendix \ref{appx:loan-contract}.
+
+
+\subsubsection{Ease of Implementation}
+
+Implementing the \textit{loan with variable repayment} contract as a SmartFin contract is relatively easy. The loan has an expiration date, requiring the \texttt{truncate} combinator. It also gives the holder 1 Wei, and then requires a repayment - these two sub-contracts can be represented by an \texttt{and} combinator. The repayment subcontract requires repayment at some point in time that the holder can decide, with different values depending on the time. This can be represented easily by an \texttt{anytime} combinator followed by a \texttt{then} combinator, with two payments from the holder (\texttt{give}) with different values (\texttt{scale x one}) and different deadlines (\texttt{truncate}). Overall, this contract can be represented in 13 combinators. \\
+
+The Solidity smart contract implementation of the \textit{loan with variable repayment} contract again repeats a large amount of boilerplate from the previous two Solidity smart contracts, and requires 207 lines to implement in total. The three relevant horizons are kept track of, as well as the \texttt{anytime} sub-contract's acquisition time. Again, this suggests that when more combinators are used in a contract, the SmartFin smart contract and Solidity smart contract representations may become closer in implementation as they will be storing similar required state. The Solidity smart contract for the \textit{loan with variable repayment} contract does not have any unique implementation issues that the other two contracts did not encounter, besides the subtleties of dealing with the \texttt{anytime} combinator - to ensure that if its horizon is passed it is treated as if it was acquired at the horizon.
+
+
+\subsubsection{Accuracy}
+
+Again, the operation of the two smart contract representations of the \textit{loan with variable repayment} contract by an external user is effectively the same - where the contract must be deployed, acquired, have the \texttt{anytime} sub-combinator be acquired, and be updated - and so the two representations have similar levels of accuracy.
+
+
+\subsubsection{Efficiency and Gas Costs}
+
+The gas costs of executing certain methods on the \textit{loan with variable repayment} smart contract instances were measured and recorded in table \ref{table:gas-cost-loan}. \\
+
+\begin{table}[ht!]
+    \centering
+    \begin{tabular}{ |M{9em}|c|c|c| } 
+        \hline
+        \multicolumn{4}{|c|}{Gas Cost for Method Calls in Wei - \textit{loan with variable repayment}} \\
+        \hline
+        Method & SmartFin S.C. & Solidity S.C. & SmartFin to Solidity Ratio (3 s.f.) \\
+        \hline
+        \texttt{constructor} & 16529563 & 2452810 & 6.74 \\ 
+        \hline
+        \texttt{acquire} & 1439031 & 149220 & 9.64 \\ 
+        \hline
+        \texttt{acquire\_anytime\_sub\_combinator} & 955180 & 135204 & 7.06 \\ 
+        \hline
+    \end{tabular}
+    \caption{The gas costs of certain method calls on the \textit{loan with variable repayment} contract's SmartFin and Solidity smart contract instances.}
+    \label{table:gas-cost-loan}
+\end{table}
+
+The ratio of the gas cost of the constructor call for the SmartFin smart contract for that of the Solidity smart contract is similar to that of the \textit{European option} contract (6.74 vs 6.43), likely because the SmartFin smart contracts for both contracts store a similar amount of state for the combinators, as do the two Solidity smart contracts - so the reasoning here is similar to that of the previous contract. The acquisition gas cost ratio was slightly higher here, possible due to the storage operations required for acquisition of the \texttt{anytime} combinator. The \texttt{anytime} sub-contract's acquisition gas cost 7.06 times higher for the SmartFin smart contract than the Solidity smart contract. Both of these methods call \texttt{update} at their completion, and the recursive nature of the \texttt{update} method on the SmartFin smart contract will result in lower efficiency than the simple method on the Solidity smart contract. Yet again, this contract shows that the generic nature of the SmartFin smart contracts results in lower efficiency than bespoke Solidity smart contract implementations.
+
+
+\subsection{Case Study Conclusions}
+
+Overall, it is clear that each of these contracts is significantly easier to implement using the web client as opposed to writing a Solidity smart contract. The ability to define the contract only in SmartFin and then obtain a smart contract implementation requires the user to only write a few combinators in order to obtain a SmartFin smart contract, whereas bespoke Solidity equivalents require writing 100-200 lines for these small-to-medium sized contracts. The risk of introducing errors through reentrancy or overflow/underflow bugs is also high when implementing in Solidity, whereas the pre-existing tests for the SmartFin smart contract implementation provide some confidence that less errors will be present. \\
+
+The accuracy of representation for SmartFin smart contracts is very similar to that of the Solidity smart contracts; if treating the two as black boxes, a user would interact with either black box in effectively the same way. This suggests that the compromises made for the SmartFin smart contract implementation are unavoidable on any Ethereum smart contract representation of a SmartFin contract definition. \\
+
+The gas costs of bespoke Solidity smart contracts are significantly lower than those of their SmartFin smart contract equivalents. This is due to the generic and recursive nature of the SmartFin smart contract implementation, which requires superfluous state and methods to be stored, and extra processing to occur on the smart contract. In context, however, none of the gas values seen ever approach a noticeable cost for the user - the highest gas cost seen being 16529563 Wei for deploying the \textit{loan with variable repayment} SmartFin smart contract. 0.03 USD is worth approximately $10^{14}$ Wei at the time of writing, for context\cite{eth-usd}. Furthermore, these benefits may be lost when implementing more complicated SmartFin contract definitions, as both smart contracts will need to store a lot more state, and the SmartFin smart contracts' state will hold less superfluous information.
+
+
+\subsection{Case Study Remarks}
+
+When comparing SmartFin smart contracts to bespoke Solidity smart contracts, the implementation of SmartFin smart contracts was found to be significantly simpler than the implementation of equivalent Solidity smart contracts, and the risk of introducing errors in the Solidity implementation was higher due to the freedom the implementer has access to. Both implementations had a similar level of accuracy compared to the underlying financial contract, but the gas costs for SmartFin smart contracts were significantly higher than equivalent Solidity smart contracts. This is not always relevant, however, as financial institutions are more likely to use private blockchains which don't distribute gas fees based on code execution. Furthermore, the gas costs measured were still on a minute scale in comparison to \$1 USD, and as such the cost of executing these SmartFin smart contracts is still extremely low.
+
+
+\section{Remarks}
+
+Overall, the SmartFin smart contract implementation and web client are effective tools for easily deploying smart contract representations of financial contracts. These financial smart contracts implement sufficient functionality to represent financial contracts, with minimal compromises made. The use of almost 375 automated tests helps to ensure the correctness of the SmartFin smart contract implementation. The design of SmartFin allows similar financial contract functionality defined in the original DSL by Peyton Jones et al.\cite{SPJ}, with some changes to allow compatibility with the Ethereum platform. Compared to other existing options for creating financial smart contracts, like writing bespoke Solidity implementations, the ease of implementation and lower risk of erroneous behaviour make SmartFin smart contracts a more attractive option. In cases where efficiency and gas costs are paramount, however, then bespoke financial smart contracts will always have the upper hand over generic financial smart contracts - although the cost of implementing these bespoke smart contracts may not be worth the efficiency gains.

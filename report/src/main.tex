@@ -1,0 +1,75 @@
+
+\documentclass[a4paper, twoside]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{parskip}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage[htt]{hyphenat}
+\usepackage{syntax}
+\usepackage{setspace}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{pdfpages}
+\usepackage[export]{adjustbox}
+\usepackage{fancyvrb}
+
+% Create centred size-specifying table column
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+% Create acknowledgements environment
+\newenvironment{acknowledgements} {\renewcommand\abstractname{Acknowledgements}\begin{abstract}}{\end{abstract}}
+
+% Set graphics path
+\graphicspath{{figs/}}
+
+% Load code highlighting definitions
+\input{solidity-highlights.tex}
+\input{rust-highlights.tex}
+
+\title{SmartFin - Implementing a Financial Domain-Specific Language for Smart Contracts}
+\author{Daniel Dean}
+% Update supervisor and other title stuff in title/title.tex
+
+\begin{document}
+\input{title.tex}
+
+\shipout\null
+
+\input{abstract.tex}
+
+\shipout\null
+
+\input{acknowledgements.tex}
+
+\doublespacing
+\tableofcontents
+\singlespacing
+% \listoffigures
+% \listoftables
+
+\input{introduction.tex}
+\input{background.tex}
+% \input{plan.tex}
+\input{smartfin.tex}
+\input{smart-contract.tex}
+\input{combinators.tex}
+\input{client.tex}
+\input{evaluation.tex}
+\input{conclusion.tex}
+\input{appendix.tex}
+
+\bibliographystyle{plain}
+\bibliography{bibs/bibliography}
+
+\end{document}

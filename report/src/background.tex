@@ -1,0 +1,369 @@
+\chapter{Background}
+
+\section{Overview}
+
+This chapter describes the background research which has been carried out, with regards to Ethereum and Ethereum smart contracts, the original financial contract DSL, the different ways that SmartFin can be implemented, how observable data can be handled, how the cost of financial contracts written in SmartFin can be evaluated, and how tools for interacting with financial smart contracts can be implemented.
+
+
+\section{Ethereum, and Smart Contracts}
+
+In order to write a smart contract implementation of SmartFin, it is necessary to understand the inner workings of smart contracts and the platforms which host them.
+
+\subsection{Ethereum}
+
+Ethereum is a platform which hosts a cryptocurrency called \textit{Ether} - this platform uses a custom blockchain (a data structure designed to model an immutable append-only ledger) which is hosted on a distributed set of nodes. Users of the platform have a certain amount of Ether, which acts currency. Ether can be exchanged between users through transactions, which are stored on the blockchain. Ethereum operates similarly to other typical cryptocurrency platforms, like Bitcoin, in this sense\cite{Bitc}. \\
+
+A blockchain consists of several blocks. These blocks contain all of the data in the platform, including any transactions which have taken place. Blocks can only be appended to a blockchain, and existing blocks cannot modified. In order to add new blocks to the blockchain, a number which fulfils specified conditions (a \textit{cryptographic nonce}) must first be found by a node in the system - nodes who search for a nonce are called \textit{miners}. The important detail is that finding a nonce requires a certain amount of work, which is dependent on a \textit{difficulty}. This difficulty can dynamically change to meet the needs of the platform - for example, the difficulty of mining Bitcoin blocks is scaled to modulate the average number of blocks mined in an hour\cite{Bitc}. When a miner discovers a valid nonce, they can create a new block containing any pending transactions and append it to the blockchain\cite{Eth}. In an Ethereum blockchain, a successful miner is rewarded with some Ether - this is one method of introducing new currency into the platform, and encourages mining to occur. If a miner discovers a valid nonce and thus attempts to append a block to the blockchain, all other nodes will validate the block before accepting it as legitimate, thus ensuring that a consensus is reached on the validity of new blocks\cite{Bitc}.
+
+\subsection{Smart Contracts}
+
+Ethereum differs from many other blockchain platforms by also providing a platform upon which special programs (i.e. \textit{smart contracts}) can be run. These programs are also stored on the blockchain, and have functions which can be called by any user of the platform, or by other smart contracts. Smart contracts can also transfer Ether through transactions. \\
+
+Smart contracts typically run on the \textit{Ethereum Virtual Machine}, or \textit{EVM} for short, which runs on many nodes across the network. When a smart contract is run on a node which also creates the next block, the node is reimbursed for the computational resources in \textit{gas} by the account that called the executed function. The gas fee for a contract is an amount of Ether that is proportional with the computational resources used to run the contract; more computationally intense contracts will have higher gas fees. \\
+
+The execution of a smart contract must be deterministic, so that all nodes in the network agree on the outcome of the program's execution - and thus agree on whether any given block is valid. This is not any more efficient than traditional execution, and actually uses \textit{more} resources due to repeated execution of the same program; instead, the benefits of smart contracts include extreme fault-resistance (as only one live node is required to run the program), immutability of any results stored on the blockchain, and a lack of any trusted third-parties\cite{Eth}. \\
+
+The trustless, fault-resistant, immutable nature of smart contracts makes them a great candidate for hosting financial contracts. If the contract required a trusted third-party, then the outcome could be fraudulent if the third-party were biased. If smart contract execution weren't fault-resistant, then there would be no guarantee that any required payments which are possible to fulfil ever actually occur. If the execution were reversible or mutable, then the contracts would become pointless as either party could modify them as desired. \\
+
+Unfortunately, smart contracts are not perfect. A major issue with these programs is that they can often contain hard-to-spot vulnerabilities which can result in smart contracts making unintended transactions, and thus potentially costing the owner large sums of money. These issues are not uncommon - in fact, it was estimated in 2016 that around 45\% of smart contracts contain vulnerabilities\cite{EthSec}. \\
+
+One cause of this issue is that high-level smart contract languages typically provide a complex set of features, including difficult-to-use functionality like iteration and recursion. By giving the developer more freedom to implement complicated smart contract behaviour instead of restricting the use of error-prone features, the risk of introducing errors - like the reentrancy vulnerability demonstrated earlier in listing \ref{listing:reentrancy} - is increased. Even cutting-edge smart contract languages designed with the prevention of common vulnerabilities in mind, like Flint\cite{flint}, still provide a complex feature set and thus can't prevent the introduction of vulnerabilities by human error. \\
+
+This is the main motivator behind the project; allowing financial contract authors to use a restricted yet versatile DSL to write financial contracts and providing a generic smart contract implementation enables contract costs to be evaluated mathematically, and reduces the risk of the financial contract author introducing vulnerabilities or erroneous behaviour.
+
+\subsection{Why Ethereum?}
+
+While Ethereum \textit{does} implement the smart contract functionality required for implementing Smart\-Fin's behaviour, it is not the only platform to do so. Many other platforms also offer some level of smart contract functionality, including Bitcoin\cite{ASC}. One reason for choosing Ethereum is that there exists a large set of development tools available for supporting Ethereum projects - some of which are described in section \ref{dev-tools}. Ethereum also has a large community of users, resulting in a greater volume of documentation compared to other smart contract platforms. The sizeable user-base also means that SmartFin will be useful to more people than if it were implemented on a less popular platform. Besides these factors, Ethereum smart contracts are also more user-friendly than many other platforms (like Bitcoin Script), making the task of implementation less difficult. For all of these reasons, Ethereum makes a good platform for the implementation of SmartFin.
+
+\section{The Design of the Original Combinator DSL for Financial Contracts} \label{DSL-design}
+
+SmartFin, the proposed DSL for financial contracts, is based on a DSL described by Peyton Jones et al.\cite{SPJ}. The design of the original DSL will not be modified significantly, and any modifications are noted clearly in section \ref{DSL-semantics}.
+
+\subsection{Overview} \label{DSL-overview}
+
+The original financial contract DSL is a combinator language used to describe financial contracts. A contract can be represented by a single combinator, or by some composition of combinators. Each financial contract has a \textit{holder}, and a \textit{counter-party}. Typically, the counter-party will be the party making payments, and the holder will be the party receiving payments. \\
+
+A financial contract written in the original DSL can be \textit{acquired} by the holder at any point in time, but the responsibilities of each party may differ depending on when the contract is acquired. For example, consider a contract $C_1$ which requires the counter-party to pay the holder £100 on noon of January 1st 2019 and again on noon of January 1st 2020. $C_1$ requires 2 payments to occur if acquired before 12:00 on 01/01/19, 1 payment to occur if acquired by 12:00 01/01/20, or no payments to occur if acquired after this point. The acquisition date of a contract will therefore affect the responsibilities and thus the value of the contract for each party. \\
+
+A financial contract written in the original DSL may \textit{expire} if no responsibilities outlined in the contract take effect when the contract is acquired after a certain time. For example, the contract $C_1$ has no effect if acquired after 12:00 on 01/01/20. This date is called the \textit{horizon} of the contract. An important thing to note is that a contract's responsibilities could potentially extend past the contract's horizon, but a contract acquired after its horizon will have no effect. \\
+
+Some financial contracts written in the DSL may be dependent on certain parameters. The contract $C_1$, for instance, defines payments of a specific amount on two specific dates. This contract would need to be defined with a constant representing £100, and two date/times. A contract could also be dependent on an variable value, such as the average temperature in London in Celsius, or the distance between two people in metres. Such an objective numeric value is called an \textit{observable}, and can be constant or varying over time. In the original DSL, it is possible to perform arithmetic and functions on observables, values, and dates\cite{SPJ}.
+
+\subsection{Initial Combinators} \label{combinators}
+
+The set of combinators defined in the original DSL is described below, along with each combinator's type signature (described using the notation of Haskell). These combinator definitions originate from Peyton Jones et al.'s paper on the original DSL\cite{SPJ}. The notation used for describing the original DSL is defined in table \ref{dsl-notation}.\\
+
+\begin{table}[ht]
+    \begin{center}
+        \begin{tabular}{|ll|}
+            \hline
+            $c, d$ &\textit{Contract} \\
+            $o$ &\textit{Observable} \\
+            $t$ &\textit{Date/Time} \\
+            $k$ &\textit{Currency} \\
+            \hline
+        \end{tabular}
+        \caption{Conventions for the Original DSL's Description}
+        \label{dsl-notation}
+    \end{center}
+\end{table}
+
+\parbox{\textwidth}{
+\texttt{zero :: Contract} \\
+
+This combinator represents a contract with no terms. It can be acquired at any time, and thus has no horizon. \\ \\
+
+}
+
+\parbox{\textwidth}{
+\texttt{one :: Currency -> Contract} \\
+
+This combinator represents a contract which requires the counter-party to immediately pay the holder one unit of the given currency. This contract can be acquired at any time, and thus has no horizon. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{give :: Contract -> Contract} \\
+
+\texttt{give(c)} represents \texttt{c} with all responsibilities reversed (e.g. if the holder acquires \texttt{give(one(k))}, they must pay the counter-party 1 unit of currency k immediately). The horizon of \texttt{give(c)} is the same as the horizon of \texttt{c}. \\ \\
+
+}
+
+\parbox{\textwidth}{
+\texttt{and :: Contract -> Contract -> Contract} \\
+
+When \texttt{and(c, d)} is acquired, both c and d are acquired immediately. Expired sub-contracts are not acquired. \texttt{and(c, d)}'s horizon is the latest of \texttt{c} and \texttt{d}'s horizons. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{or :: Contract -> Contract -> Contract} \\
+
+When \texttt{or(c, d)} is acquired, the holder immediately acquires either c or d. If one has expired, the holder cannot acquire it (and must acquire the other if possible). The horizon of \texttt{or(c, d)} is the latest of \texttt{c} and \texttt{d}'s horizons. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{truncate :: Date -> Contract -> Contract} \\
+
+When \texttt{truncate(t, c)} is acquired, the holder acquires \texttt{c}. The horizon of \texttt{truncate(t, c)} is the earliest of \texttt{t} and the horizon of \texttt{c} (thus \texttt{truncate(t, c)} cannot be acquired after either horizon has passed). \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{then :: Contract -> Contract -> Contract} \\
+
+When acquiring \texttt{then(c, d)}, the holder acquires \texttt{c} if \texttt{c} has not expired, or \texttt{d} if \texttt{c} has expired and \texttt{d} has not. \texttt{then(c, d)}'s horizon is the latest of \texttt{c} and \texttt{d}'s horizons. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{scale :: Observable -> Contract -> Contract} \\
+
+\texttt{scale(o, c)} represents \texttt{c} with all payments multiplied by the value of the observable \texttt{o} at the time of acquisition. \texttt{scale(o, c)} has the same horizon as \texttt{c}. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{get :: Contract -> Contract} \\
+
+After the holder acquires \texttt{get(c)}, \texttt{c} is acquired at the moment in time when the horizon of \texttt{c} is reached. \texttt{get(c)} has the same horizon as \texttt{c}. \\ \\
+}
+
+\parbox{\textwidth}{
+\texttt{anytime :: Contract -> Contract} \\
+
+After \texttt{anytime(c)} is acquired, \texttt{c} must be acquired by the holder at any point before it expires. The holder can decide when to acquire \texttt{c}. \texttt{anytime(c)} has the same horizon as \texttt{c}.
+}
+
+
+\subsection{Example Financial Contracts in the Original DSL} \label{example-contracts}
+
+\subsubsection{European Option}
+
+A European option allows the holder to choose, on a particular date, between acquiring an underlying contract or acquiring nothing. A European option allowing the holder to choose between receiving £500 GBP from the counter-party, and receiving/paying nothing, at midnight on the 1st of January 2020 is defined as follows:
+
+\begin{Verbatim}[frame=single, samepage=true, rulecolor=\textcolor{black!50}]
+get(truncate(<01/01/2020, 00:00:00>, or(
+    scale(500, one(GBP)),
+    zero
+)))
+\end{Verbatim}
+
+The \texttt{get} combinator, if acquired, causes the sub-contract to be acquired at its horizon. This means that \texttt{truncate(<01/01/2020 00:00:00>, or(scale(500, one(GBP)), zero))} is acquired at 00\-:00:00 on 01/01/2020, as the \texttt{truncate} combinator sets the sub-contract's horizon to this time. \\
+
+The \texttt{or} combinator is thus acquired at midnight on the 1st of January 2020, as long as the contract is acquired before this. This enables the holder to choose to acquire one of the two sub-contracts at this time. The first sub-contract is \texttt{scale(500, one(GBP))}. The \texttt{one(GBP)} combinator requires the counter-party to pay the holder £1 upon acquisition, and the \texttt{scale(500...} combinator multiplies this by £500, thus this sub-contract requires the counter-party to pay the holder £500 in total upon acquisition. The second sub-contract, \texttt{zero}, requires neither the holder nor the counter-party to pay anything. As such, the holder can choose between being paid £500 or £0 at this time.
+
+
+\subsubsection{Simple Loan with Variable Repayment}
+
+Take a contract which can only be acquired before 00:00:00 on 01/01/2020, and allows the holder to obtain £1 upon acquisition, and then either pay back £2 by 00:00:00 on 01/02/2020, or pay back £3 after 00:00:00 on 01/02/2020 and before 00:00:00 on 01/03/2020. The holder \textit{must} pay one of these amounts by 00:00:00 on 01/03/2020. This contract is defined is follows:
+
+\begin{Verbatim}[frame=single, samepage=true, rulecolor=\textcolor{black!50}]
+truncate(<01/01/2020 00:00:00>, and(
+    one(GBP),
+    anytime(then(
+        truncate(<01/02/2020 00:00:00>, give(scale(2, one(GBP)))),
+        truncate(<01/03/2020 00:00:00>, give(scale(3, one(GBP))))
+    ))
+))
+\end{Verbatim}
+
+
+The first \texttt{truncate} combinator causes the contract to expire at the given date. The \texttt{and} combinator acquires both sub-contracts when acquired, i.e. \texttt{one(GBP)} and \texttt{anytime(...)}. \texttt{one(GBP)} requires the counter-party to pay the holder £1 on acquisition. The \texttt{anytime} combinator allows the holder to choose when to acquire the sub-contract once acquired, but the sub-contract must be acquired before its horizon is passed and it expires. The \texttt{then} combinator acquires its first sub-contract if it hasn't expired, otherwise it acquires the second sub-combinator. If the \texttt{anytime} sub-contract is acquired before 00:00:00 on 01/02/2020, then the \texttt{then} combinator acquires the first sub-contract, which requires the holder to pay the counter-party £2 immediately due to \texttt{give} and \texttt{scale}. If the \texttt{anytime} sub-contract is acquired after this point, then the second \texttt{then} sub-contract is acquired, requiring the holder to pay the counter-party \texttt{£3} immediately. The \texttt{anytime} sub-contract must be acquired before the \texttt{then} combinator expires, at 00:00:00 on 01/03/2020.
+
+
+\subsection{Representing Financial Contracts}
+
+In order to correctly design the full set of combinators for SmartFin, it is important to consider how SmartFin financial contracts will be represented in a smart contract implementation. \\
+
+One way of representing these SmartFin contracts in a smart contract implementation is to use a functional approach. This involves creating a function representing each combinator, and having the functions carry out the actions which would occur when their respective combinator is acquired. This follows the description of the original DSL quite closely; however, due to the inherent statefulness required in these financial contracts (including state like time of acquisition, values of observables, etc), a functional approach is very difficult to implement. This is especially true as the state must be stored on the blockchain over a period of time between interactions with the smart contract. While a functional approach is possible, it would require workarounds to store combinators' state persistently - thus suggesting that this approach is not the best method of implementation. \\
+
+SmartFin contracts can also be represented as structs where each combinator is represented by an object. For example, in the original DSL the contract defined as \texttt{scale(5, one())} would be represented by an object representing \texttt{scale} which acquires its sub-object with 5 times the value, containing an object representing \texttt{one} which causes the counter-party to pay the holder 1 Ether at the time of acquisition. By using objects instead of functions, the issue of storing the state of each combinator can be solved trivially while still maintaining the compositional nature of combinators.
+
+
+\subsection{Difficult Combinators}
+
+Certain combinators of the original DSL described in \ref{combinators} are difficult to represent directly in a smart contract environment. The \texttt{get} combinator acquires the sub-contract at its horizon, i.e. as late as possible before expiration. This is difficult to represent as callbacks cannot be scheduled in Ethereum smart contracts due to the necessity of deterministic evaluation on all nodes in the network, and thus a sub-contract cannot be automatically acquired at a given time. \\
+
+Another problematic combinator is the \texttt{anytime} combinator. When acquired, this combinator requires the holder to acquire its sub-contract before the sub-contract expires. This is difficult to represent as there is no way to force the holder to acquire a contract (i.e. call an acquire function) in a given time-frame, or ever, from a smart contract. These issues will require further consideration when implementing SmartFin's smart contract implementation, and may require some compromises to be made.
+
+
+\subsection{Payment}
+
+\subsubsection{Scheduled Payments}
+
+As described previously, time-based callbacks cannot be registered directly within an Ethereum smart contract to ensure determinism. This means that a smart contract cannot pay a user automatically at a given time, and so a financial contract which states that party A must pay party B at a given time is not able to be represented directly as a smart contract. It is possible to call a function on a smart contract at a given time through some external tool, but this effectively requires a trusted third-party (in the form of whoever is executing this tool). This is an issue which must be considered when implementing SmartFin's smart contract behaviour.
+
+\subsubsection{Exhaustion of Funds} \label{fund-exhaustion}
+
+In the real world, if a financial contract exists between two parties, then any party which fails to fulfil their responsibilities as laid out in the contract can be sued for reparations. In the world of smart contracts, there is no such guarantee. If party A acquires a smart contract which says that party B will pay them some sum of money, party B must provide that money to the smart contract before payment can occur. If a smart contract does not have enough funds to fulfil all payments, there is nothing that party A can do to mitigate this issue (unless the smart contract is backed by some real-world legally binding contract). This also requires compromises to be made when implementing SmartFin's smart contract behaviour.
+
+
+\subsection{Handling Observables} \label{dsl-observables}
+
+The original DSL can make use of external data in the form of \textit{observables}. This allows a financial contract's value to be modified based on external numerical data.
+
+\subsubsection{Defining Observables}
+
+The smart contract implementation of SmartFin needs some way of defining observables' values. This is needed because the smart contract needs to know the values of each observable in order to calculate the value of payments, and so it needs to allow some way of obtaining/setting the value of each observable. \\
+
+It could be useful to allow some other constraints to be set on observables; for example, if a financial smart contract pays out some value depending on an unbounded observable, there will be no guarantee on how much Ether must be provided for all payments to be fulfilled, and evaluation of the underlying SmartFin contract may not give a concrete value. This suggests that providing a bound for some observables may be useful for both guaranteeing payment and making evaluation of the SmartFin contract more useful.
+
+\subsubsection{Passing External Data to the Contract}
+
+Unfortunately, it is not possible for smart contracts to read data directly from an external server. This is because it could introduce non-deterministic execution to the EVM (i.e. two nodes executing the contract in different places could receive different data from the same address). This means that observables cannot be dynamically updated in the smart contract implementation of SmartFin. \\
+
+Instead of dynamically reading data from an external source, observable values can be passed in through a function call. This can be done by defining a trusted source in the SmartFin contract definition, or by requiring the holder and counter-party to agree on a value (this more closely matches the original definition of an observable\cite{SPJ}); the latter system could be implemented through a signature-based system, or by storing suggested observable values of each party.
+
+
+\section{Development Tools} \label{dev-tools}
+
+In order to implement a smart contract representation of SmartFin's behaviour, a tool-set is needed for development and testing. There are several different toolchains which could be used for this, which are discussed and evaluated in this section. As smart contracts can be used to deal with real funds, any errors could potentially have a large real-world cost; as such, a testing framework will be a necessity to provide some basic evidence of correctness.
+
+
+\subsubsection{Local Ethereum Network}
+
+Ethereum allows developers to deploy their own local Ethereum blockchains, for testing purposes. These blockchains act like the default Ethereum blockchain, although they have several parameters which can be customised. Smart contracts can be hosted on these blockchains for testing purposes. \\
+
+Parameters of the Ethereum network which can be modified include the difficulty of mining a block, the maximum limit a smart contract can cost to execute (in gas), the minimum gas a miner will accept, and a set of accounts to have Ether pre-allocated to them upon the creation of the blockchain. This allows the writing of arbitrarily complex contracts, the mining of blocks quickly and cheaply, and the ability to obtain Ether immediately - all of which are useful for testing contracts\cite{Geth}. \\
+
+Setting up a bespoke blockchain just for testing smart contracts is quite complicated. There are many options for which values must be chosen, and not a huge number of resources which explain which option does what. This also only really provides the ability to manually test smart contracts through an Ethereum client, and does not provide any resources for automated testing (although external tools to do this do exist). It is still a useful option where public blockchains are not appropriate, however, and several clients allow easier set-up.
+
+
+\subsubsection{Truffle Toolchain}
+
+Another way that smart contracts can be tested is by using the Truffle toolchain. Truffle provides tools for running a local blockchain, smart contract compilation/deployment, automated testing, console interaction with contracts, build pipelines, and more\cite{Truffle}. The main tool that is needed for this project is an automated testing framework, which Truffle provides. \\
+
+By using Truffle for automated testing, some continuous-integration can be put into place on the DSL. This enables rapid iteration of different smart contract functionality with lower risk of breaking existing features or introducing bugs. For these reasons (as well as ease-of-use), Truffle is a good option for the project's development toolchain.
+
+
+\subsubsection{Remix}
+
+Remix is an online IDE for writing smart contracts in Solidity. It provides tools for writing, compiling, testing, debugging, and deploying smart contracts\cite{REMIX}. Smart contracts written in Remix can be deployed to a blockchain of the user's choosing (either public or local). Function calls can then be made to the contract from the IDE, including payable functions (if authorised by some Ethereum account manager like MetaMask). It is also possible to define unit tests and run them from Remix, or from the command line\cite{RMXTST}. This IDE can be a useful tool if any part of development requires the creation of smart contracts in Solidity.
+
+
+\subsubsection{Parity Tools} \label{parity-tools}
+
+Parity Technologies provide a set of tools for developing smart contracts in Rust which compile to WebAssembly (\textit{wasm}), including a set of Rust modules for interacting with Ethereum\cite{parity-technologies}. These modules include:
+
+\begin{itemize}
+    \item \texttt{pwasm-ethereum}: A module with bindings for interacting with an Ethereum blockchain, implementing functions like \texttt{sender} to obtain the sender of a function call transaction, and \texttt{call} to create and send a transaction\cite{pwasm-ethereum}.
+    \item \texttt{pwasm-std}: A module implementing some features of the Rust standard library, which is incompatible with the \texttt{pwasm} modules\cite{pwasm-std}.
+    \item \texttt{pwasm-abi}: A module which provides macros for deriving a smart contract ABI (the smart-contract equivalent of an API) from a Rust trait, with annotations like \texttt{payable}, which indicates that a call transaction for the described function may contain Ether\cite{pwasm-abi}.
+    \item \texttt{pwasm-test}: A module which provides mocking functionality for \texttt{pwasm-ethereum} function calls, to be used with automated testing\cite{pwasm-test}. \\
+\end{itemize}
+
+They also provide the Parity blockchain client, which is a configurable client that can run a private blockchain capable of hosting wasm smart contracts (which not all blockchain clients are able to do)\cite{pwasm-client-wasm}. These tools make it possible to implement a smart contract representation of SmartFin's behaviour in Rust, which may be a good option due to the relatively thorough documentation available for Rust in comparison to many smart contract languages.
+
+
+\subsubsection{Web3.js}
+
+Web3.js is a JavaScript package containing a collection of libraries for interacting with the Ethereum API\cite{web3-intro}. This can be useful for deploying and interacting with smart contracts, and implementing integration tests (in conjunction with a testing framework). This package is also a useful option for implementing the external tool which deploys/interacts with financial smart contracts.
+
+
+\subsubsection{MetaMask}
+
+MetaMask is a browser extension which allows the user to authorise Ethereum transactions on a blockchain (either public or private) securely\cite{MMSK}. This enables manual testing of smart contracts, which is a valuable tool when testing Ethereum smart contracts written in any language. MetaMask is also a good option for connecting to a desired blockchain, and for deploying and interacting with financial smart contracts, from the external tool.
+
+
+\section{SmartFin Smart Contract Implementation} \label{DSL-implementation-technologies}
+
+There are numerous design choices to be made with regards to the smart contract implementation of SmartFin. An important design choice is the form that SmartFin is implemented in; there are several major options, including:
+\begin{itemize}
+    \item Creating a SmartFin library for an existing smart contract language, which can be called from smart contracts written by anyone.
+    \item Writing a smart contract which implements SmartFin's behaviour, and passing it a SmartFin contract definition.
+    \item Creating a bespoke compiler for SmartFin which can compile SmartFin financial contracts to smart contracts. \\
+\end{itemize}
+
+There are several pros and cons to each of these choices, which are analysed in this section before a conclusion is reached on which method is most appropriate.
+
+\subsection{Creating a Library for an Existing Smart Contract Language}
+
+One way to implement SmartFin is to write a package for an existing smart contract language (like Solidity), and allow the user to call the required functions. With this method, the user can write a smart contract which calls into the relevant library functions for their SmartFin contract.
+
+\subsubsection{Solidity Libraries}
+
+Solidity, a high-level smart contract language for Ethereum, allows the writing and deployment of special smart contracts called \textit{libraries}. Libraries are smart contracts which are deployed only once, and define functions which which will be run in the calling smart contract's context\cite{EthLib}. This allows developers to define reusable functions in a single deployed library, and call said functions from any smart contract on the same blockchain. \\
+
+Using Solidity's library functionality, it is possible to implement SmartFin's combinators as functions or structs in a library, thus allowing developers to access them from any smart contract they write - as long as the library is committed to the same blockchain. \\
+
+This approach does not require implementing any compilation step to obtain a smart contract, making implementation more straightforward. The smart contracts which use a library would also be smaller in size compared to a smart contract which takes a SmartFin contract in the constructor, which would need to include all of the combinators' logic. This would reduce the amount of gas (Ether spent on transaction fees) required to deploy financial smart contracts. \\
+
+One requirement of this approach is that the user must write a smart contract which calls these library functions. Unfortunately, this is problematic for a few reasons; firstly, these smart contracts can have code added which modifies the behaviour of the smart contract separately from the SmartFin contract. For example, before calling functions from the SmartFin library, a smart contract could immediately pay 1 Ether to the address of the counter-party. While this could be useful in specific situations, it clearly changes the value of the smart contract in a way unrelated to the SmartFin library calls, thus making it much more difficult to analyse. This level of freedom increases the risk of making unintended payments, whereas other methods of implementing SmartFin where a financial smart contract is output from a compiler or passed a SmartFin contract would not be affected by this problem, as the developer would not be expected to modify the smart contract directly. \\
+
+Another problem with this solution is that it requires developers to understand both SmartFin and Solidity in order to create financial smart contracts. This adds a barrier to entry, and also increases the possibility of introducing errors which unintentionally affect the value of the financial smart contract. \\
+
+A third issue is that analysing the value of a smart contract which calls functions from a library is difficult, as it requires analysing the smart contract to extract the definition of the SmartFin contract from within. This could be solved by requiring the developer to define the SmartFin contract inside the smart contract, and separately pass it into the analysis tool. This is not ideal as it may increase the risk of errors occurring; for example a developer may update their smart contract code but not the SmartFin contract passed into the analysis tool, thus receiving an inaccurate evaluation of the SmartFin contract.
+
+\subsubsection{EthPM - The Ethereum Package Management System}
+
+Another method of defining a set of structs and functions for representing SmartFin in Ethereum smart contracts is the use of EthPM, a package management system built for Ethereum. EthPM packages can include smart contract code, and the addresses of deployed smart contracts\cite{EthPM}. The SmartFin DSL can be implemented as a set of functions or structs which are included in the EthPM package, and accessed from smart contracts which depend on it. EthPM would then handle the building of the final financial smart contract. \\
+
+This unfortunately suffers from many of the same issues as writing a typical Solidity library. The user is still required to write a smart contract which calls the SmartFin functions, potentially introducing erroneous behaviour while doing so. The benefit of simpler redistribution of the package is also rendered slightly moot, as external tools for interacting with or analysing the value of a SmartFin contract cannot be distributed in an EthPM package, so another route of distribution will be needed either way. The added value of a package manager is also somewhat futile, as financial smart contracts should ideally have no other functionality besides the SmartFin function calls and thus shouldn't need to import any other packages.
+
+
+\subsection{Passing a SmartFin Contract to a Smart Contract} \label{traditional-dsl}
+
+Instead of allowing the user to write their own smart contract code which calls into some SmartFin module, another option is to allow the user to write their SmartFin contract and pass it to a pre-written smart contract which implements the behaviour for any SmartFin contract definition. For this approach, the smart contract implementing SmartFin's behaviour can be written in any language which can compile to a smart contract. \\
+
+One benefit of this method is that the end user only needs to implement a SmartFin contract, and \textit{no} smart contract implementation. This lowers the barrier to entry for creating financial smart contracts, as the user only needs to learn how to use SmartFin, as opposed to an entire smart contract language like Solidity. This method also means that obtaining the SmartFin contract for analysis/evaluation is simple, as this contract can be defined separately from the smart contract implementation. \\
+
+Additionally, passing the SmartFin contract to a pre-written smart contract prevents the user from modifying the final value of the smart contract by writing smart contract code outside of the SmartFin contract definition, as the user only writes their SmartFin contract and never touches the smart contract. Another benefit is that very little implementation work needs to be done from a compilation point of view, as the existing compilers for the high-level language used to implement SmartFin should handle the final compilation to a smart contract.
+
+
+\subsubsection{Implementing with a Traditional Smart Contract Language}
+
+Similarly to the implementation of SmartFin's behaviour as a Solidity library discussed earlier, the smart contract that implements SmartFin's behaviour can be written in Solidity (or another smart contract language). This smart contract can take and parse the SmartFin contract definition in the constructor, and then set its state so that its behaviour matches that of the given SmartFin contract.
+
+
+\subsubsection{Implementing with a Traditional High-Level Language}
+
+Instead of implementing SmartFin's behaviour in Solidity, it can also be implemented in some language which compiles to WebAssembly\cite{EWASMDOC}; WebAssembly is typically more efficient than Solidity for numerous reasons - like the use of 256 bit integers in Solidity\cite{FASEVM} - and it is being supported by W3C, a group consisting of multiple member corporations including Google and Mozilla\cite{W3CMEM}, whereas Solidity is only supported by the Ethereum foundation. The ability to use tried-and-tested high-level languages would also be helpful, as they typically have more plentiful documentation and a more polished approach to language design compared to the relatively-new smart contract languages. \\
+
+The main issue with this method is that producing a WebAssembly smart contract from a high-level language is not necessarily straightforward, as some functionality from the high-level language is often not usable on the Ethereum platform. This can make the implementation of SmartFin's behaviour more difficult. The main features absent in ewasm are related to non-determinism\cite{EWASMDOC}, which shouldn't cause many issues with the implementation of SmartFin's behaviour which would not be present in all smart contract languages, so this should not be a major problem with regards to this specific method of implementation. \\
+
+There are a few high-level languages which can be compiled to WebAssembly, but most of them are not viable for this project. Haskell has numerous ongoing WebAssembly compilation tools in development, but there are none which are implemented beyond the alpha stage\cite{DHC}\cite{ASTR}. Scala is in a similar situation, with an underdeveloped wasm tool-set\cite{SCWASM}. Kotlin, Lua, Python, and TypeScript can all compile to WebAssembly, but do not provide tools for implementing Ethereum functionality like sending and receiving transactions\cite{AWASM}. \\
+
+Rust\cite{rust}, on the other hand, has a set of tools released by Parity Technologies for compiling Rust programs to ewasm smart contracts\cite{PWASM}, as previously described in section \ref{parity-tools}. These tools include bindings for Rust programs to interact with an Ethereum blockchain, alternative implementations of standard-library features which are incompatible with ewasm, tools for compiling smart contracts from Rust, tools for testing Rust smart contracts, and even a configurable blockchain client which can run these contracts. As such, Rust is a suitable high-level language to use to implement the smart contract which can represent any given SmartFin contract.
+
+
+\subsection{Creating a Bespoke Language and Compiling to a Low-Level Language}
+
+Instead of implementing a smart contract which represents the behaviour of any given SmartFin contract in a high-level language, SmartFin contracts could be compiled directly to low-level smart contract code (wasm, Yul\cite{yul}, or similar) by implementing a bespoke compiler. Similarly to implementing SmartFin's behaviour in a high-level language, this method also only requires users to define their SmartFin contract, with all of the same benefits. \\
+
+The main practical change between this method and the method described in \ref{traditional-dsl} is that Smart\-Fin's behaviour is implemented in a low-level language; this allows the implementation of SmartFin to use all of the available functionality, which may not be possible if compiling from a high-level language. This could allow improvements to SmartFin's functionality which would not otherwise be possible. \\
+
+The biggest problem with this method is that while implementing SmartFin in a low-level smart contract language may result in a more optimal implementation than the higher-level approach, it is much more difficult to write. Under the assumption that high-level languages have well-optimised compilers for producing low-level smart contract code, then the performance gains may not even be significant. Furthermore, if financial smart contracts are used within financial institutions then it is likely that the blockchain they are deployed to will not handle gas in the traditional manner, and would be more likely to have no gas payments, further reducing the benefits to improved performance. In these cases, implementing a compiler to compile SmartFin contracts to low-level smart contract code may only add to the effort required with little benefit.
+
+
+\subsection{SmartFin Implementation Summary}
+
+Overall, the problems with implementing SmartFin with a Solidity library directly affect the end user, making financial smart contracts more difficult to create, and making it easier to unintentionally alter the smart contract's value. As such, a Solidity library/package is an unsuitable choice for implementing SmartFin. \\
+
+Implementing SmartFin's behaviour in a high-level language or compiling from SmartFin to low-level smart contract code mitigates these two issues. Implementing SmartFin compilation \textit{may} offer performance benefits, whereas high-level languages may be less difficult to work with; the performance benefits from low-level languages are also not guaranteed, and dubious in their utility. As such, the difficulty of implementing compilation to low-level contract code outweighs any expected benefits, and implementing in a high-level language which compiles to WebAssembly is the more suitable option.
+
+
+\section{External Tool for Financial Smart Contract Interaction}
+
+In order to compose and evaluate financial contracts written in SmartFin, and to deploy and interact with their smart contract representations, an external tool is needed. As discussed in section \ref{dev-tools}, there are several browser-based tools which facilitate interaction with Ethereum blockchains, namely MetaMask and Web3.js. Thanks to these tools, implementing a web client to handle these external functions is a viable solution. \\
+
+While other languages provide tools for interacting with Ethereum blockchains (like the Python implementation of Web3\cite{web3-py}), the large swathe of support for blockchain interaction in the browser makes a web client a very attractive option. Package management tools like Yarn\cite{yarn}, graphical frameworks like React\cite{react}, and testing frameworks like Mocha\cite{mocha} can also aid rapid development of the web client. Furthermore, MetaMask provides an easy to use and secure method of connecting to the blockchain, and it is only available as a browser extension\cite{MMSK}. As such, implementing the external tool as a web client is a valid solution which enables rapid development and has few obvious issues.
+
+
+\section{SmartFin Contract Cost Analysis} \label{cost-analysis}
+
+A useful feature provided through the external tool is the mathematical evaluation of a given SmartFin contract's potential cost/value with any given acquisition times. This is particularly useful to prevent the writing of SmartFin contracts with unexpected behaviour. The mathematical implementation of such a tool for the original DSL is outlined in the paper by Peyton Jones et al.\cite{SPJ}. \\
+
+The value of each contract is dependent on its sub-contracts. For example, in the original DSL the contract \texttt{and(one(GBP), one(GBP))} will have a value of $(£1 + £1) = £2$, thus the value of an \texttt{and} combinator is equal to the sum of its sub-contracts' values. This makes the general approach behind contract evaluation fairly straightforward, where the contract is treated as a tree with the top-level contract as the root, and all sub-contracts as children. The tree can be traversed depth-first, and then backtracked to the root while accumulating the required values. \\
+
+There are other evaluation issues that the paper by Peyton Jones et al.\cite{SPJ} deals with, such as inflation rates and exchange rates. Because this project is concerned with a smart contract implementation of SmartFin, financial smart contracts will only deal in the relevant cryptocurrency (Ether), and thus evaluation based on exchange rates of payments is slightly irrelevant. The use of Ether also makes the analysis of inflation quite difficult, as cryptocurrencies are notoriously volatile in value. These two features are therefore less useful (albeit not useless) and require significant work to implement; as such, they are not an essential feature for the analysis of SmartFin contracts. \\
+
+One potential issue with the evaluation of SmartFin contracts is the presence of observables; in order to obtain a value of a SmartFin contract with a given acquisition time, the value of any observables must be evaluated. This is a difficult problem to solve, as modelling the value of observables requires allowing users to input some representation of a numerical model representing this value over time, and the implementation of algorithms to evaluate these models. This is a huge undertaking, and as such a more basic evaluation mechanism which does not estimate the value of observables is a more viable option given the time constraints.
+
+
+\section{Remarks}
+
+After significant background research, certain conclusions can be reached with regards to the approaches taken for this project. In order to represent SmartFin contracts as financial smart contracts, Ethereum is the most viable smart contract platform due to its sizeable user-base, the vast set of development tools available, and the platform's user-friendly nature. \\
+
+A smart contract representation of SmartFin can generally follow the intended financial contract behaviour accurately, but certain issues may arise. Scheduling of payments is effectively impossible due to the distributed and deterministic nature of Ethereum blockchains, where scheduled callbacks are impossible without requiring external interaction. Exhaustion of funds is also a problem which may occur with financial smart contracts, as there is no way for a smart contract to ensure that a user pays the amount required by the contract definition. Observable values will also be impossible to obtain dynamically due to the deterministic nature of the blockchain, and thus they will need to be passed to the contract in some way. These issues must all be dealt with when implementing a smart contract representation of SmartFin. \\
+
+When developing the smart contract implementation of SmartFin, allowing the SmartFin contract definition to be passed through the constructor is a beneficial approach as it prevents the user from altering the smart contract's behaviour directly, and makes analysis of the SmartFin contract easy. Compiling directly from the SmartFin contract to a low-level smart contract is comparatively very difficult to implement for little gain, and requiring the user to write a smart contract which calls into a SmartFin library would make analysis difficult and risk the introduction of errors. Implementing the smart contract representation of SmartFin in Rust/wasm ensures long term support from the W3C group, and improved performance compared to Solidity and other smart contract languages - as such, it is the option of choice. \\
+
+In order to implement the external tool for evaluating SmartFin contracts and deploying or interacting with financial smart contracts, a web client makes a lot of sense. This is because of the multitude of web-development tools available, and the existence of various modules/extensions for communicating between a blockchain and a web client. These factors ensure that development of the web client can be rapid and problem-free, and that the external tool can carry out all of the required functionality. \\
+
+The following chapters will describe the design of the SmartFin DSL, the smart contract implementation of SmartFin and its combinators, and the web client used to interact with financial smart contracts.
